@@ -1,0 +1,31 @@
+import React from 'react'
+
+function Button({ buttonStyle, text, customButton }) {
+
+  let style = ''
+
+  switch (buttonStyle) {
+    case 'primary':
+      style = 'bg-green-600 text-white py-3 hover:bg-green-300'
+      break
+
+    case 'secondary':
+      style = 'bg-gray-200 text-black py-3 hover:bg-gray-300'
+      break
+
+    case 'danger':
+      style = 'bg-red-600 text-white py-4 hover:bg-red-700'
+      break
+
+    default:
+      style = 'bg-gray-200 text-black py-3 hover:bg-gray-300'
+  }
+
+  return (
+    <button className={`w-full rounded-xl font-semibold ${style} cursor-pointer ${customButton}`}>
+      {text}
+    </button>
+  )
+}
+
+export default Button
