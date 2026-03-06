@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
-import { Camera, Image } from "lucide-react";
+import { Camera, Image, Upload, FileText } from "lucide-react";
 
 function OcrUpload() {
   const [imagePreview, setImagePreview] = useState(null);
 
-  const cameraRef = useRef(null);
-  const libraryRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const libraryInputRef = useRef(null);
 
   const handleImage = (e) => {
     const file = e.target.files[0];
@@ -15,60 +15,111 @@ function OcrUpload() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-4">
+    <div className="max-w-md mx-auto">
 
-      <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+      <div className="bg-green-600 text-white p-6">
+        <h1 className="text-xl font-semibold">Document Upload</h1>
+        <p className="text-sm opacity-90">
+          Capture and upload receipts / invoices
+        </p>
+      </div>
 
-        {imagePreview ? (
-          <img
-            src={imagePreview}
-            alt="preview"
-            className="mx-auto rounded-lg max-h-40"
+      <div className="p-4 space-y-4">
+
+        {/* CAMERA BOX */}
+        <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+
+          {imagePreview ? (
+            <img
+              src={imagePreview}
+              alt="preview"
+              className="mx-auto rounded-lg max-h-40"
+            />
+          ) : (
+            <div className="flex flex-col items-center space-y-4">
+
+              <div className="bg-gray-200 p-4 rounded-full">
+                <Camera size={28} className="text-gray-600" />
+              </div>
+
+              <div className="flex gap-3">
+
+                {/* TAKE PHOTO */}
+                <button
+                  onClick={() => cameraInputRef.current.click()}
+                  className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
+                >
+                  <Camera size={16} />
+                  Take Photo
+                </button>
+
+                {/* LIBRARY */}
+                <button
+                  onClick={() => libraryInputRef.current.click()}
+                  className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
+                >
+                  <Image size={16} />
+                  Library
+                </button>
+
+              </div>
+            </div>
+          )}
+
+          {/* CAMERA INPUT */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleImage}
+            className="hidden"
           />
-        ) : (
-          <div className="flex flex-col items-center space-y-4">
 
-            <div className="bg-gray-200 p-4 rounded-full">
-              <Camera size={28} className="text-gray-600" />
-            </div>
+          <input
+            ref={libraryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImage}
+            className="hidden"
+          />
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => cameraRef.current.click()}
-                className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-              >
-                <Camera size={16} />
-                Take Photo
-              </button>
+        </div>
 
-              <button
-                onClick={() => libraryRef.current.click()}
-                className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-              >
-                <Image size={16} />
-                Library
-              </button>
+        <div>
+          <label className="text-sm font-semibold">Category *</label>
 
-            </div>
-          </div>
-        )}
+          <select className="w-full border rounded-lg p-3 bg-white focus:outline-none focus:border-green-400">
+            <option>Select category</option>
+            <option>Transportation</option>
+            <option>Meals</option>
+            <option>Supplies</option>
+          </select>
+        </div>
 
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*;capture=camera"
-          capture="environment"
-          onChange={handleImage}
-          className="hidden"
-        />
+        <div>
+          <label className="text-sm font-semibold">Site *</label>
 
-        <input
-          ref={libraryRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImage}
-          className="hidden"
-        />
+          <select className="w-full border rounded-lg p-3 bg-white focus:outline-none focus:border-green-400">
+            <option>Select site</option>
+            <option>Site A</option>
+            <option>Site B</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-semibold">Memo (Optional)</label>
+
+          <textarea
+            placeholder="Enter memo..."
+            className="w-full border rounded-lg p-3 focus:outline-none focus:border-green-400"
+          />
+        </div>
+
+        <button className="w-full flex items-center justify-center gap-2 bg-green-400 text-white py-3 rounded-xl font-semibold hover:bg-green-500">
+          <Upload size={18} />
+          Upload
+        </button>
 
       </div>
     </div>
