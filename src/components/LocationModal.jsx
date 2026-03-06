@@ -10,12 +10,11 @@ function LocationModal() {
     openLocationModal,
     setOpenLocationModal,
     setStartSegment,
-    recordType
+    recordType,
+    selectedSegment
   } = useSegmentContext();
 
-  const {
-      setOpenTimeModal
-  } = useManualTimeContext();
+  const { setOpenTimeModal } = useManualTimeContext();
   const { setSelectedSite } = useLocationContext();
 
   const [step, setStep] = useState('TYPE');
@@ -34,10 +33,19 @@ function LocationModal() {
   };
 
   const handleSelectSite = (siteName) => {
-      setSelectedSite(siteName);
-      setOpenLocationModal(false);
-    if(recordType === 'manual'){
-      setOpenTimeModal(true)
+    setSelectedSite(siteName);
+    setOpenLocationModal(false);
+    if (recordType === 'manual') {
+      setOpenTimeModal(true);
+    }
+    setStartSegment(true);
+  };
+
+  const handleSkip = () => {
+    setSelectedSite('');
+    setOpenLocationModal(false);
+    if (recordType === 'manual') {
+      setOpenTimeModal(true);
     }
     setStartSegment(true);
   };
@@ -68,6 +76,14 @@ function LocationModal() {
               onClick={() => handleSelectSite(site.name)}
             />
           ))}
+          {selectedSegment === 'Travel' && (
+            <button
+              onClick={handleSkip}
+              className="w-full py-3 mt-3 text-green-500 rounded-lg font-medium hover:text-green-800 cursor-pointer"
+            >
+              Skip (No Site)
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -72,7 +72,7 @@ function Layout() {
             <p className="font-semibold">{startTime} – {endTime}</p>
             <p className="text-sm text-gray-600">{selectedSegment}</p>
             {selectedSegment !== "Office" && (
-              <p className="text-sm text-gray-500">{`→ ${selectedSite}`}</p>
+              <p className="text-sm text-gray-500">{`→ ${selectedSite || 'No Selected Site'}`}</p>
             )}
           </div>
         )}
@@ -82,10 +82,10 @@ function Layout() {
               <p className="font-semibold">
                 {startTime}
                 {endTime ? ` – ${endTime}` : ''}
-                <span className="text-sm text-gray-600"> {selectedSegment}</span>
               </p>
+              <span className="text-sm text-gray-600"> {selectedSegment}</span>
               {selectedSegment !== "Office" && (
-                <p className="text-sm text-gray-500">{`→ ${selectedSite}`}</p>
+                <p className="text-sm text-gray-500">{`→ ${selectedSite || 'No Selected Site'}`}</p>
               )}
             </div>
 
