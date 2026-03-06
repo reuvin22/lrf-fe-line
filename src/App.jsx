@@ -1,12 +1,10 @@
-import Main from "./layout/Main"
+import React from 'react';
+import Main from './layout/Main';
 
 function App() {
-
   return (
-    <>
-      <Main />
-    </>
-  )
+    <Main />
+  );
 }
 
-export default App
+export default App;
