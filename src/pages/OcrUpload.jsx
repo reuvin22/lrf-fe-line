@@ -1,21 +1,10 @@
 import { useState, useRef } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import Webcam from "react-webcam";
 
 function OcrUpload() {
   const [imagePreview, setImagePreview] = useState(null);
-  const [openCamera, setOpenCamera] = useState(false);
-  const webcamRef = useRef(null);
   const libraryInputRef = useRef(null);
-
-  const handleCapture = () => {
-    const screenshot = webcamRef.current.getScreenshot();
-    if (screenshot) {
-      setImagePreview(screenshot);
-      setOpenCamera(false);
-    }
-  };
 
   const handleImage = (e) => {
     const file = e.target.files[0];
@@ -24,94 +13,48 @@ function OcrUpload() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
+      {/* HEADER */}
       <div className="bg-white px-5 py-4 border-b">
         <span className="font-semibold text-lg">Document Upload</span>
       </div>
 
       <div className="p-4 space-y-4">
+        {/* UPLOAD AREA */}
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
           {imagePreview ? (
             <div className="flex flex-col items-center gap-4">
-              <img
-                src={imagePreview}
-                alt="preview"
-                className="mx-auto rounded-xl max-h-44 w-full object-cover"
-              />
-              <div className="flex gap-3 w-full justify-center">
-                <Button
-                  buttonStyle="primary"
-                  text="Retake"
-                  onClick={() => {
-                    setImagePreview(null);
-                    setOpenCamera(true);
-                  }}
-                  customButton="flex-1"
-                />
-                <Button
-                  buttonStyle="secondary"
-                  text="Remove"
-                  onClick={() => setImagePreview(null)}
-                  customButton="flex-1"
+              <div className="w-full h-64 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                <img
+                  src={imagePreview}
+                  alt="preview"
+                  className="max-h-full max-w-full object-contain"
                 />
               </div>
-            </div>
-          ) : openCamera ? (
-            <div className="flex flex-col items-center gap-4 w-full">
-              <Webcam
-                key={openCamera}
-                audio={false}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                className="rounded-xl w-full"
-                style={{ height: 300, objectFit: "cover" }}
-                videoConstraints={{ facingMode: "environment" }}
+
+              <Button
+                buttonStyle="secondary"
+                text="Remove"
+                onClick={() => setImagePreview(null)}
+                customButton="w-full"
               />
-              <div className="flex gap-3 w-full justify-center">
-                <Button
-                  buttonStyle="primary"
-                  text="Capture"
-                  onClick={handleCapture}
-                  customButton="flex-1"
-                />
-                <Button
-                  buttonStyle="secondary"
-                  text="Cancel"
-                  onClick={() => setOpenCamera(false)}
-                  customButton="flex-1"
-                />
-              </div>
             </div>
           ) : (
-            // DEFAULT BUTTONS
             <div className="flex flex-col items-center gap-5">
               <div className="bg-green-100 p-5 rounded-2xl">
                 <Camera className="text-green-600" size={28} />
               </div>
 
-              <div className="flex gap-3 w-full">
-                <Button
-                  buttonStyle="primary"
-                  onClick={() => setOpenCamera(true)}
-                  customButton="flex items-center justify-center gap-2 flex-1"
-                  text={
-                    <span className="flex items-center gap-2 justify-center">
-                      <Camera size={18} />
-                      Take Photo
-                    </span>
-                  }
-                />
-                <Button
-                  buttonStyle="secondary"
-                  onClick={() => libraryInputRef.current.click()}
-                  customButton="flex items-center justify-center gap-2 flex-1"
-                  text={
-                    <span className="flex items-center gap-2 justify-center">
-                      <Image size={18} />
-                      Library
-                    </span>
-                  }
-                />
-              </div>
+              <Button
+                buttonStyle="secondary"
+                onClick={() => libraryInputRef.current.click()}
+                customButton="flex items-center justify-center gap-2 w-full"
+                text={
+                  <span className="flex items-center gap-2 justify-center">
+                    <Image size={18} />
+                    Upload Image
+                  </span>
+                }
+              />
             </div>
           )}
 
@@ -127,7 +70,9 @@ function OcrUpload() {
         {/* FORM */}
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
           <div>
-            <label className="text-sm text-gray-600 font-medium">Category *</label>
+            <label className="text-sm text-gray-600 font-medium">
+              Category *
+            </label>
             <select className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400">
               <option>Ad-hoc Transport</option>
               <option>Transportation</option>
@@ -171,13 +116,19 @@ function OcrUpload() {
           </p>
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
-            <p className="font-medium text-gray-700">Ad-hoc Transport Site A 16:20</p>
+            <p className="font-medium text-gray-700">
+              Ad-hoc Transport Site A 16:20
+            </p>
             <p className="text-sm text-orange-500">Status: Pending</p>
           </div>
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
-            <p className="font-medium text-gray-700">Subcontractor Invoice Site A 14:05</p>
-            <p className="text-sm text-green-600">Status: Completed ¥35,000</p>
+            <p className="font-medium text-gray-700">
+              Subcontractor Invoice Site A 14:05
+            </p>
+            <p className="text-sm text-green-600">
+              Status: Completed ¥35,000
+            </p>
           </div>
         </div>
       </div>
