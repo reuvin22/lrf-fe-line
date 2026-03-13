@@ -69,12 +69,6 @@ function Layout() {
           <span className={`font-semibold text-lg ${startSegment ? 'text-green-600' : 'text-gray-600'}`}>
             Status: {startSegment ? "Working" : "Not Started"}
           </span>
-
-          {startSegment && (
-            <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
-              ● REC
-            </span>
-          )}
         </div>
       </div>
 
