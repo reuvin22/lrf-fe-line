@@ -31,18 +31,39 @@ function OcrUpload() {
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
           {imagePreview ? (
-            <img
-              src={imagePreview}
-              alt="preview"
-              className="mx-auto rounded-xl max-h-44"
-            />
-          ) : openCamera ? (
             <div className="flex flex-col items-center gap-4">
+              <img
+                src={imagePreview}
+                alt="preview"
+                className="mx-auto rounded-xl max-h-44 w-full object-cover"
+              />
+              <div className="flex gap-3 w-full justify-center">
+                <Button
+                  buttonStyle="primary"
+                  text="Retake"
+                  onClick={() => {
+                    setImagePreview(null);
+                    setOpenCamera(true);
+                  }}
+                  customButton="flex-1"
+                />
+                <Button
+                  buttonStyle="secondary"
+                  text="Remove"
+                  onClick={() => setImagePreview(null)}
+                  customButton="flex-1"
+                />
+              </div>
+            </div>
+          ) : openCamera ? (
+            <div className="flex flex-col items-center gap-4 w-full">
               <Webcam
+                key={openCamera}
                 audio={false}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 className="rounded-xl w-full"
+                style={{ height: 300, objectFit: "cover" }}
                 videoConstraints={{ facingMode: "environment" }}
               />
               <div className="flex gap-3 w-full justify-center">
@@ -61,6 +82,7 @@ function OcrUpload() {
               </div>
             </div>
           ) : (
+            // DEFAULT BUTTONS
             <div className="flex flex-col items-center gap-5">
               <div className="bg-green-100 p-5 rounded-2xl">
                 <Camera className="text-green-600" size={28} />
@@ -142,7 +164,7 @@ function OcrUpload() {
           />
         </div>
 
-        {/* UPLOADED */}
+        {/* UPLOADED ITEMS */}
         <div className="space-y-3">
           <p className="text-xs font-semibold text-gray-500 uppercase">
             Uploaded (Today)
