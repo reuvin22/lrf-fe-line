@@ -107,64 +107,61 @@ function SubContractorModal({ open, setOpen }) {
                 </select>
 
                 <p className="text-xs text-gray-500 mt-1">Contract: {company.contract}</p>
-
-                {/* WORKERS */}
                 <div className="space-y-3">
                   {company.workers.map((worker, wIndex) => (
-                    <div key={wIndex} className="flex items-center gap-2">
-
-                      <div className="flex-1 space-y-2">
+                    <div key={wIndex} className="flex items-center gap-2 w-full">
+                    <div className="flex-1 min-w-0 space-y-2">
                         <input
-                          placeholder="Worker name"
-                          value={worker.name}
-                          onChange={(e) => {
+                        placeholder="Worker name"
+                        value={worker.name}
+                        onChange={(e) => {
                             const updated = [...companies];
                             updated[cIndex].workers[wIndex].name = e.target.value;
                             setCompanies(updated);
-                          }}
-                          className="w-full border rounded-lg p-2"
+                        }}
+                        className="w-full border rounded-lg p-2"
                         />
 
                         <div className="flex gap-2">
-                          <div className="flex items-center border rounded-lg px-2 py-1 flex-1">
+                        <div className="flex items-center border rounded-lg px-2 py-1 flex-1 min-w-0">
                             <Clock size={16} className="mr-1 text-gray-400" />
                             <input
-                              type="time"
-                              value={worker.start}
-                              onChange={(e) => {
+                            type="time"
+                            value={worker.start}
+                            onChange={(e) => {
                                 const updated = [...companies];
                                 updated[cIndex].workers[wIndex].start = e.target.value;
                                 setCompanies(updated);
-                              }}
-                              className="w-full outline-none text-sm"
+                            }}
+                            className="w-full outline-none text-sm min-w-0"
                             />
-                          </div>
+                        </div>
 
-                          <div className="flex items-center border rounded-lg px-2 py-1 flex-1">
+                        <div className="flex items-center border rounded-lg px-2 py-1 flex-1 min-w-0">
                             <Clock size={16} className="mr-1 text-gray-400" />
                             <input
-                              type="time"
-                              value={worker.end}
-                              onChange={(e) => {
+                            type="time"
+                            value={worker.end}
+                            onChange={(e) => {
                                 const updated = [...companies];
                                 updated[cIndex].workers[wIndex].end = e.target.value;
                                 setCompanies(updated);
-                              }}
-                              className="w-full outline-none text-sm"
+                            }}
+                            className="w-full outline-none text-sm min-w-0"
                             />
-                          </div>
                         </div>
-                      </div>
+                        </div>
+                    </div>
 
-                      {/* DELETE WORKER */}
-                      {company.workers.length > 1 && (
+                    {/* DELETE WORKER */}
+                    {company.workers.length > 1 && (
                         <button
-                          onClick={() => deleteWorker(cIndex, wIndex)}
-                          className="text-red-500 hover:text-red-700"
+                        onClick={() => deleteWorker(cIndex, wIndex)}
+                        className="flex-shrink-0 text-red-500 hover:text-red-700"
                         >
-                          <X size={20} />
+                        <X size={20} />
                         </button>
-                      )}
+                    )}
                     </div>
                   ))}
                 </div>

@@ -54,12 +54,12 @@ function TransportationExpenseModal({ open, setOpen, sites = [] }) {
               <div className="flex justify-between items-center">
                 <span className="font-medium text-sm">Expense {index + 1}</span>
                 {expenses.length > 1 && (
-                  <Button
-                    buttonStyle="danger"
-                    text={<X size={20} />}
+                <button
                     onClick={() => deleteExpense(index)}
-                    customButton="w-8 h-8 p-0"
-                  />
+                    className="flex-shrink-0 text-red-500 hover:text-red-700 w-8 h-8 flex items-center justify-center"
+                >
+                    <X size={20} />
+                </button>
                 )}
               </div>
 
