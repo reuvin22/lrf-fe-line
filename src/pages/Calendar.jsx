@@ -1,6 +1,6 @@
 import { useState } from "react";
-
-const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { useNavigate } from "react-router-dom";
+const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const statusData = {
   2: "done",
@@ -26,7 +26,9 @@ const statusData = {
 };
 
 function Calendar() {
-  const [date, setDate] = useState(new Date(2026, 1));
+  const navigate = useNavigate();
+  const [date, setDate] = useState(new Date(2026, 2));
+  const [selectedDay, setSelectedDay] = useState(13);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -39,7 +41,10 @@ function Calendar() {
 
   const handleClick = (day) => {
     if (!day) return;
-    console.log(`${year}-${month + 1}-${day}`);
+
+    setSelectedDay(day);
+
+    navigate(`/calendar/${year}/${month + 1}/${day}`);
   };
 
   const calendarDays = [];
@@ -56,80 +61,90 @@ function Calendar() {
     const status = statusData[day];
 
     if (status === "done") {
-      return <span className="text-green-500 text-sm">✓</span>;
+      return <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1"></span>;
     }
 
     if (status === "missing") {
-      return <span className="text-red-500 text-sm">–</span>;
+      return <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1"></span>;
     }
 
     if (status === "locked") {
-      return <span className="text-yellow-500 text-sm">🔒</span>;
+      return <span className="text-xs mt-1">🔒</span>;
     }
 
     return null;
   };
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto min-h-screen bg-gray-100">
 
-      <div className="bg-green-600 text-white p-6">
-        <h1 className="text-xl font-semibold">Input / Edit</h1>
-        <p className="text-sm opacity-90">
-          Check and edit past attendance data
-        </p>
+      <div className="bg-white px-5 py-4 border-b">
+        <div className="flex items-center gap-2 mt-1">
+          <span className='font-semibold text-lg'>
+            Input / Edit
+          </span>
+        </div>
       </div>
 
-      <div className="max-w-md mx-auto mt-6">
-
-        <div className="flex items-center justify-between mb-4 px-2">
-          <button onClick={prevMonth} className="text-xl cursor-pointer">
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={prevMonth} className="text-3xl cursor-pointer">
             ‹
           </button>
 
-          <h2 className="text-lg font-semibold">
+          <h2 className="font-semibold text-gray-800">
             {date.toLocaleString("en-US", { month: "long" })} {year}
           </h2>
 
-          <button onClick={nextMonth} className="text-xl cursor-pointer">
+          <button onClick={nextMonth} className="text-3xl cursor-pointer">
             ›
           </button>
         </div>
-
-        <div className="bg-white rounded-xl shadow p-4">
-
-          <div className="grid grid-cols-7 text-center text-gray-500 text-sm mb-2">
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="grid grid-cols-7 text-center text-xs text-gray-500 mb-3">
             {days.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
+          <div className="grid grid-cols-7 text-center gap-y-4">
 
-          <div className="grid grid-cols-7 text-center gap-y-3">
-            {calendarDays.map((day, i) => (
-              <button
-                key={i}
-                onClick={() => handleClick(day)}
-                className="flex flex-col items-center justify-center h-12 hover:bg-gray-100 rounded-lg"
-              >
-                <span>{day}</span>
-                {day && renderStatus(day)}
-              </button>
-            ))}
+            {calendarDays.map((day, i) => {
+              const isSelected = day === selectedDay;
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleClick(day)}
+                  className={`flex flex-col items-center justify-center h-10 w-10 mx-auto rounded-lg cursor-pointer
+                  ${isSelected ? "border-2 border-blue-500" : ""}`}
+                >
+                  <span className={`${day ? "text-gray-800" : "text-gray-300"}`}>
+                    {day || ""}
+                  </span>
+
+                  {day && renderStatus(day)}
+                </button>
+              );
+            })}
+
           </div>
         </div>
+        <div className="flex gap-6 text-xs mt-4 text-gray-600">
 
-        <div className="flex gap-6 text-sm mt-4 text-gray-600 px-2">
           <div className="flex items-center gap-1">
-            <span className="text-green-500">●</span> Completed
+            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            Entered
           </div>
 
           <div className="flex items-center gap-1">
-            <span className="text-red-500">●</span> Missing
+            <span className="w-2 h-2 bg-orange-400 rounded-full"></span>
+            Missing
           </div>
 
           <div className="flex items-center gap-1">
-            <span>🔒</span> Locked
+            🔒 Locked
           </div>
+
         </div>
 
       </div>

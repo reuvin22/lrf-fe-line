@@ -60,69 +60,104 @@ function Layout() {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="bg-green-600 text-white p-6">
-        <p className="text-sm">Thursday</p>
-        <h1 className="text-2xl font-bold">March 5, 2026</h1>
-        {startSegment && (
-          <div className="mt-3 inline-flex items-center bg-green-500 px-3 py-1 rounded-full text-sm">
-            ● Working
-          </div>
-        )}
+    <div className="max-w-md mx-auto min-h-screen">
+
+      <div className="bg-white px-5 py-4 border-b">
+        <p className="text-sm text-gray-500">Fri, Mar 13, 2026</p>
+
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`font-semibold text-lg ${startSegment ? 'text-green-600' : 'text-gray-600'}`}>
+            Status: {startSegment ? "Working" : "Not Started"}
+          </span>
+
+          {startSegment && (
+            <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
+              ● REC
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
+
         {endTime && (
-          <div className="bg-gray-200 rounded-xl p-4 flex items-center gap-2">
-            {getSegmentIcon(selectedSegment)}
+          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4">
+
+            <div
+              className={`w-2 h-10 rounded-full ${
+                selectedSegment === "Travel"
+                  ? "bg-orange-400"
+                  : "bg-green-500"
+              }`}
+            />
+
             <div>
-              <p className="font-semibold">{startTime} – {endTime}</p>
-              <p className="text-sm text-gray-600">{selectedSegment}</p>
+              <p className="font-semibold text-gray-800">
+                {startTime}–{endTime} {selectedSegment}
+              </p>
+
               {selectedSegment !== "Office" && (
-                <p className="text-sm text-gray-500">{`→ ${selectedSite || 'No Selected Site'}`}</p>
+                <p className="text-sm text-gray-500">
+                  → {selectedSite || "No Selected Site"}
+                </p>
               )}
             </div>
+
           </div>
         )}
 
         {startSegment && (
-          <div className="bg-white border-2 border-green-400 rounded-xl p-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              {getSegmentIcon(selectedSegment)}
+          <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between items-center">
+
+            <div className="flex items-center gap-4">
+
+              <div className="w-2 h-10 bg-green-500 rounded-full" />
+
               <div>
-                <p className="font-semibold">
-                  {startTime}
-                  {endTime ? ` – ${endTime}` : ''}
+                <p className="font-semibold text-gray-800">
+                  {startTime}–...
                 </p>
-                <span className="text-sm text-gray-600"> {selectedSegment}</span>
+
+                <p className="text-sm text-gray-600">
+                  {selectedSegment}
+                </p>
+
                 {selectedSegment !== "Office" && (
-                  <p className="text-sm text-gray-500">{`→ ${selectedSite || 'No Selected Site'}`}</p>
+                  <p className="text-sm text-gray-500">
+                    → {selectedSite || "No Selected Site"}
+                  </p>
                 )}
               </div>
+
             </div>
 
-            <div className="bg-red-100 text-red-500 text-sm px-3 py-1 rounded-full">
-              ● Recording
-            </div>
+            <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
+              ● REC
+            </span>
+
           </div>
         )}
 
         <Button
-          buttonStyle={startSegment ? "secondary" : "active"}
-          text={startSegment ? "End Segment" : "Segment Start"}
-          customButton={startSegment ? "border border-red-600 text-red-600" : ""}
+          buttonStyle={startSegment ? "danger" : "active"}
+          text={startSegment ? "⏹ End Segment" : "▶ Start"}
+          customButton={!startSegment ? "bg-emerald-600 hover:bg-emerald-700 text-white py-4" : ""}
           onClick={() => handleSegment('default')}
         />
 
-        <Button
-          buttonStyle="secondary"
-          text="+ Add Segment (Manual)"
-          onClick={() => handleSegment('manual')}
-        />
+        {startSegment === false && (
+          <Button
+            buttonStyle="secondary"
+            text="+ Add Segment (manual)"
+            customButton="bg-lime-500 text-white py-4 hover:bg-lime-600"
+            onClick={() => handleSegment('manual')}
+          />
+        )}
 
         <Button
-          buttonStyle="danger"
-          text="End Work"
+          buttonStyle="secondary"
+          text="↪ End Work Day"
+          customButton="border border-gray-300 py-4"
           onClick={() =>
             openConfirmation("Are you sure you want to end work?", () => {
               console.log("Work ended!");
@@ -138,6 +173,7 @@ function Layout() {
       <SegmentModal />
       <LocationModal />
       <ManualTimeModal />
+
       {openConfirm && (
         <ConfirmationModal
           message={confirmMessage}
@@ -145,6 +181,7 @@ function Layout() {
           onCancel={() => setOpenConfirm(false)}
         />
       )}
+
     </div>
   );
 }

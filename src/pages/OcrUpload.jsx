@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Camera, Image, Upload, FileText } from "lucide-react";
+import { Camera, Image, Upload } from "lucide-react";
+import Button from "../components/Button";
 
 function OcrUpload() {
   const [imagePreview, setImagePreview] = useState(null);
@@ -15,58 +16,53 @@ function OcrUpload() {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-
-      <div className="bg-green-600 text-white p-6">
-        <h1 className="text-xl font-semibold">Document Upload</h1>
-        <p className="text-sm opacity-90">
-          Capture and upload receipts / invoices
-        </p>
+    <div className="max-w-md mx-auto min-h-screen bg-gray-100">
+      <div className="bg-white px-5 py-4 border-b">
+        <span className="font-semibold text-lg">Document Upload</span>
       </div>
-
       <div className="p-4 space-y-4">
-
-        {/* CAMERA BOX */}
-        <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+        <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
 
           {imagePreview ? (
             <img
               src={imagePreview}
               alt="preview"
-              className="mx-auto rounded-lg max-h-40"
+              className="mx-auto rounded-xl max-h-44"
             />
           ) : (
-            <div className="flex flex-col items-center space-y-4">
+            <div className="flex flex-col items-center gap-5">
 
-              <div className="bg-gray-200 p-4 rounded-full">
-                <Camera size={28} className="text-gray-600" />
+              <div className="bg-green-100 p-5 rounded-2xl">
+                <Camera className="text-green-600" size={28} />
               </div>
 
-              <div className="flex gap-3">
-
-                {/* TAKE PHOTO */}
-                <button
+              <div className="flex gap-3 w-full">
+                <Button
+                  buttonStyle="primary"
                   onClick={() => cameraInputRef.current.click()}
-                  className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-                >
-                  <Camera size={16} />
-                  Take Photo
-                </button>
-
-                {/* LIBRARY */}
-                <button
+                  customButton="flex items-center justify-center gap-2"
+                  text={
+                    <span className="flex items-center gap-2 justify-center">
+                      <Camera size={18} />
+                      Take Photo
+                    </span>
+                  }
+                />
+                <Button
+                  buttonStyle="secondary"
                   onClick={() => libraryInputRef.current.click()}
-                  className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-                >
-                  <Image size={16} />
-                  Library
-                </button>
+                  customButton="flex items-center justify-center gap-2"
+                  text={
+                    <span className="flex items-center gap-2 justify-center">
+                      <Image size={18} />
+                      Library
+                    </span>
+                  }
+                />
 
               </div>
             </div>
           )}
-
-          {/* CAMERA INPUT */}
           <input
             ref={cameraInputRef}
             type="file"
@@ -83,44 +79,82 @@ function OcrUpload() {
             onChange={handleImage}
             className="hidden"
           />
-
         </div>
+        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
 
-        <div>
-          <label className="text-sm font-semibold">Category *</label>
+          <div>
+            <label className="text-sm text-gray-600 font-medium">
+              Category *
+            </label>
 
-          <select className="w-full border rounded-lg p-3 bg-white focus:outline-none focus:border-green-400">
-            <option>Select category</option>
-            <option>Transportation</option>
-            <option>Meals</option>
-            <option>Supplies</option>
-          </select>
-        </div>
+            <select className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400">
+              <option>Ad-hoc Transport</option>
+              <option>Transportation</option>
+              <option>Meals</option>
+              <option>Supplies</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="text-sm font-semibold">Site *</label>
+          <div>
+            <label className="text-sm text-gray-600 font-medium">
+              Site *
+            </label>
 
-          <select className="w-full border rounded-lg p-3 bg-white focus:outline-none focus:border-green-400">
-            <option>Select site</option>
-            <option>Site A</option>
-            <option>Site B</option>
-          </select>
-        </div>
+            <select className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400">
+              <option>Site A</option>
+              <option>Site B</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="text-sm font-semibold">Memo (Optional)</label>
+          <div>
+            <label className="text-sm text-gray-600 font-medium">
+              Note
+            </label>
 
-          <textarea
-            placeholder="Enter memo..."
-            className="w-full border rounded-lg p-3 focus:outline-none focus:border-green-400"
+            <textarea
+              placeholder="Optional"
+              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+          </div>
+
+          <Button
+            buttonStyle="primary"
+            customButton="flex items-center justify-center gap-2"
+            text={
+              <span className="flex items-center gap-2 justify-center">
+                <Upload size={18} />
+                Upload
+              </span>
+            }
           />
+
         </div>
 
-        <button className="w-full flex items-center justify-center gap-2 bg-green-400 text-white py-3 rounded-xl font-semibold hover:bg-green-500">
-          <Upload size={18} />
-          Upload
-        </button>
+        <div className="space-y-3">
 
+          <p className="text-xs font-semibold text-gray-500 uppercase">
+            Uploaded (Today)
+          </p>
+
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="font-medium text-gray-700">
+              Ad-hoc Transport Site A 16:20
+            </p>
+            <p className="text-sm text-orange-500">
+              Status: Pending
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="font-medium text-gray-700">
+              Subcontractor Invoice Site A 14:05
+            </p>
+            <p className="text-sm text-green-600">
+              Status: Completed ¥35,000
+            </p>
+          </div>
+
+        </div>
       </div>
     </div>
   );
