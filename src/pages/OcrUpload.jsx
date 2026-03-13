@@ -1,18 +1,25 @@
 import { useState, useRef } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
+import Webcam from "react-webcam";
 
 function OcrUpload() {
   const [imagePreview, setImagePreview] = useState(null);
-
-  const cameraInputRef = useRef(null);
+  const [openCamera, setOpenCamera] = useState(false);
+  const webcamRef = useRef(null);
   const libraryInputRef = useRef(null);
+
+  const handleCapture = () => {
+    const screenshot = webcamRef.current.getScreenshot();
+    if (screenshot) {
+      setImagePreview(screenshot);
+      setOpenCamera(false);
+    }
+  };
 
   const handleImage = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (file) setImagePreview(URL.createObjectURL(file));
   };
 
   return (
@@ -20,18 +27,41 @@ function OcrUpload() {
       <div className="bg-white px-5 py-4 border-b">
         <span className="font-semibold text-lg">Document Upload</span>
       </div>
+
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-
           {imagePreview ? (
             <img
               src={imagePreview}
               alt="preview"
               className="mx-auto rounded-xl max-h-44"
             />
+          ) : openCamera ? (
+            <div className="flex flex-col items-center gap-4">
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                className="rounded-xl w-full"
+                videoConstraints={{ facingMode: "environment" }}
+              />
+              <div className="flex gap-3 w-full justify-center">
+                <Button
+                  buttonStyle="primary"
+                  text="Capture"
+                  onClick={handleCapture}
+                  customButton="flex-1"
+                />
+                <Button
+                  buttonStyle="secondary"
+                  text="Cancel"
+                  onClick={() => setOpenCamera(false)}
+                  customButton="flex-1"
+                />
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-5">
-
               <div className="bg-green-100 p-5 rounded-2xl">
                 <Camera className="text-green-600" size={28} />
               </div>
@@ -39,8 +69,8 @@ function OcrUpload() {
               <div className="flex gap-3 w-full">
                 <Button
                   buttonStyle="primary"
-                  onClick={() => cameraInputRef.current.click()}
-                  customButton="flex items-center justify-center gap-2"
+                  onClick={() => setOpenCamera(true)}
+                  customButton="flex items-center justify-center gap-2 flex-1"
                   text={
                     <span className="flex items-center gap-2 justify-center">
                       <Camera size={18} />
@@ -51,7 +81,7 @@ function OcrUpload() {
                 <Button
                   buttonStyle="secondary"
                   onClick={() => libraryInputRef.current.click()}
-                  customButton="flex items-center justify-center gap-2"
+                  customButton="flex items-center justify-center gap-2 flex-1"
                   text={
                     <span className="flex items-center gap-2 justify-center">
                       <Image size={18} />
@@ -59,18 +89,9 @@ function OcrUpload() {
                     </span>
                   }
                 />
-
               </div>
             </div>
           )}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleImage}
-            className="hidden"
-          />
 
           <input
             ref={libraryInputRef}
@@ -80,13 +101,11 @@ function OcrUpload() {
             className="hidden"
           />
         </div>
+
+        {/* FORM */}
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-
           <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Category *
-            </label>
-
+            <label className="text-sm text-gray-600 font-medium">Category *</label>
             <select className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400">
               <option>Ad-hoc Transport</option>
               <option>Transportation</option>
@@ -96,10 +115,7 @@ function OcrUpload() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Site *
-            </label>
-
+            <label className="text-sm text-gray-600 font-medium">Site *</label>
             <select className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400">
               <option>Site A</option>
               <option>Site B</option>
@@ -107,10 +123,7 @@ function OcrUpload() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Note
-            </label>
-
+            <label className="text-sm text-gray-600 font-medium">Note</label>
             <textarea
               placeholder="Optional"
               className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -127,33 +140,23 @@ function OcrUpload() {
               </span>
             }
           />
-
         </div>
 
+        {/* UPLOADED */}
         <div className="space-y-3">
-
           <p className="text-xs font-semibold text-gray-500 uppercase">
             Uploaded (Today)
           </p>
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
-            <p className="font-medium text-gray-700">
-              Ad-hoc Transport Site A 16:20
-            </p>
-            <p className="text-sm text-orange-500">
-              Status: Pending
-            </p>
+            <p className="font-medium text-gray-700">Ad-hoc Transport Site A 16:20</p>
+            <p className="text-sm text-orange-500">Status: Pending</p>
           </div>
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
-            <p className="font-medium text-gray-700">
-              Subcontractor Invoice Site A 14:05
-            </p>
-            <p className="text-sm text-green-600">
-              Status: Completed ¥35,000
-            </p>
+            <p className="font-medium text-gray-700">Subcontractor Invoice Site A 14:05</p>
+            <p className="text-sm text-green-600">Status: Completed ¥35,000</p>
           </div>
-
         </div>
       </div>
     </div>
