@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Clock, Plus } from "lucide-react";
 import TransportationExpenseModal from "./TransportationExpenseModal";
-import Button from "./Button";
+import Button from "../Button";
 
 function SubContractorModal({ open, setOpen }) {
   const [companies, setCompanies] = useState([

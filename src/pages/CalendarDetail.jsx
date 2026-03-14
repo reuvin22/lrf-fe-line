@@ -3,31 +3,24 @@ import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import Button from "../components/Button";
 import ManualTimeModal from "../components/ManualTime";
-import SubContractorModal from "../components/SubContractorModal";
-import TransportationExpenseModal from "../components/TransportationExpenseModal";
+import SubContractorModal from "../components/Modals/SubContractorModal";
+import TransportationExpenseModal from "../components/Modals/TransportationExpenseModal";
 import { useManualTimeContext } from "../context/ManualTimeContext";
-import SegmentModal from "../components/SegmentModal";
+import SegmentModal from "../components/Modals/SegmentModal";
 import { useSegmentContext } from "../context/SegmentContext";
+import formattedDate from "../utils/formattedDate";
 
 function CalendarDetail() {
   const navigate = useNavigate();
   const { year, month, day } = useParams();
+
+  const displayDate = formattedDate(year, month, day);
   const { setOpenTimeModal } = useManualTimeContext();
 
   const [openSubcontractorModal, setOpenSubcontractorModal] = useState(false);
   const [openTransportModal, setOpenTransportModal] = useState(false);
   const { openSegmentModal, setOpenSegmentModal } = useSegmentContext();
-  const formattedDate = new Date(year, month - 1, day).toLocaleDateString(
-    "en-US",
-    {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-  );
 
-  // Example assigned sites for dropdown
   const sites = ["Site A", "Site B", "Site C"];
 
   return (
@@ -46,7 +39,7 @@ function CalendarDetail() {
         </button>
 
         <div className="bg-white rounded-2xl shadow-sm p-4">
-          <h2 className="font-semibold text-xl">{formattedDate}</h2>
+          <h2 className="font-semibold text-xl">{displayDate}</h2>
           <p className="text-green-600 text-sm">Status: Entered</p>
         </div>
 

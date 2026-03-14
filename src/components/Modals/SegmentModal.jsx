@@ -1,9 +1,9 @@
 import React from 'react';
 import { X, Car, MapPin, Building2 } from 'lucide-react';
-import ActionCard from './ActionCard';
-import { useSegmentContext } from '../context/SegmentContext';
-import { useManualTimeContext } from '../context/ManualTimeContext';
-import { useLocationContext } from '../context/LocationContext';
+import ActionCard from '../ActionCard';
+import { useSegmentContext } from '../../context/SegmentContext';
+import { useManualTimeContext } from '../../context/ManualTimeContext';
+import { useLocationContext } from '../../context/LocationContext';
 
 function SegmentModal() {
   const {

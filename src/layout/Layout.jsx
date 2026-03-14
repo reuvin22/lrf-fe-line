@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
-import SegmentModal from '../components/SegmentModal';
-import LocationModal from '../components/LocationModal';
+import SegmentModal from '../components/Modals/SegmentModal';
+import LocationModal from '../components/Modals/LocationModal';
 import { useSegmentContext } from '../context/SegmentContext';
 import { useLocationContext } from '../context/LocationContext';
 import { getCurrentTime } from '../utils/getCurrentTime';
 import ManualTimeModal from '../components/ManualTime';
 import { useManualTimeContext } from '../context/ManualTimeContext';
-import ConfirmationModal from '../components/ConfirmationModal';
+import ConfirmationModal from '../components/Modals/ConfirmationModal';
 import { Car, MapPin, Building2 } from 'lucide-react'; // ✅ Import icons
 
 function Layout() {

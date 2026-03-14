@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, MapPin } from 'lucide-react';
-import ActionCard from './ActionCard';
-import { useSegmentContext } from '../context/SegmentContext';
-import { useLocationContext } from '../context/LocationContext';
-import { useManualTimeContext } from '../context/ManualTimeContext';
+import ActionCard from '../ActionCard';
+import { useSegmentContext } from '../../context/SegmentContext';
+import { useLocationContext } from '../../context/LocationContext';
+import { useManualTimeContext } from '../../context/ManualTimeContext';
 
 function LocationModal() {
   const {

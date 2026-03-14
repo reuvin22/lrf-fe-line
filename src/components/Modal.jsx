@@ -1,5 +1,5 @@
 import React from 'react'
-import LocationModal from './SegmentModal'
+import LocationModal from './Modals/LocationModal'
 
 function Modal({ isOpen, onClose }) {
   return (

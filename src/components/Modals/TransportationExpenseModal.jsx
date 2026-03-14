@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, Plus } from "lucide-react";
-import Button from "./Button";
+import Button from "../Button";
 
 function TransportationExpenseModal({ open, setOpen, sites = [] }) {
   const [expenses, setExpenses] = useState([
