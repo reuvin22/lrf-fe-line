@@ -29,7 +29,9 @@ function Layout() {
     setRecordType,
     segments,
     setSegments,
-    setTempSegment
+    setTempSegment,
+    setDayEnded,
+    dayEnded
   } = useSegmentContext()
 
   const { selectedSite } = useLocationContext();
@@ -158,6 +160,7 @@ function Layout() {
       setRecordType("");
       setStartTime("");
       setEndTime("");
+      setDayEnded(true);
       setTempSegment(null);
       setActiveSegmentExists(false);
       setOpenConfirm(false);
@@ -183,12 +186,16 @@ function Layout() {
 
       <div className="p-4 space-y-4">
 
-        {segments.map((seg, index) => (
+        {segments.map((seg) => (
           <div
-            key={index}
-            className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-gray-100"
-            onClick={() => handleEditSegment(seg)}
-          >
+              key={seg.id}
+              className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-gray-100"
+              onClick={() => {
+                if (!dayEnded) {
+                  handleEditSegment(seg);
+                }
+              }}
+            >
             <div className="flex items-center gap-4">
               <div
                 className={`w-2 h-10 rounded-full ${
@@ -255,7 +262,11 @@ function Layout() {
         segments={["Office", "Travel", "Site"]}
         sites={["Site A", "Site B", "Site C"]}
         onSave={(updatedSegment) => {
-          console.log("Updated:", updatedSegment);
+          setSegments(prev =>
+            prev.map(seg =>
+              seg.id === updatedSegment.id ? updatedSegment : seg
+            )
+          );
         }}
       />
       {openConfirm && (

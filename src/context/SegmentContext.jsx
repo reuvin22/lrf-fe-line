@@ -8,7 +8,7 @@ export const SegmentProvider = ({ children }) => {
   const [openSegmentModal, setOpenSegmentModal] = useState(false);
   const [openLocationModal, setOpenLocationModal] = useState(false);
   const [recordType, setRecordType] = useState("");
-
+  const [dayEnded, setDayEnded] = useState(false);
   const [tempSegment, setTempSegment] = useState(null);
   const [segments, setSegments] = useState([]);
 
@@ -28,7 +28,9 @@ export const SegmentProvider = ({ children }) => {
         tempSegment,
         setTempSegment,
         segments,
-        setSegments
+        setSegments,
+        dayEnded,
+        setDayEnded
       }}
     >
       {children}

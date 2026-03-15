@@ -5,6 +5,7 @@ import { useSegmentContext } from '../../context/SegmentContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
+import { generateSegmentId } from '../../utils/idGenerator';
 
 function LocationModal() {
   const {
@@ -18,7 +19,7 @@ function LocationModal() {
   } = useSegmentContext();
 
   const { setOpenTimeModal } = useManualTimeContext();
-  const { setSelectedSite } = useLocationContext();
+  const { setSelectedSite, selectedSite } = useLocationContext();
 
   const [step, setStep] = useState('TYPE');
 
@@ -39,12 +40,13 @@ function LocationModal() {
     setSelectedSite(siteName);
 
     const newSegment = {
+      id: generateSegmentId(),
       segment: selectedSegment,
-      site: siteName,
+      site: selectedSite,
       startTime: getCurrentTime(),
       endTime: "",
-      type: recordType,
-      status: 'active'
+      status: "active",
+      type: "default"
     };
 
     if (recordType === "manual") {

@@ -27,6 +27,23 @@ function EditSegmentModal({
 
   const isManual = segmentData?.type === "manual";
 
+  const handleSegmentChange = (value) => {
+    setSegment(value);
+
+    // Reset site depending on selection
+    if (value === "Office") {
+      setSite("");
+    }
+
+    if (value === "Travel") {
+      setSite("No Selected Site");
+    }
+
+    if (value === "Site") {
+      setSite("");
+    }
+  };
+
   const handleSave = () => {
     onSave({
       ...segmentData,
@@ -39,6 +56,8 @@ function EditSegmentModal({
     onClose();
   };
 
+  const showSite = segment !== "Office";
+
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
       <div className="bg-white rounded-xl w-[90%] max-w-md p-6 space-y-4">
@@ -50,7 +69,7 @@ function EditSegmentModal({
           <label className="text-sm text-gray-500">Segment</label>
           <select
             value={segment}
-            onChange={(e) => setSegment(e.target.value)}
+            onChange={(e) => handleSegmentChange(e.target.value)}
             className="w-full border rounded-lg p-2 mt-1"
           >
             {segments.map((seg, i) => (
@@ -61,22 +80,27 @@ function EditSegmentModal({
           </select>
         </div>
 
-        {/* Site Dropdown */}
-        <div>
-          <label className="text-sm text-gray-500">Site</label>
-          <select
-            value={site}
-            onChange={(e) => setSite(e.target.value)}
-            className="w-full border rounded-lg p-2 mt-1"
-          >
-            <option value="">Select Site</option>
-            {sites.map((s, i) => (
-              <option key={i} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Site Dropdown (hidden for Office) */}
+        {showSite && (
+          <div>
+            <label className="text-sm text-gray-500">Site</label>
+            <select
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+              className="w-full border rounded-lg p-2 mt-1"
+            >
+              {segment === "Travel" && (
+                <option value="No Selected Site">No Selected Site</option>
+              )}
+
+              {sites.map((s, i) => (
+                <option key={i} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Show time only if MANUAL */}
         {isManual && (
