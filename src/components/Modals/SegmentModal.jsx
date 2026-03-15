@@ -4,6 +4,7 @@ import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { useLocationContext } from '../../context/LocationContext';
+import { getCurrentTime } from '../../utils/getCurrentTime';
 
 function SegmentModal() {
   const {
@@ -12,7 +13,9 @@ function SegmentModal() {
     openSegmentModal,
     setOpenSegmentModal,
     setOpenLocationModal,
-    recordType
+    recordType,
+    setSegments,
+    setTempSegment
   } = useSegmentContext();
 
   const {
@@ -33,16 +36,26 @@ function SegmentModal() {
   const handleSelect = (segmentName) => {
     setSelectedSegment(segmentName);
 
+    const now = getCurrentTime();
+
+    const segmentObj = {
+      segment: segmentName,
+      site: segmentName === "Office" ? "" : null,
+      startTime: now,
+      endTime: "",
+      type: recordType,
+      status: "active"
+    };
+
+    setTempSegment(segmentObj);
+
+    // OFFICE → skip location
     if (segmentName === "Office") {
-      if (recordType === 'manual') {
-        setOpenSegmentModal(false);
-        setOpenTimeModal(true);
-      } else {
-        setStartSegment(true);
-        setSelectedSite('')
-        setOpenSegmentModal(false);
-      }
-    } else {
+      setOpenSegmentModal(false);
+      setOpenTimeModal(true);
+    } 
+    // TRAVEL or SITE → go to location
+    else {
       setOpenSegmentModal(false);
       setOpenLocationModal(true);
     }

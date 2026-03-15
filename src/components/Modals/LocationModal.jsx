@@ -4,6 +4,7 @@ import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
+import { getCurrentTime } from '../../utils/getCurrentTime';
 
 function LocationModal() {
   const {
@@ -11,7 +12,9 @@ function LocationModal() {
     setOpenLocationModal,
     setStartSegment,
     recordType,
-    selectedSegment
+    selectedSegment,
+    setTempSegment,
+    setSegments
   } = useSegmentContext();
 
   const { setOpenTimeModal } = useManualTimeContext();
@@ -31,23 +34,50 @@ function LocationModal() {
     setStep('TYPE');
     setOpenLocationModal(false);
   };
-
+  
   const handleSelectSite = (siteName) => {
     setSelectedSite(siteName);
-    setOpenLocationModal(false);
-    if (recordType === 'manual') {
+
+    const newSegment = {
+      segment: selectedSegment,
+      site: siteName,
+      startTime: getCurrentTime(),
+      endTime: "",
+      type: recordType,
+      status: 'active'
+    };
+
+    if (recordType === "manual") {
+      // For manual, save tempSegment and open time modal
+      setTempSegment(newSegment);
       setOpenTimeModal(true);
+    } else {
+      // For default/live segments, push immediately
+      setSegments(prev => [...prev, newSegment]);
     }
-    setStartSegment(true);
+
+    setOpenLocationModal(false);
   };
 
   const handleSkip = () => {
-    setSelectedSite('');
-    setOpenLocationModal(false);
-    if (recordType === 'manual') {
+    setSelectedSite("");
+
+    const newSegment = {
+      segment: selectedSegment,
+      site: "",
+      startTime: getCurrentTime(),
+      endTime: "",
+      type: recordType
+    };
+
+    if (recordType === "manual") {
+      setTempSegment(newSegment);
       setOpenTimeModal(true);
+    } else {
+      setSegments(prev => [...prev, newSegment]);
     }
-    setStartSegment(true);
+
+    setOpenLocationModal(false);
   };
 
   return (

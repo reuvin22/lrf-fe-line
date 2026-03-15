@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Clock } from "lucide-react";
-import { useManualTimeContext } from "../context/ManualTimeContext";
+import { useManualTimeContext } from "../../context/ManualTimeContext";
+import { useSegmentContext } from "../../context/SegmentContext";
 
 function ManualTimeModal() {
+  // Always call hooks
   const {
     openTimeModal,
     setOpenTimeModal,
@@ -10,16 +12,52 @@ function ManualTimeModal() {
     setEndTime
   } = useManualTimeContext();
 
+  const { tempSegment, setSegments } = useSegmentContext();
   const [tempStartTime, setTempStartTime] = useState("");
   const [tempEndTime, setTempEndTime] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  if (!openTimeModal) return null;
+  // Validate times whenever they change
+  useEffect(() => {
+    if (tempStartTime && tempEndTime && tempEndTime < tempStartTime) {
+      setErrorMessage("End time cannot be before start time.");
+    } else {
+      setErrorMessage("");
+    }
+  }, [tempStartTime, tempEndTime]);
 
   const handleSave = () => {
+    if (tempEndTime && tempEndTime < tempStartTime) {
+      alert("End time cannot be before start time.");
+      return;
+    }
+
     setStartTime(tempStartTime);
     setEndTime(tempEndTime);
+
+    // Always use tempSegment to create the segment
+    const segmentToSave = tempSegment || {
+      segment: "Office",
+      site: "",
+      type: "manual",
+      status: "active"
+    };
+
+    setSegments(prev => [
+      ...prev,
+      {
+        ...segmentToSave,
+        startTime: tempStartTime,
+        endTime: tempEndTime,
+        status: "active"
+      }
+    ]);
+
     setOpenTimeModal(false);
   };
+
+  // **Render nothing if modal is closed**
+  if (!openTimeModal) return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-6">
@@ -38,6 +76,10 @@ function ManualTimeModal() {
             <X size={24} />
           </button>
         </div>
+
+        {errorMessage && (
+          <p className="text-sm text-red-500 mb-2">{errorMessage}</p>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -68,7 +110,12 @@ function ManualTimeModal() {
 
           <button
             onClick={handleSave}
-            className="w-full bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition"
+            disabled={!!errorMessage}
+            className={`w-full py-2 rounded-lg text-sm font-medium transition ${
+              errorMessage
+                ? "bg-gray-300 text-gray-700 cursor-not-allowed"
+                : "bg-green-500 text-white hover:bg-green-600"
+            }`}
           >
             セグメント追加
           </button>

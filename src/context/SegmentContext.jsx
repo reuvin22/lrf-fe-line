@@ -1,13 +1,17 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from "react";
 
 export const SegmentContext = createContext();
 
 export const SegmentProvider = ({ children }) => {
-  const [selectedSegment, setSelectedSegment] = useState('');
+  const [selectedSegment, setSelectedSegment] = useState("");
   const [startSegment, setStartSegment] = useState(false);
   const [openSegmentModal, setOpenSegmentModal] = useState(false);
   const [openLocationModal, setOpenLocationModal] = useState(false);
-  const [recordType, setRecordType] = useState('')
+  const [recordType, setRecordType] = useState("");
+
+  const [tempSegment, setTempSegment] = useState(null);
+  const [segments, setSegments] = useState([]);
+
   return (
     <SegmentContext.Provider
       value={{
@@ -20,7 +24,11 @@ export const SegmentProvider = ({ children }) => {
         openSegmentModal,
         setOpenSegmentModal,
         openLocationModal,
-        setOpenLocationModal
+        setOpenLocationModal,
+        tempSegment,
+        setTempSegment,
+        segments,
+        setSegments
       }}
     >
       {children}

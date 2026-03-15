@@ -1,20 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import Button from '../components/Button';
-import SegmentModal from '../components/Modals/SegmentModal';
-import LocationModal from '../components/Modals/LocationModal';
-import { useSegmentContext } from '../context/SegmentContext';
-import { useLocationContext } from '../context/LocationContext';
-import { getCurrentTime } from '../utils/getCurrentTime';
-import ManualTimeModal from '../components/ManualTime';
-import { useManualTimeContext } from '../context/ManualTimeContext';
-import ConfirmationModal from '../components/Modals/ConfirmationModal';
-import { Car, MapPin, Building2 } from 'lucide-react'; // ✅ Import icons
+import React, { useEffect, useState } from "react";
+import Button from "../components/Button";
+import SegmentModal from "../components/Modals/SegmentModal";
+import LocationModal from "../components/Modals/LocationModal";
+import { useSegmentContext } from "../context/SegmentContext";
+import { useLocationContext } from "../context/LocationContext";
+import { getCurrentTime } from "../utils/getCurrentTime";
+import ManualTimeModal from "../components/Modals/ManualTime";
+import { useManualTimeContext } from "../context/ManualTimeContext";
+import ConfirmationModal from "../components/Modals/ConfirmationModal";
+import { Car, MapPin, Building2 } from "lucide-react";
+import EditSegmentModal from "../components/Modals/EditSegmentModal";
 
 function Layout() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(() => () => {});
-  const [confirmMessage, setConfirmMessage] = useState('');
-  const [locked, setLocked] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [editingSegment, setEditingSegment] = useState(null);
+  const [activeSegmentExists, setActiveSegmentExists] = useState(false);
+  const [status, setStatus] = useState("Not Started");
 
   const {
     startSegment,
@@ -23,23 +27,54 @@ function Layout() {
     selectedSegment,
     setSelectedSegment,
     setRecordType,
-    recordType
-  } = useSegmentContext();
+    segments,
+    setSegments,
+    setTempSegment
+  } = useSegmentContext()
 
-  const { selectedSite, setSelectedSite } = useLocationContext();
-  const { startTime, setStartTime, endTime, setEndTime } = useManualTimeContext();
+  const { selectedSite } = useLocationContext();
 
-  const handleSegment = (type) => {
+  const { startTime, setStartTime, endTime, setEndTime } =
+    useManualTimeContext();
+
+  const handleStartSegment = (type) => {
     setRecordType(type);
-    if (!startSegment) {
-      setSelectedSegment('');
-      setOpenSegmentModal(true);
-      setStartTime(getCurrentTime());
-      setEndTime('');
-    } else {
-      setEndTime(getCurrentTime());
-      setStartSegment(false);
-    }
+    setSelectedSegment("");
+    setOpenSegmentModal(true);
+
+    setStartTime(getCurrentTime());
+    setEndTime("");
+  };
+
+  const handleEndSegment = () => {
+    const now = getCurrentTime();
+
+    setSegments(prevSegments => {
+      const updated = [...prevSegments];
+      let updatedFlag = false;
+
+      [...updated].reverse().forEach((seg, index) => {
+        if (!updatedFlag && seg.type === "default" && !seg.endTime) {
+          const realIndex = updated.length - 1 - index;
+          updated[realIndex] = {
+            ...seg,
+            endTime: now,
+            status: "completed"
+          };
+          updatedFlag = true;
+        }
+      });
+
+      return updated;
+    });
+
+    // Reset context states
+    setStartSegment(false);
+    setSelectedSegment("");
+    setRecordType("");
+    setStartTime("");
+    setEndTime("");
+    setTempSegment(null);
   };
 
   const openConfirmation = (message, action) => {
@@ -48,126 +83,181 @@ function Layout() {
     setOpenConfirm(true);
   };
 
-  const getSegmentIcon = (segment) => {
-    switch (segment) {
-      case 'Travel':
-        return <Car className="inline-block mr-2" size={16} />;
-      case 'Office':
-        return <Building2 className="inline-block mr-2" size={16} />;
-      default:
-        return <MapPin className="inline-block mr-2" size={16} />;
-    }
+  const handleEditSegment = (segment) => {
+    setEditingSegment(segment);
+    setOpenEditModal(true);
   };
 
+  const convertToMinutes = (time) => {
+    const date = new Date(`1970-01-01 ${time}`);
+    return date.getHours() * 60 + date.getMinutes();
+  };
+
+  const isSegmentActive = (start, end) => {
+    if (!start || !end) return false;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const startMinutes = convertToMinutes(start);
+    const endMinutes = convertToMinutes(end);
+
+    return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+  };
+
+  useEffect(() => {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const anyActive = segments.some(seg => {
+      if (!seg.startTime) return false;
+
+      const startMinutes = convertToMinutes(seg.startTime);
+      const endMinutes = seg.endTime ? convertToMinutes(seg.endTime) : nowMinutes;
+
+      return nowMinutes >= startMinutes && nowMinutes <= endMinutes && seg.status !== "completed";
+    });
+
+    if (anyActive) {
+      setStatus("Working");
+    } else {
+      setStatus("Not Started");
+    }
+
+    setActiveSegmentExists(anyActive);
+  }, [segments]);
+
+  const handleEndOfDay = () => {
+    openConfirmation("Are you sure you want to end work?", () => {
+      const now = getCurrentTime();
+
+      setSegments(prevSegments => {
+        // Check if there is any active segment
+        const anyActive = prevSegments.some(seg => seg.status === "active");
+
+        // End all segments
+        const updated = prevSegments.map(seg => ({
+          ...seg,
+          endTime: seg.endTime || now,
+          status: "completed"
+        }));
+
+        // If no active segments exist, we can update status to Closed
+        if (!anyActive) {
+          setStatus("Closed");
+        } else {
+          setStatus("Working");
+        }
+
+        return updated;
+      });
+
+      // Reset context states
+      setStartSegment(false);
+      setSelectedSegment("");
+      setRecordType("");
+      setStartTime("");
+      setEndTime("");
+      setTempSegment(null);
+      setActiveSegmentExists(false);
+      setOpenConfirm(false);
+    });
+  };
+  
+  console.log('THIS IS SEGMENTS: ', segments)
   return (
     <div className="max-w-md mx-auto min-h-screen">
-
       <div className="bg-white px-5 py-4 border-b">
         <p className="text-sm text-gray-500">Fri, Mar 13, 2026</p>
 
         <div className="flex items-center gap-2 mt-1">
-          <span className={`font-semibold text-lg ${startSegment ? 'text-green-600' : 'text-gray-600'}`}>
-            Status: {startSegment ? "Working" : "Not Started"}
+          <span
+            className={`font-semibold text-lg ${
+              status === "Working" ? "text-green-600" : "text-gray-600"
+            }`}
+          >
+            Status: {status}
           </span>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
 
-        {endTime && (
-          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4">
-
-            <div
-              className={`w-2 h-10 rounded-full ${
-                selectedSegment === "Travel"
-                  ? "bg-orange-400"
-                  : "bg-green-500"
-              }`}
-            />
-
-            <div>
-              <p className="font-semibold text-gray-800">
-                {startTime}–{endTime} {selectedSegment}
-              </p>
-
-              {selectedSegment !== "Office" && (
-                <p className="text-sm text-gray-500">
-                  → {selectedSite || "No Selected Site"}
-                </p>
-              )}
-            </div>
-
-          </div>
-        )}
-
-        {startSegment && (
-          <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between items-center">
-
+        {segments.map((seg, index) => (
+          <div
+            key={index}
+            className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-gray-100"
+            onClick={() => handleEditSegment(seg)}
+          >
             <div className="flex items-center gap-4">
-
-              <div className="w-2 h-10 bg-green-500 rounded-full" />
-
+              <div
+                className={`w-2 h-10 rounded-full ${
+                  seg.segment === "Travel"
+                    ? "bg-orange-400"
+                    : seg.segment === "Office"
+                    ? "bg-blue-500"
+                    : seg.segment === "Site"
+                    ? "bg-green-500"
+                    : "bg-gray-300"
+                }`}
+              />
               <div>
                 <p className="font-semibold text-gray-800">
-                  {startTime}–...
+                  {seg.startTime}–{seg.endTime || "..."} {seg.segment}
                 </p>
-
-                <p className="text-sm text-gray-600">
-                  {selectedSegment}
-                </p>
-
-                {selectedSegment !== "Office" && (
-                  <p className="text-sm text-gray-500">
-                    → {selectedSite || "No Selected Site"}
-                  </p>
+                {seg.segment !== "Office" && (
+                  <p className="text-sm text-gray-500">→ {seg.site || "No Selected Site"}</p>
                 )}
               </div>
-
             </div>
 
-            <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
-              ● REC
-            </span>
+            {seg.status === "active" && (
+              <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
+                ● REC
+              </span>
+            )}
+          </div>
+        ))}
 
+        {status !== 'Closed' && (
+          <div className="space-y-2">
+            <Button
+              buttonStyle={activeSegmentExists ? "danger" : "active"}
+              text={activeSegmentExists ? "⏹ End Segment" : "▶ Start"}
+              onClick={activeSegmentExists ? handleEndSegment : () => handleStartSegment("default")}
+            />
+
+            <Button
+              buttonStyle="secondary"
+              text="+ Add Segment (manual)"
+              customButton="bg-lime-500 text-white py-4 hover:bg-lime-600"
+              onClick={() => handleStartSegment("manual")}
+            />
+
+            <Button
+              buttonStyle="secondary"
+              text="↪ End Work Day"
+              customButton="border border-gray-300 py-4"
+              onClick={() => handleEndOfDay()}
+            />
           </div>
         )}
-
-        <Button
-          buttonStyle={startSegment ? "danger" : "active"}
-          text={startSegment ? "⏹ End Segment" : "▶ Start"}
-          customButton={!startSegment ? "bg-emerald-600 hover:bg-emerald-700 text-white py-4" : ""}
-          onClick={() => handleSegment('default')}
-        />
-
-        {startSegment === false && (
-          <Button
-            buttonStyle="secondary"
-            text="+ Add Segment (manual)"
-            customButton="bg-lime-500 text-white py-4 hover:bg-lime-600"
-            onClick={() => handleSegment('manual')}
-          />
-        )}
-
-        <Button
-          buttonStyle="secondary"
-          text="↪ End Work Day"
-          customButton="border border-gray-300 py-4"
-          onClick={() =>
-            openConfirmation("Are you sure you want to end work?", () => {
-              console.log("Work ended!");
-              setStartSegment(false);
-              setEndTime(getCurrentTime());
-              setOpenConfirm(false);
-            })
-          }
-        />
-
       </div>
 
+      {/* Modals */}
       <SegmentModal />
       <LocationModal />
       <ManualTimeModal />
-
+      <EditSegmentModal
+        open={openEditModal}
+        onClose={() => setOpenEditModal(false)}
+        segmentData={editingSegment}
+        segments={["Office", "Travel", "Site"]}
+        sites={["Site A", "Site B", "Site C"]}
+        onSave={(updatedSegment) => {
+          console.log("Updated:", updatedSegment);
+        }}
+      />
       {openConfirm && (
         <ConfirmationModal
           message={confirmMessage}
@@ -175,7 +265,6 @@ function Layout() {
           onCancel={() => setOpenConfirm(false)}
         />
       )}
-
     </div>
   );
 }

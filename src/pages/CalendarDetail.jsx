@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import Button from "../components/Button";
-import ManualTimeModal from "../components/ManualTime";
+import ManualTimeModal from "../components/Modals/ManualTime";
 import SubContractorModal from "../components/Modals/SubContractorModal";
 import TransportationExpenseModal from "../components/Modals/TransportationExpenseModal";
 import { useManualTimeContext } from "../context/ManualTimeContext";
