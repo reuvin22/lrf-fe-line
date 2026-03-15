@@ -39,6 +39,7 @@ function SegmentModal() {
     const now = getCurrentTime();
 
     const segmentObj = {
+      id: Date.now(), // important for React key
       segment: segmentName,
       site: segmentName === "Office" ? "" : null,
       startTime: now,
@@ -49,13 +50,16 @@ function SegmentModal() {
 
     setTempSegment(segmentObj);
 
-    // OFFICE → skip location
     if (segmentName === "Office") {
       setOpenSegmentModal(false);
-      setOpenTimeModal(true);
-    } 
-    // TRAVEL or SITE → go to location
-    else {
+
+      if (recordType === "manual") {
+        setOpenTimeModal(true);
+      } else {
+        // push directly to context
+        setSegments(prev => [...prev, segmentObj]);
+      }
+    } else {
       setOpenSegmentModal(false);
       setOpenLocationModal(true);
     }

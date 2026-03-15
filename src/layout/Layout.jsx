@@ -108,6 +108,12 @@ function Layout() {
   };
 
   useEffect(() => {
+    if (dayEnded) {
+      setStatus("End Of Day");
+      setActiveSegmentExists(false);
+      return;
+    }
+
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -127,34 +133,23 @@ function Layout() {
     }
 
     setActiveSegmentExists(anyActive);
-  }, [segments]);
+
+  }, [segments, dayEnded]);
 
   const handleEndOfDay = () => {
     openConfirmation("Are you sure you want to end work?", () => {
       const now = getCurrentTime();
 
-      setSegments(prevSegments => {
-        // Check if there is any active segment
-        const anyActive = prevSegments.some(seg => seg.status === "active");
-
-        // End all segments
-        const updated = prevSegments.map(seg => ({
+      setSegments(prevSegments =>
+        prevSegments.map(seg => ({
           ...seg,
           endTime: seg.endTime || now,
           status: "completed"
-        }));
+        }))
+      );
 
-        // If no active segments exist, we can update status to Closed
-        if (!anyActive) {
-          setStatus("Closed");
-        } else {
-          setStatus("Working");
-        }
+      setStatus("End Of Day");
 
-        return updated;
-      });
-
-      // Reset context states
       setStartSegment(false);
       setSelectedSegment("");
       setRecordType("");
@@ -188,14 +183,15 @@ function Layout() {
 
         {segments.map((seg) => (
           <div
-              key={seg.id}
-              className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-gray-100"
-              onClick={() => {
-                if (!dayEnded) {
-                  handleEditSegment(seg);
-                }
-              }}
-            >
+            key={seg.id}
+            className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4
+              ${dayEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"}
+            `}
+            onClick={() => {
+              if (dayEnded) return;
+              handleEditSegment(seg);
+            }}
+          >
             <div className="flex items-center gap-4">
               <div
                 className={`w-2 h-10 rounded-full ${
@@ -226,7 +222,7 @@ function Layout() {
           </div>
         ))}
 
-        {status !== 'Closed' && (
+        {status !== 'End Of Day' && (
           <div className="space-y-2">
             <Button
               buttonStyle={activeSegmentExists ? "danger" : "active"}
