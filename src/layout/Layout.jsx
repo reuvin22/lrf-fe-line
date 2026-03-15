@@ -8,7 +8,7 @@ import { getCurrentTime } from "../utils/getCurrentTime";
 import ManualTimeModal from "../components/Modals/ManualTime";
 import { useManualTimeContext } from "../context/ManualTimeContext";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
-import { Car, MapPin, Building2 } from "lucide-react";
+import { Car, MapPin, Building2, Square } from "lucide-react";
 import EditSegmentModal from "../components/Modals/EditSegmentModal";
 
 function Layout() {
@@ -70,7 +70,6 @@ function Layout() {
       return updated;
     });
 
-    // Reset context states
     setStartSegment(false);
     setSelectedSegment("");
     setRecordType("");
@@ -180,7 +179,6 @@ function Layout() {
       </div>
 
       <div className="p-4 space-y-4">
-
         {segments.map((seg) => (
           <div
             key={seg.id}
@@ -214,20 +212,55 @@ function Layout() {
               </div>
             </div>
 
-            {seg.status === "active" && (
-              <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
-                ● REC
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {seg.status === "active" && (
+                <span className="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full animate-pulse">
+                  ● REC
+                </span>
+              )}
+
+              {/* Stop icon button */}
+              {!dayEnded && !seg.endTime && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevent edit modal
+                    openConfirmation(
+                      `Are you sure you want to end the "${seg.segment}" segment?`,
+                      () => {
+                        const now = getCurrentTime();
+                        setSegments(prevSegments =>
+                          prevSegments.map(s =>
+                            s.id === seg.id ? { ...s, endTime: now, status: "completed" } : s
+                          )
+                        );
+
+                        // Reset context if this was the active segment
+                        setStartSegment(false);
+                        setSelectedSegment("");
+                        setRecordType("");
+                        setStartTime("");
+                        setEndTime("");
+                        setTempSegment(null);
+                        setOpenConfirm(false);
+                      }
+                    );
+                  }}
+                  className="p-1 rounded-full hover:bg-red-100 text-red-500 cursor-pointer transition"
+                  title="End Segment"
+                >
+                  <Square size={18} className="text-red-600" fill="currentColor" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
 
         {status !== 'End Of Day' && (
           <div className="space-y-2">
             <Button
-              buttonStyle={activeSegmentExists ? "danger" : "active"}
-              text={activeSegmentExists ? "⏹ End Segment" : "▶ Start"}
-              onClick={activeSegmentExists ? handleEndSegment : () => handleStartSegment("default")}
+              buttonStyle={activeSegmentExists ? "active" : "active"}
+              text={activeSegmentExists ? "+ Add Another Segment" : "▶ Start"}
+              onClick={activeSegmentExists ? () => handleStartSegment("default") : () => handleStartSegment("default")}
             />
 
             <Button
