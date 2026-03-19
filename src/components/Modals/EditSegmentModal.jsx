@@ -13,15 +13,18 @@ function EditSegmentModal({
   const [site, setSite] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-
+  const [type, setType] = useState("");
+  const [site_name, setSiteName] = useState("")
   useEffect(() => {
     if (segmentData) {
       setSegment(segmentData.segment || "");
       setSite(segmentData.site || "");
       setStartTime(segmentData.startTime || "");
       setEndTime(segmentData.endTime || "");
+      setType(segmentData.type || "");
+      setSiteName(segmentData.site_name || "");
     }
-  }, [segmentData]);
+  }, [segmentData?.segment_id]);
 
   if (!open) return null;
 
@@ -30,16 +33,15 @@ function EditSegmentModal({
   const handleSegmentChange = (value) => {
     setSegment(value);
 
-    // Reset site depending on selection
-    if (value === "Office") {
+    if (value === "OFFICE") {
       setSite("");
     }
 
-    if (value === "Travel") {
+    if (value === "TRAVEL") {
       setSite("No Selected Site");
     }
 
-    if (value === "Site") {
+    if (value === "SITE") {
       setSite("");
     }
   };
@@ -47,10 +49,12 @@ function EditSegmentModal({
   const handleSave = () => {
     onSave({
       ...segmentData,
-      segment,
-      site,
-      startTime,
-      endTime
+      type: type,
+      segment_type: segment,
+      site_id: site,
+      start_time: startTime,
+      end_time: endTime,
+      site_name: site_name
     });
 
     onClose();
@@ -64,7 +68,6 @@ function EditSegmentModal({
 
         <h2 className="text-lg font-semibold">Edit Segment</h2>
 
-        {/* Segment Dropdown */}
         <div>
           <label className="text-sm text-gray-500">Segment</label>
           <select
@@ -80,8 +83,7 @@ function EditSegmentModal({
           </select>
         </div>
 
-        {/* Site Dropdown (hidden for Office) */}
-        {showSite && (
+        {segment !== "OFFICE" && (
           <div>
             <label className="text-sm text-gray-500">Site</label>
             <select
@@ -89,7 +91,7 @@ function EditSegmentModal({
               onChange={(e) => setSite(e.target.value)}
               className="w-full border rounded-lg p-2 mt-1"
             >
-              {segment === "Travel" && (
+              {segment === "TRAVEL" && (
                 <option value="No Selected Site">No Selected Site</option>
               )}
 
@@ -102,7 +104,6 @@ function EditSegmentModal({
           </div>
         )}
 
-        {/* Show time only if MANUAL */}
         {isManual && (
           <>
             <div>

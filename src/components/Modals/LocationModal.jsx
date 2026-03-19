@@ -6,6 +6,8 @@ import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
 import { generateSegmentId } from '../../utils/idGenerator';
+import segmentApi from '../../api/Api';
+import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
 
 function LocationModal() {
   const {
@@ -15,6 +17,7 @@ function LocationModal() {
     recordType,
     selectedSegment,
     setTempSegment,
+    tempSegment,
     setSegments
   } = useSegmentContext();
 
@@ -36,47 +39,41 @@ function LocationModal() {
     setOpenLocationModal(false);
   };
   
-  const handleSelectSite = (siteName) => {
-    setSelectedSite(siteName);
-
-    const newSegment = {
-      id: generateSegmentId(),
-      segment: selectedSegment,
-      site: selectedSite,
-      startTime: getCurrentTime(),
-      endTime: "",
-      status: "active",
-      type: "default"
+  const handleSelectSite = async (site) => {
+    const payload = {
+      ...tempSegment,
+      site_id: site.id,
+      site_name: site.name,
+      start_time: formattedLaravelDate(tempSegment?.start_time),
     };
 
     if (recordType === "manual") {
-      // For manual, save tempSegment and open time modal
-      setTempSegment(newSegment);
+      setTempSegment(payload);
+      setOpenLocationModal(false);
       setOpenTimeModal(true);
-    } else {
-      // For default/live segments, push immediately
-      setSegments(prev => [...prev, newSegment]);
+      return;
+    }
+
+    try {
+      await segmentApi.create(payload);
+    } catch (err) {
+      console.error("Create failed:", err);
     }
 
     setOpenLocationModal(false);
   };
 
   const handleSkip = () => {
-    setSelectedSite("");
-
-    const newSegment = {
-      segment: selectedSegment,
-      site: "",
-      startTime: getCurrentTime(),
-      endTime: "",
-      type: recordType
+    const updatedSegment = {
+      ...tempSegment,
+      site_id: null,
     };
 
+    console.log("📍 Location Payload (Skip):", updatedSegment);
+
     if (recordType === "manual") {
-      setTempSegment(newSegment);
+      setTempSegment(updatedSegment);
       setOpenTimeModal(true);
-    } else {
-      setSegments(prev => [...prev, newSegment]);
     }
 
     setOpenLocationModal(false);
@@ -105,7 +102,7 @@ function LocationModal() {
               key={index}
               icon={site.icon}
               name={site.name}
-              onClick={() => handleSelectSite(site.name)}
+              onClick={() => handleSelectSite(site)}
             />
           ))}
           {selectedSegment === 'Travel' && (

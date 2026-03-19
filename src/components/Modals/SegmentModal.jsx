@@ -5,6 +5,9 @@ import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
+import segmentApi from '../../api/Api';
+import { generateSegmentId } from '../../utils/idGenerator';
+import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
 
 function SegmentModal() {
   const {
@@ -15,7 +18,8 @@ function SegmentModal() {
     setOpenLocationModal,
     recordType,
     setSegments,
-    setTempSegment
+    setTempSegment,
+    tempSegment
   } = useSegmentContext();
 
   const {
@@ -28,40 +32,39 @@ function SegmentModal() {
   if (!openSegmentModal) return null;
 
   const options = [
-    { name: "Travel", description: "Movement between sites", icon: Car },
-    { name: "Site", description: "Construction site work", icon: MapPin },
-    { name: "Office", description: "Office work", icon: Building2 },
+    { name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL"},
+    { name: "Site", description: "Construction site work", icon: MapPin, value: "SITE" },
+    { name: "Office", description: "Office work", icon: Building2, value: "OFFICE" },
   ];
 
-  const handleSelect = (segmentName) => {
-    setSelectedSegment(segmentName);
-
-    const now = getCurrentTime();
+  const handleSelect = async (segment) => {
+    const rawStartTime = tempSegment?.start_time || getCurrentTime();
 
     const segmentObj = {
-      id: Date.now(), // important for React key
-      segment: segmentName,
-      site: segmentName === "Office" ? "" : null,
-      startTime: now,
-      endTime: "",
+      attendance_id: generateSegmentId(),
+      segment_type: segment.value,
       type: recordType,
-      status: "active"
+      start_time: formattedLaravelDate(rawStartTime),
+      site_id: null,
+      end_time: null
     };
 
+    setSelectedSegment(segment.value);
     setTempSegment(segmentObj);
+    setOpenSegmentModal(false);
 
-    if (segmentName === "Office") {
-      setOpenSegmentModal(false);
-
-      if (recordType === "manual") {
-        setOpenTimeModal(true);
+    try {
+      if (segment.value === "OFFICE") {
+        if (recordType === "manual") {
+          setOpenTimeModal(true);
+        } else {
+          await segmentApi.create(segmentObj);
+        }
       } else {
-        // push directly to context
-        setSegments(prev => [...prev, segmentObj]);
+        setOpenLocationModal(true);
       }
-    } else {
-      setOpenSegmentModal(false);
-      setOpenLocationModal(true);
+    } catch (err) {
+      console.error("Create segment failed:", err);
     }
   };
 
@@ -89,7 +92,7 @@ function SegmentModal() {
               name={opt.name}
               description={opt.description}
               icon={opt.icon}
-              onClick={() => handleSelect(opt.name)}
+              onClick={() => handleSelect(opt)}
             />
           ))}
         </div>

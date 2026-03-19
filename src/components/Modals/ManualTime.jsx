@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { X, Clock } from "lucide-react";
 import { useManualTimeContext } from "../../context/ManualTimeContext";
 import { useSegmentContext } from "../../context/SegmentContext";
+import segmentApi from "../../api/Api";
+import { formattedLaravelDate } from "../../utils/formattedLaravelDate";
 
 function ManualTimeModal() {
   // Always call hooks
@@ -26,36 +28,44 @@ function ManualTimeModal() {
     }
   }, [tempStartTime, tempEndTime]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (tempEndTime && tempEndTime < tempStartTime) {
       alert("End time cannot be before start time.");
       return;
     }
 
-    setStartTime(tempStartTime);
-    setEndTime(tempEndTime);
+    const now = new Date();
 
-    // Always use tempSegment to create the segment
-    const segmentToSave = tempSegment || {
-      segment: "Office",
-      site: "",
-      type: "manual",
-      status: "active"
+    const buildDateTime = (time) => {
+      if (!time) return null;
+
+      const [hours, minutes] = time.split(":");
+      const d = new Date(now);
+
+      d.setHours(Number(hours));
+      d.setMinutes(Number(minutes));
+      d.setSeconds(0);
+      d.setMilliseconds(0);
+
+      return formattedLaravelDate(d.toISOString());
     };
 
-    setSegments(prev => [
-      ...prev,
-      {
-        ...segmentToSave,
-        startTime: tempStartTime,
-        endTime: tempEndTime,
-        status: "active"
-      }
-    ]);
+    const segmentToSave = {
+      ...tempSegment,
+      start_time: buildDateTime(tempStartTime),
+      end_time: tempEndTime ? buildDateTime(tempEndTime) : null,
+    };
+
+    console.log("🚀 CREATE Segment Payload:", segmentToSave);
+
+    try {
+      await segmentApi.create(segmentToSave);
+    } catch (err) {
+      console.error("Create segment failed:", err);
+    }
 
     setOpenTimeModal(false);
   };
-
   // **Render nothing if modal is closed**
   if (!openTimeModal) return null;
 
