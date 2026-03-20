@@ -9,10 +9,11 @@ import { useManualTimeContext } from "../context/ManualTimeContext";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { Square } from "lucide-react";
 import EditSegmentModal from "../components/Modals/EditSegmentModal";
-import segmentApi from "../api/Api";
 import { formattedLaravelDate } from "../utils/formattedLaravelDate";
 import echo from "../echo";
 import { formattedTime } from "../utils/formattedTime";
+import { attendanceApi, segmentApi } from "../api/Api";
+import formatWorkDate from "../utils/formatWorkDate";
 
 function Layout() {
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -21,7 +22,7 @@ function Layout() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState(null);
   const [status, setStatus] = useState("Not Started");
-
+  const [attendance, setAttendance] = useState(null);
   const {
     setOpenSegmentModal,
     setSelectedSegment,
@@ -36,14 +37,21 @@ function Layout() {
   } = useSegmentContext();
 
   const { setStartTime, setEndTime } = useManualTimeContext();
-
+  const isEndOfDay = attendance?.status === "END_OF_DAY";
   const fetchSegments = async () => {
     try {
       const res = await segmentApi.getAll();
       const data = res.data.data || res.data;
 
-      console.log("📥 SEGMENTS FROM API:", data);
       setSegments(data);
+
+      if (data.length > 0) {
+        const attendanceId = data[0].attendance_id;
+
+        const attendanceRes = await attendanceApi.getById(attendanceId);
+        setAttendance(attendanceRes.data.data || attendanceRes.data);
+      }
+
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
@@ -52,6 +60,18 @@ function Layout() {
   useEffect(() => {
     fetchSegments();
   }, []);
+
+  const fetchAttendance = async () => {
+    try {
+      const attendanceId = segments[0]?.attendance_id;
+      if (!attendanceId) return;
+
+      const res = await attendanceApi.getById(attendanceId);
+      setAttendance(res.data.data || res.data);
+    } catch (err) {
+      console.error("Error fetching attendance:", err);
+    }
+  };
 
   const openConfirmation = (message, action) => {
     setConfirmMessage(message);
@@ -89,6 +109,12 @@ function Layout() {
   };
 
   useEffect(() => {
+    if (attendance?.status === "END_OF_DAY") {
+      setStatus("End Of Day");
+      setDayEnded(true);
+      return;
+    }
+
     if (dayEnded) {
       setStatus("End Of Day");
       return;
@@ -110,21 +136,27 @@ function Layout() {
 
     setStatus(anyActive ? "Working" : "Not Started");
 
-  }, [segments, dayEnded]);
+  }, [segments, dayEnded, attendance]);
 
   const handleEndSegment = async (seg) => {
-    const endTimeISO = new Date().toISOString();
-
     const payload = {
-      ...seg,
-      start_time: new Date(seg.start_time).toISOString(),
-      end_time: endTimeISO,
+      attendance_id: seg.attendance_id,
+      segment_type: seg.segment_type,
+      site_id: seg.site_id,
+      site_name: seg.site_name,
+      type: seg.type,
+      start_time: seg.start_time,
+      end_time: new Date().toISOString(),
     };
 
     console.log("🛑 UPDATE Segment Payload:", payload);
 
     try {
       await segmentApi.update(seg.segment_id, payload);
+      await attendanceApi.update(seg.attendance_id, {
+        status: "COMPLETED",
+        end_time: now
+      });
       await fetchSegments();
     } catch (err) {
       console.error("Update failed:", err);
@@ -140,20 +172,33 @@ function Layout() {
     setOpenConfirm(false);
   };
 
+  console.log(segments)
   const handleEndOfDay = () => {
     openConfirmation("Are you sure you want to end work?", async () => {
       const now = getCurrentTime();
 
       try {
+        const attendanceId = segments[0]?.attendance_id;
+        const attendanceRes = await attendanceApi.getById(attendanceId);
+        const attendance = attendanceRes.data;
+        console.log(attendance)
         await Promise.all(
           segments.map(seg => {
             if (!seg.end_time) {
-              return segmentApi.update(seg.attendance_id, {
+              return segmentApi.update(seg.segment_id, {
+                ...seg,
                 end_time: now
               });
             }
           })
         );
+
+        await attendanceApi.update(attendanceId, {
+          employee_id: attendance.data.employee_id,
+          work_date: attendance.data.work_date,
+          status: "END_OF_DAY",
+          end_time: now
+        });
 
         await fetchSegments();
 
@@ -175,15 +220,22 @@ function Layout() {
 
   const handleUpdateSegment = async (updatedSegment) => {
     try {
-      await segmentApi.update(updatedSegment.segment_id, {
+      const payload = {
         attendance_id: updatedSegment.attendance_id,
         segment_type: updatedSegment.segment_type,
         site_id: updatedSegment.site_id,
-        start_time: updatedSegment.start_time,
-        end_time: updatedSegment.end_time,
         type: updatedSegment.type,
-        site_name: updatedSegment.site_name
-      });
+        site_name: updatedSegment.site_name,
+        start_time: updatedSegment.start_time
+          ? new Date(updatedSegment.start_time).toISOString()
+          : null,
+
+        end_time: updatedSegment.end_time
+          ? new Date(updatedSegment.end_time).toISOString()
+          : null,
+      };
+
+      await segmentApi.update(updatedSegment.segment_id, payload);
 
       await fetchSegments();
     } catch (err) {
@@ -219,13 +271,15 @@ function Layout() {
   return (
     <div className="max-w-md mx-auto min-h-screen">
       <div className="bg-white px-5 py-4 border-b">
-        <p className="text-sm text-gray-500">Fri, Mar 13, 2026</p>
+        <p className="text-sm text-gray-500">
+          {formatWorkDate(attendance?.work_date)}
+        </p>
 
         <div className="flex items-center gap-2 mt-1">
           <span className={`font-semibold text-lg ${
             status === "Working" ? "text-green-600" : "text-gray-600"
           }`}>
-            Status: {status}
+            Status: {attendance?.status?.replace(/_/g, " ") || "Not Started"}
           </span>
         </div>
       </div>
@@ -235,10 +289,10 @@ function Layout() {
           <div
             key={seg.segment_id}
             className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4
-              ${dayEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"}
+              ${!dayEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"}
             `}
             onClick={() => {
-              if (dayEnded) return;
+              if (!dayEnded) return;
               handleEditSegment(seg);
             }}
           >
@@ -284,7 +338,7 @@ function Layout() {
           </div>
         ))}
 
-        {status !== "End Of Day" && (
+        {dayEnded && (
           <div className="space-y-2">
             <Button
               text={segments.length > 0 ? "+ Add Segment" : "▶ Start"}

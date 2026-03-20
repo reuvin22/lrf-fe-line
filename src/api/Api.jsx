@@ -1,27 +1,14 @@
 import axiosApi from "./Axios";
 
-const segmentApi = {
-  getAll: () => axiosApi.get("/segments"),
-  getById: (id) => axiosApi.get(`/segments/${id}`),
-  create: (data) => axiosApi.post("/segments", data),
-  update: (id, data) => axiosApi.put(`/segments/${id}`, data),
-  delete: (id) => axiosApi.delete(`/segments/${id}`),
-};
+const createApi = (endpoint) => ({
+  getAll: () => axiosApi.get(`/${endpoint}`),
+  getById: (id) => axiosApi.get(`/${endpoint}/${id}`),
+  create: (data) => axiosApi.post(`/${endpoint}`, data),
+  update: (id, data) => axiosApi.put(`/${endpoint}/${id}`, data),
+  delete: (id) => axiosApi.delete(`/${endpoint}/${id}`),
+});
 
-const transportationExpensesApi = {
-  getAll: () => axiosApi.get("/segments"),
-  getById: (id) => axiosApi.get(`/segments/${id}`),
-  create: (data) => axiosApi.post("/segments", data),
-  update: (id, data) => axiosApi.put(`/segments/${id}`, data),
-  delete: (id) => axiosApi.delete(`/segments/${id}`),
-};
-
-const subContractorApi = {
-  getAll: () => axiosApi.get("/segments"),
-  getById: (id) => axiosApi.get(`/segments/${id}`),
-  create: (data) => axiosApi.post("/segments", data),
-  update: (id, data) => axiosApi.put(`/segments/${id}`, data),
-  delete: (id) => axiosApi.delete(`/segments/${id}`),
-};
-
-export default segmentApi;
+export const attendanceApi = createApi("attendances");
+export const segmentApi = createApi("segments");
+export const transportationExpensesApi = createApi("transportation-expenses");
+export const subContractorApi = createApi("sub-contractors");

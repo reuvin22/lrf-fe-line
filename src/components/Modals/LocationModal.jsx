@@ -4,10 +4,7 @@ import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
-import { getCurrentTime } from '../../utils/getCurrentTime';
-import { generateSegmentId } from '../../utils/idGenerator';
-import segmentApi from '../../api/Api';
-import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
+import { segmentApi } from '../../api/Api';
 
 function LocationModal() {
   const {
@@ -42,9 +39,12 @@ function LocationModal() {
   const handleSelectSite = async (site) => {
     const payload = {
       ...tempSegment,
+
       site_id: site.id,
       site_name: site.name,
-      start_time: formattedLaravelDate(tempSegment?.start_time),
+      start_time: tempSegment?.start_time
+        ? new Date(tempSegment.start_time).toISOString()
+        : new Date().toISOString(),
     };
 
     if (recordType === "manual") {

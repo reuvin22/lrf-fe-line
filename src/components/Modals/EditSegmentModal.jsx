@@ -15,12 +15,23 @@ function EditSegmentModal({
   const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
   const [site_name, setSiteName] = useState("")
+
+  const formatTime = (datetime) => {
+    if (!datetime) return "";
+    const d = new Date(datetime);
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  };
+
   useEffect(() => {
     if (segmentData) {
       setSegment(segmentData.segment || "");
       setSite(segmentData.site || "");
-      setStartTime(segmentData.startTime || "");
-      setEndTime(segmentData.endTime || "");
+      setStartTime(formatTime(segmentData.startTime));
+      setEndTime(formatTime(segmentData.endTime));
       setType(segmentData.type || "");
       setSiteName(segmentData.site_name || "");
     }
@@ -47,13 +58,15 @@ function EditSegmentModal({
   };
 
   const handleSave = () => {
+    const today = new Date().toISOString().split("T")[0];
+
     onSave({
       ...segmentData,
       type: type,
       segment_type: segment,
       site_id: site,
-      start_time: startTime,
-      end_time: endTime,
+      start_time: `${today} ${startTime}:00`,
+      end_time: `${today} ${endTime}:00`,
       site_name: site_name
     });
 

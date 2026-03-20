@@ -5,9 +5,10 @@ import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
-import segmentApi from '../../api/Api';
 import { generateSegmentId } from '../../utils/idGenerator';
 import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
+import { segmentApi } from '../../api/Api';
+import { attendanceChecker } from '../../utils/attendanceChecker';
 
 function SegmentModal() {
   const {
@@ -40,20 +41,22 @@ function SegmentModal() {
   const handleSelect = async (segment) => {
     const rawStartTime = tempSegment?.start_time || getCurrentTime();
 
-    const segmentObj = {
-      attendance_id: generateSegmentId(),
-      segment_type: segment.value,
-      type: recordType,
-      start_time: formattedLaravelDate(rawStartTime),
-      site_id: null,
-      end_time: null
-    };
-
-    setSelectedSegment(segment.value);
-    setTempSegment(segmentObj);
-    setOpenSegmentModal(false);
-
     try {
+      const attendance = await attendanceChecker();
+
+      const segmentObj = {
+        attendance_id: attendance.attendance_id,
+        segment_type: segment.value,
+        type: recordType,
+        start_time: new Date(rawStartTime).toISOString(),
+        site_id: null,
+        end_time: null
+      };
+
+      setSelectedSegment(segment.value);
+      setTempSegment(segmentObj);
+      setOpenSegmentModal(false);
+
       if (segment.value === "OFFICE") {
         if (recordType === "manual") {
           setOpenTimeModal(true);
@@ -63,8 +66,9 @@ function SegmentModal() {
       } else {
         setOpenLocationModal(true);
       }
+
     } catch (err) {
-      console.error("Create segment failed:", err);
+      console.error("Failed to create attendance/segment:", err);
     }
   };
 

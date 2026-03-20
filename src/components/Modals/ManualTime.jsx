@@ -2,11 +2,9 @@ import React, { useState, useEffect } from "react";
 import { X, Clock } from "lucide-react";
 import { useManualTimeContext } from "../../context/ManualTimeContext";
 import { useSegmentContext } from "../../context/SegmentContext";
-import segmentApi from "../../api/Api";
-import { formattedLaravelDate } from "../../utils/formattedLaravelDate";
+import { segmentApi } from "../../api/Api";
 
 function ManualTimeModal() {
-  // Always call hooks
   const {
     openTimeModal,
     setOpenTimeModal,
@@ -40,14 +38,14 @@ function ManualTimeModal() {
       if (!time) return null;
 
       const [hours, minutes] = time.split(":");
-      const d = new Date(now);
+      const d = new Date();
 
       d.setHours(Number(hours));
       d.setMinutes(Number(minutes));
       d.setSeconds(0);
       d.setMilliseconds(0);
 
-      return formattedLaravelDate(d.toISOString());
+      return d.toISOString();
     };
 
     const segmentToSave = {
