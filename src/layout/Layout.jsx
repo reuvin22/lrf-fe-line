@@ -37,7 +37,7 @@ function Layout() {
   } = useSegmentContext();
 
   const { setStartTime, setEndTime } = useManualTimeContext();
-  const isEndOfDay = attendance?.status === "END_OF_DAY";
+  const today = new Date().toDateString();
   const fetchSegments = async () => {
     try {
       const res = await segmentApi.getAll();
@@ -272,7 +272,9 @@ function Layout() {
     <div className="max-w-md mx-auto min-h-screen">
       <div className="bg-white px-5 py-4 border-b">
         <p className="text-sm text-gray-500">
-          {formatWorkDate(attendance?.work_date)}
+            {attendance?.work_date
+              ? formatWorkDate(attendance.work_date)
+              : today}
         </p>
 
         <div className="flex items-center gap-2 mt-1">
@@ -338,14 +340,14 @@ function Layout() {
           </div>
         ))}
 
-        {dayEnded && (
+        {attendance?.status !== "END_OF_DAY" && (
           <div className="space-y-2">
             <Button
               text={segments.length > 0 ? "+ Add Segment" : "▶ Start"}
               customButton={
-                segments.length > 0
+                segments.length === 0
                   ? "bg-green-500 text-white py-4 hover:bg-green-600"
-                  : "bg-blue-500 text-white py-4 hover:bg-blue-600"
+                  : "bg-green-500 text-white py-4 hover:bg-green-600"
               }
               onClick={() => handleStartSegment("default")}
             />
@@ -360,6 +362,7 @@ function Layout() {
               text="↪ End Work Day"
               customButton="border border-gray-300 py-4"
               onClick={handleEndOfDay}
+              disabled={segments.length === 0} // optional
             />
           </div>
         )}
