@@ -10,5 +10,5 @@ const createApi = (endpoint) => ({
 
 export const attendanceApi = createApi("attendances");
 export const segmentApi = createApi("segments");
-export const transportationExpensesApi = createApi("transportation-expenses");
+export const transportationExpensesApi = createApi("transportation_expenses");
 export const subContractorApi = createApi("sub-contractors");

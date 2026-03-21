@@ -13,6 +13,7 @@ import echo from "../echo";
 import { formattedTime } from "../utils/formattedTime";
 import { attendanceApi, segmentApi } from "../api/Api";
 import formatWorkDate from "../utils/formatWorkDate";
+import { useNavigate } from "react-router-dom";
 
 function Layout() {
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -32,7 +33,7 @@ function Layout() {
     setSegments,
     setStartSegment,
   } = useSegmentContext();
-
+  const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
 
   const today = new Date().toDateString();
@@ -176,7 +177,6 @@ function Layout() {
     setOpenConfirm(false);
   };
 
-  // ✅ End of day
   const handleEndOfDay = () => {
     openConfirmation("Are you sure you want to end work?", async () => {
       setConfirmLoading(true);
@@ -207,6 +207,7 @@ function Layout() {
         });
 
         await fetchSegments();
+        navigate("/transportation-expenses");
       } catch (err) {
         console.error("End of day update failed:", err);
       }
