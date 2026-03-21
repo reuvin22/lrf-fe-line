@@ -4,3 +4,5 @@ const environment = {
   VITE_PUSHER_APP_CLUSTER: import.meta.env.VITE_PUSHER_APP_CLUSTER,
   VITE_LIFF_KEY: import.meta.env.VITE_LIFF_KEY
 };
+
+export default environment
