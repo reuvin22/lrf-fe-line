@@ -73,8 +73,7 @@ function Layout() {
           updated[index] = e.segment;
           return updated;
         }
-
-        return [...prev, e.segment];
+        return [e.segment, ...prev];
       });
     };
 
@@ -270,7 +269,6 @@ function Layout() {
           >
             <div className="flex items-center gap-4">
               
-              {/* ✅ Vertical color line restored */}
               <div
                 className={`w-2 h-10 rounded-full ${
                   seg.segment_type === "TRAVEL"
