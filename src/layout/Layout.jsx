@@ -23,6 +23,7 @@ function Layout() {
   const [editingSegment, setEditingSegment] = useState(null);
   const [status, setStatus] = useState("Not Started");
   const [attendance, setAttendance] = useState(null);
+  const [error, setError] = useState("");
   const {
     setOpenSegmentModal,
     setSelectedSegment,
@@ -40,6 +41,7 @@ function Layout() {
   const today = new Date().toDateString();
   const fetchSegments = async () => {
     try {
+      setError(""); // reset error
       const res = await segmentApi.getAll();
       const data = res.data.data || res.data;
 
@@ -47,13 +49,13 @@ function Layout() {
 
       if (data.length > 0) {
         const attendanceId = data[0].attendance_id;
-
         const attendanceRes = await attendanceApi.getById(attendanceId);
         setAttendance(attendanceRes.data.data || attendanceRes.data);
       }
 
     } catch (error) {
       console.error("Error fetching segments:", error);
+      setError("Failed to load segments. Please try again.");
     }
   };
 
