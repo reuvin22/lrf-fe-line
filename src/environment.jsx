@@ -1,7 +1,7 @@
 const environment = {
-  API_BASE_URL: "http://localhost:8000/api/v1",
-  VITE_PUSHER_APP_KEY: "68bcf13e240247effafd",
-  VITE_PUSHER_APP_CLUSTER:"ap3"
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  VITE_PUSHER_APP_KEY: import.meta.env.PUSHER_APP_KEY,
+  VITE_PUSHER_APP_CLUSTER: import.meta.env.PUSHER_APP_CLUSTER
 };
 
 export default environment;
