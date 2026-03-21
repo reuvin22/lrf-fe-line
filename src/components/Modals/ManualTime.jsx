@@ -16,7 +16,7 @@ function ManualTimeModal() {
   const [tempStartTime, setTempStartTime] = useState("");
   const [tempEndTime, setTempEndTime] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-
+  const [isLoading, setIsLoading] = useState(false);
   // Validate times whenever they change
   useEffect(() => {
     if (tempStartTime && tempEndTime && tempEndTime < tempStartTime) {
@@ -32,7 +32,7 @@ function ManualTimeModal() {
       return;
     }
 
-    const now = new Date();
+    setIsLoading(true);
 
     const buildDateTime = (time) => {
       if (!time) return null;
@@ -54,16 +54,16 @@ function ManualTimeModal() {
       end_time: tempEndTime ? buildDateTime(tempEndTime) : null,
     };
 
-    console.log("🚀 CREATE Segment Payload:", segmentToSave);
-
     try {
       await segmentApi.create(segmentToSave);
     } catch (err) {
       console.error("Create segment failed:", err);
+    } finally {
+      setIsLoading(false);
+      setOpenTimeModal(false);
     }
-
-    setOpenTimeModal(false);
   };
+  
   // **Render nothing if modal is closed**
   if (!openTimeModal) return null;
 
@@ -118,14 +118,18 @@ function ManualTimeModal() {
 
           <button
             onClick={handleSave}
-            disabled={!!errorMessage}
-            className={`w-full py-2 rounded-lg text-sm font-medium transition ${
-              errorMessage
+            disabled={!!errorMessage || isLoading}
+            className={`w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center ${
+              errorMessage || isLoading
                 ? "bg-gray-300 text-gray-700 cursor-not-allowed"
                 : "bg-green-500 text-white hover:bg-green-600"
             }`}
           >
-            セグメント追加
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              "セグメント追加"
+            )}
           </button>
         </div>
       </div>
