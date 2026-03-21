@@ -26,9 +26,9 @@ function LocationModal() {
   if (!openLocationModal) return null;
 
   const sites = [
-    { name: "Site A - Shinjuku Tower", icon: MapPin },
-    { name: "Site B - Shibuya Office", icon: MapPin },
-    { name: "Site C - Roppongi Hills", icon: MapPin },
+    { id: "1", name: "Site A - Shinjuku Tower", icon: MapPin },
+    { id: "2", name: "Site B - Shibuya Office", icon: MapPin },
+    { id: "3", name: "Site C - Roppongi Hills", icon: MapPin },
   ];
 
   const handleClose = () => {
@@ -39,8 +39,7 @@ function LocationModal() {
   const handleSelectSite = async (site) => {
     const payload = {
       ...tempSegment,
-
-      site_id: site.id,
+      site_id: site.name,
       site_name: site.name,
       start_time: tempSegment?.start_time
         ? new Date(tempSegment.start_time).toISOString()

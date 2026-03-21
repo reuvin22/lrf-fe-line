@@ -14,7 +14,7 @@ function EditSegmentModal({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
-  const [site_name, setSiteName] = useState("")
+  const [site_name, setSiteName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const formatTime = (datetime) => {
     if (!datetime) return "";
@@ -62,17 +62,21 @@ function EditSegmentModal({
 
     const today = new Date().toISOString().split("T")[0];
 
-    try {
-      await onSave({
-        ...segmentData,
-        type: type,
-        segment_type: segment,
-        site_id: site,
-        start_time: `${today} ${startTime}:00`,
-        end_time: `${today} ${endTime}:00`,
-        site_name: site_name
-      });
+    const payload = {
+      ...segmentData,
+      type: type,
+      segment_type: segment,
+      site_id: site,
+      site_name: site_name
+    };
 
+    if (isManual) {
+      payload.start_time = `${today} ${startTime}:00`;
+      payload.end_time = `${today} ${endTime}:00`;
+    }
+
+    try {
+      await onSave(payload);
       onClose();
     } catch (err) {
       console.error(err);
@@ -80,8 +84,6 @@ function EditSegmentModal({
       setIsLoading(false);
     }
   };
-
-  const showSite = segment !== "Office";
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
@@ -150,20 +152,18 @@ function EditSegmentModal({
         )}
 
         <div className="flex gap-2 pt-2">
-          <Button text="Cancel" buttonStyle="secondary" onClick={onClose} />
           <Button
-              onClick={handleSave}
-              buttonStyle="active"
-              text={
-                isLoading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : (
-                  "Save"
-                )
-              }
-            />
+            text="Cancel"
+            buttonStyle="secondary"
+            onClick={onClose}
+          />
+
+          <Button
+            onClick={handleSave}
+            buttonStyle="active"
+            text="Save"
+            loading={isLoading}
+          />
         </div>
 
       </div>
