@@ -2,7 +2,7 @@ import axios from "axios";
 import environment from "../environment";
 
 const axiosApi = axios.create({
-  baseURL: environment.API_BASE_URL,
+  baseURL: environment.VITE_API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
