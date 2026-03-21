@@ -1,7 +1,7 @@
 import liff from '@line/liff';
 import environment from '../environment';
 
-const LIFF_ID = environment.VITE_VITE_LIFF_KEY
+const LIFF_ID = environment.VITE_LIFF_KEY
 
 export const initLiff = async () => {
   try {
