@@ -248,24 +248,28 @@ function Layout() {
   useEffect(() => {
     const channel = echo.channel("segments");
 
-    channel.listen(".segment.event", (e) => {
+    const handler = (e) => {
       console.log("Realtime update:", e);
-        setSegments((prev) => {
-          const index = prev.findIndex(
-            s => s.segment_id === e.segment.segment_id
-          );
 
-          if (index !== -1) {
-            const updated = [...prev];
-            updated[index] = e.segment;
-            return updated;
-          }
+      setSegments((prev) => {
+        const index = prev.findIndex(
+          (s) => s.segment_id === e.segment.segment_id
+        );
 
-          return [...prev, e.segment];
-        });
-    });
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = e.segment;
+          return updated;
+        }
+
+        return [...prev, e.segment];
+      });
+    };
+
+    channel.listen(".segment.event", handler);
 
     return () => {
+      channel.stopListening(".segment.event", handler);
       echo.leave("segments");
     };
   }, []);
@@ -342,7 +346,6 @@ function Layout() {
           </div>
         ))}
 
-        {attendance?.status !== "END_OF_DAY" && (
           <div className="space-y-2">
             <Button
               text={segments.length > 0 ? "+ Add Segment" : "▶ Start"}
@@ -367,7 +370,6 @@ function Layout() {
               disabled={segments.length === 0} // optional
             />
           </div>
-        )}
       </div>
 
       <SegmentModal />
