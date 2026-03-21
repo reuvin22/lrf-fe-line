@@ -73,12 +73,12 @@ function SegmentModal() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-6">
+    <div className="fixed inset-0 flex items-center justify-center z-[9999] p-6 pointer-events-none">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/40 pointer-events-auto"
         onClick={() => setOpenSegmentModal(false)}
       />
-      <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6">
+      <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 pointer-events-auto">
         <div className="flex justify-between items-center mb-6 px-1">
           <h2 className="text-xl font-bold text-gray-900">Select Segment Type</h2>
           <button

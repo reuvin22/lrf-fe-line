@@ -21,11 +21,6 @@ function App() {
 
     initialize();
   }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <Router>
       <Routes>
