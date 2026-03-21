@@ -15,7 +15,7 @@ function EditSegmentModal({
   const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
   const [site_name, setSiteName] = useState("")
-
+  const [isLoading, setIsLoading] = useState(false);
   const formatTime = (datetime) => {
     if (!datetime) return "";
     const d = new Date(datetime);
@@ -57,20 +57,28 @@ function EditSegmentModal({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsLoading(true);
+
     const today = new Date().toISOString().split("T")[0];
 
-    onSave({
-      ...segmentData,
-      type: type,
-      segment_type: segment,
-      site_id: site,
-      start_time: `${today} ${startTime}:00`,
-      end_time: `${today} ${endTime}:00`,
-      site_name: site_name
-    });
+    try {
+      await onSave({
+        ...segmentData,
+        type: type,
+        segment_type: segment,
+        site_id: site,
+        start_time: `${today} ${startTime}:00`,
+        end_time: `${today} ${endTime}:00`,
+        site_name: site_name
+      });
 
-    onClose();
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const showSite = segment !== "Office";
@@ -143,7 +151,19 @@ function EditSegmentModal({
 
         <div className="flex gap-2 pt-2">
           <Button text="Cancel" buttonStyle="secondary" onClick={onClose} />
-          <Button text="Save" buttonStyle="active" onClick={handleSave} />
+          <Button
+              onClick={handleSave}
+              buttonStyle="active"
+              text={
+                isLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  "Save"
+                )
+              }
+            />
         </div>
 
       </div>

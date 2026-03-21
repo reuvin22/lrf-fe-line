@@ -11,16 +11,16 @@ import Dashboard from "./pages/Dashboard";
 import { initLiff } from "./api/Liff";
 
 function App() {
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const initialize = async () => {
-      await initLiff();
-      setLoading(false);
-    };
+  // useEffect(() => {
+  //   const initialize = async () => {
+  //     await initLiff();
+  //     setLoading(false);
+  //   };
 
-    initialize();
-  }, []);
+  //   initialize();
+  // }, []);
   return (
     <Router>
       <Routes>
