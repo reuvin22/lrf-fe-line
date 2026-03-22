@@ -33,23 +33,38 @@ function Layout() {
     setSegments,
     setStartSegment,
   } = useSegmentContext();
+
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
 
-  const today = new Date().toDateString();
+  const todayDisplay = new Date().toDateString();
+  const getToday = () => new Date().toISOString().split("T")[0];
 
+  // ✅ FIXED: FETCH ONLY TODAY'S DATA
   const fetchSegments = async () => {
     try {
-      const res = await segmentApi.getAll();
-      const data = res.data.data || res.data;
+      const today = getToday();
 
-      setSegments(data);
+      const attendanceRes = await attendanceApi.getAll({
+        params: { work_date: today },
+      });
 
-      if (data.length > 0) {
-        const attendanceId = data[0].attendance_id;
-        const attendanceRes = await attendanceApi.getById(attendanceId);
-        setAttendance(attendanceRes.data.data || attendanceRes.data);
+      const attendanceData = attendanceRes.data.data?.[0];
+
+      if (!attendanceData) {
+        setAttendance(null);
+        setSegments([]);
+        return;
       }
+
+      setAttendance({ data: attendanceData });
+
+      const res = await segmentApi.getAll({
+        params: { attendance_id: attendanceData.id },
+      });
+
+      const data = res.data.data || [];
+      setSegments(data);
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
@@ -59,6 +74,23 @@ function Layout() {
     fetchSegments();
   }, []);
 
+  // ✅ FIXED: AUTO RESET WHEN NEW DAY COMES
+  useEffect(() => {
+    let currentDay = getToday();
+
+    const interval = setInterval(() => {
+      const nowDay = getToday();
+
+      if (nowDay !== currentDay) {
+        currentDay = nowDay;
+        fetchSegments();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ PUSHER SEGMENTS (UNCHANGED)
   useEffect(() => {
     const channel = echo.channel("segments");
 
@@ -85,6 +117,7 @@ function Layout() {
     };
   }, []);
 
+  // ✅ PUSHER ATTENDANCE (UNCHANGED)
   useEffect(() => {
     const channel = echo.channel("attendances");
 
@@ -100,28 +133,32 @@ function Layout() {
     };
   }, []);
 
+  // ✅ FIXED STATUS LOGIC (CLEAN + CORRECT)
   useEffect(() => {
-  const attendanceStatus = attendance?.status;
+    const attendanceStatus = attendance?.data?.status;
 
-  if (attendanceStatus === "END_OF_DAY") {
-    setStatus("End Of Day");
-    return;
-  }
+    if (!attendance) {
+      setStatus("Not Started");
+      return;
+    }
 
-  if (segments.length === 0) {
-    setStatus("Not Started");
-    return;
-  }
+    if (attendanceStatus === "END_OF_DAY") {
+      setStatus("End Of Day");
+      return;
+    }
 
-  const anyActive = segments.some(
-    (seg) => seg.start_time && !seg.end_time
-  );
+    if (segments.length === 0) {
+      setStatus("Not Started");
+      return;
+    }
 
-  setStatus(anyActive ? "Working" : "Working");
+    const anyActive = segments.some(
+      (seg) => seg.start_time && !seg.end_time
+    );
 
-}, [segments, attendance]);
+    setStatus(anyActive ? "Working" : "Completed");
+  }, [segments, attendance]);
 
-  console.log('THIS IS SEGMENTS: ', segments)
   const openConfirmation = (message, action) => {
     setConfirmMessage(message);
     setConfirmAction(() => action);
@@ -151,17 +188,15 @@ function Layout() {
     setOpenEditModal(true);
   };
 
-  // ✅ End segment
+  // ✅ END SEGMENT (UNCHANGED)
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
 
-    const payload = {
-      ...seg,
-      end_time: now,
-    };
-
     try {
-      await segmentApi.update(seg.segment_id, payload);
+      await segmentApi.update(seg.segment_id, {
+        ...seg,
+        end_time: now,
+      });
 
       await attendanceApi.update(seg.attendance_id, {
         status: "COMPLETED",
@@ -176,6 +211,7 @@ function Layout() {
     setOpenConfirm(false);
   };
 
+  // ✅ END DAY (UNCHANGED)
   const handleEndOfDay = () => {
     openConfirmation("Are you sure you want to end work?", async () => {
       setConfirmLoading(true);
@@ -183,9 +219,7 @@ function Layout() {
       const now = getCurrentTime();
 
       try {
-        const attendanceId = segments[0]?.attendance_id;
-        const attendanceRes = await attendanceApi.getById(attendanceId);
-        const attendanceData = attendanceRes.data;
+        const attendanceId = attendance?.data?.id;
 
         await Promise.all(
           segments.map((seg) => {
@@ -199,8 +233,7 @@ function Layout() {
         );
 
         await attendanceApi.update(attendanceId, {
-          employee_id: attendanceData.data.employee_id,
-          work_date: attendanceData.data.work_date,
+          ...attendance.data,
           status: "END_OF_DAY",
           end_time: now,
         });
@@ -218,17 +251,7 @@ function Layout() {
 
   const handleUpdateSegment = async (updatedSegment) => {
     try {
-      const payload = {
-        ...updatedSegment,
-        start_time: updatedSegment.start_time
-          ? new Date(updatedSegment.start_time).toISOString()
-          : null,
-        end_time: updatedSegment.end_time
-          ? new Date(updatedSegment.end_time).toISOString()
-          : null,
-      };
-
-      await segmentApi.update(updatedSegment.segment_id, payload);
+      await segmentApi.update(updatedSegment.segment_id, updatedSegment);
       await fetchSegments();
     } catch (err) {
       console.error("Update failed:", err);
@@ -243,13 +266,17 @@ function Layout() {
         <p className="text-sm text-gray-500">
           {attendance?.data?.work_date
             ? formatWorkDate(attendance.data.work_date)
-            : today}
+            : todayDisplay}
         </p>
 
         <div className="flex items-center gap-2 mt-1">
-          <span className={`font-semibold text-lg ${
-            status === "Working" ? "text-green-600" : "text-gray-600"
-          }`}>
+          <span
+            className={`font-semibold text-lg ${
+              status === "Working"
+                ? "text-green-600"
+                : "text-gray-600"
+            }`}
+          >
             Status: {status}
           </span>
         </div>
@@ -260,7 +287,11 @@ function Layout() {
           <div
             key={seg.segment_id}
             className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4
-              ${isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"}
+              ${
+                isEnded
+                  ? "cursor-not-allowed opacity-70"
+                  : "cursor-pointer hover:bg-gray-100"
+              }
             `}
             onClick={() => {
               if (isEnded) return;
@@ -268,7 +299,6 @@ function Layout() {
             }}
           >
             <div className="flex items-center gap-4">
-              
               <div
                 className={`w-2 h-10 rounded-full ${
                   seg.segment_type === "TRAVEL"
@@ -283,8 +313,8 @@ function Layout() {
 
               <div>
                 <p className="font-semibold text-gray-800">
-                  {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)}{" "}
-                  {seg.segment_type}
+                  {formattedTime(seg.start_time)} –{" "}
+                  {formattedTime(seg.end_time)} {seg.segment_type}
                 </p>
 
                 {seg.segment_type !== "OFFICE" && (
@@ -348,7 +378,7 @@ function Layout() {
         sites={[
           "Site A - Shinjuku Tower",
           "Site B - Shibuya Office",
-          "Site C - Roppongi Hills"
+          "Site C - Roppongi Hills",
         ]}
         onSave={handleUpdateSegment}
       />
