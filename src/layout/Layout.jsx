@@ -37,8 +37,21 @@ function Layout() {
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
 
-  const todayDisplay = new Date().toDateString();
-  const getToday = () => new Date().toISOString().split("T")[0];
+  const todayDisplay = new Date().toLocaleDateString("en-PH", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const getToday = () => {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
 
   // ✅ FIXED: FETCH ONLY TODAY'S DATA
   const fetchSegments = async () => {
@@ -64,7 +77,20 @@ function Layout() {
       });
 
       const data = res.data.data || [];
-      setSegments(data);
+
+      // ✅ filter only today's segments (safety)
+      const filtered = data.filter((seg) => {
+        if (!seg.start_time) return false;
+
+        const segDate = new Date(seg.start_time);
+        const segDay = `${segDate.getFullYear()}-${String(
+          segDate.getMonth() + 1
+        ).padStart(2, "0")}-${String(segDate.getDate()).padStart(2, "0")}`;
+
+        return segDay === today;
+      });
+
+      setSegments(filtered);
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
