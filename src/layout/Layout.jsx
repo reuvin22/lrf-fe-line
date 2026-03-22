@@ -50,14 +50,33 @@ function Layout() {
       });
 
       setSegments(todaySegments);
+
       if (todaySegments.length > 0) {
         const attendanceId = todaySegments[0].attendance_id;
         const attendanceRes = await attendanceApi.getById(attendanceId);
         setAttendance(attendanceRes.data.data || attendanceRes.data);
       } else {
-        setAttendance(null);
-      }
 
+        const todayISO = new Date().toISOString().split("T")[0];
+        let todayAttendance = null;
+
+        try {
+          const res = await attendanceApi.getByDate(todayISO);
+          todayAttendance = res.data.data || res.data;
+        } catch (err) {
+        }
+
+        if (!todayAttendance) {
+          const createRes = await attendanceApi.create({
+            work_date: todayISO,
+            status: "NOT_STARTED",
+          });
+
+          todayAttendance = createRes.data.data || createRes.data;
+        }
+
+        setAttendance(todayAttendance);
+      }
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
