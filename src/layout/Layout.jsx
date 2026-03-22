@@ -43,13 +43,21 @@ function Layout() {
       const res = await segmentApi.getAll();
       const data = res.data.data || res.data;
 
-      setSegments(data);
+      const todayDate = new Date().toDateString();
+      const todaySegments = data.filter((seg) => {
+        if (!seg.start_time) return false;
+        return new Date(seg.start_time).toDateString() === todayDate;
+      });
 
-      if (data.length > 0) {
-        const attendanceId = data[0].attendance_id;
+      setSegments(todaySegments);
+      if (todaySegments.length > 0) {
+        const attendanceId = todaySegments[0].attendance_id;
         const attendanceRes = await attendanceApi.getById(attendanceId);
         setAttendance(attendanceRes.data.data || attendanceRes.data);
+      } else {
+        setAttendance(null);
       }
+
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
@@ -62,18 +70,29 @@ function Layout() {
   useEffect(() => {
     const channel = echo.channel("segments");
 
+    const todayDate = new Date().toDateString();
+
     const handler = (e) => {
+      const seg = e.segment;
+      if (
+        !seg.start_time ||
+        new Date(seg.start_time).toDateString() !== todayDate
+      ) {
+        return;
+      }
+
       setSegments((prev) => {
         const index = prev.findIndex(
-          (s) => s.segment_id === e.segment.segment_id
+          (s) => s.segment_id === seg.segment_id
         );
 
         if (index !== -1) {
           const updated = [...prev];
-          updated[index] = e.segment;
+          updated[index] = seg;
           return updated;
         }
-        return [e.segment, ...prev];
+
+        return [seg, ...prev];
       });
     };
 
@@ -117,7 +136,7 @@ function Layout() {
     (seg) => seg.start_time && !seg.end_time
   );
 
-  setStatus(anyActive ? "Working" : "Working");
+  setStatus(anyActive ? "Working" : "Completed");
 
 }, [segments, attendance]);
 
