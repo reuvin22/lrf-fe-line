@@ -17,7 +17,7 @@ function ManualTimeModal() {
   const [tempEndTime, setTempEndTime] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // Validate times whenever they change
+
   useEffect(() => {
     if (tempStartTime && tempEndTime && tempEndTime < tempStartTime) {
       setErrorMessage("End time cannot be before start time.");

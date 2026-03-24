@@ -1,34 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+import { attendanceApi } from "../api/Api";
+import { useAttendanceContext } from "../context/AttendanceContext";
 
-const statusData = {
-  2: "done",
-  3: "done",
-  4: "done",
-  5: "done",
-  6: "done",
-  9: "done",
-  10: "done",
-  11: "missing",
-  12: "done",
-  13: "done",
-  16: "done",
-  17: "done",
-  18: "done",
-  19: "done",
-  20: "done",
-  23: "done",
-  24: "done",
-  25: "done",
-  26: "done",
-  27: "done"
-};
+const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function Calendar() {
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date(2026, 2));
   const [selectedDay, setSelectedDay] = useState(13);
+  const [calendar, setCalendar] = useState([]);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -39,12 +20,53 @@ function Calendar() {
   const prevMonth = () => setDate(new Date(year, month - 1, 1));
   const nextMonth = () => setDate(new Date(year, month + 1, 1));
 
+  const cleanDate = (dateString) => dateString.split("T")[0];
+
+  const { setAttendanceCalendar } = useAttendanceContext();
+
+  // Fetch attendance data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await attendanceApi.getAll();
+        console.log(res.data.data)
+        const filtered = res.data.data
+          .map((item) => ({
+            ...item,
+            work_date: item.work_date.split("T")[0],
+          }))
+          .filter((item) => {
+            const itemDate = new Date(item.work_date);
+            return (
+              itemDate.getFullYear() === year &&
+              itemDate.getMonth() === month
+            );
+          });
+
+        setCalendar(filtered);
+      } catch (error) {
+        console.error("Error fetching calendar:", error);
+      }
+    };
+
+    fetchData();
+  }, [year, month]);
+
   const handleClick = (day) => {
     if (!day) return;
 
     setSelectedDay(day);
 
-    navigate(`/calendar/${year}/${month + 1}/${day}`);
+    const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    const filtered = calendar.filter(
+      (item) => cleanDate(item.work_date) === formattedDate
+    );
+
+    console.log("Filtered Data:", filtered);
+
+    setAttendanceCalendar(filtered);
+    navigate(`/calendar/detail`);
   };
 
   const calendarDays = [];
@@ -57,15 +79,40 @@ function Calendar() {
     calendarDays.push(d);
   }
 
+  const getStatusForDay = (day) => {
+    const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    const found = calendar.find(
+      (item) => cleanDate(item.work_date) === formattedDate
+    );
+
+    if (!found) return "missing";
+
+    const hasSegments = found.segments && found.segments.length > 0;
+
+    if (
+      (found.status === "WORKING" || found.status === "END_OF_DAY") &&
+      hasSegments
+    ) {
+      return "done";
+    }
+
+    return "missing";
+  };
+
   const renderStatus = (day) => {
-    const status = statusData[day];
+    const status = getStatusForDay(day);
 
     if (status === "done") {
-      return <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1"></span>;
+      return (
+        <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1"></span>
+      );
     }
 
     if (status === "missing") {
-      return <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1"></span>;
+      return (
+        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1"></span>
+      );
     }
 
     if (status === "locked") {
@@ -80,13 +127,13 @@ function Calendar() {
 
       <div className="bg-white px-5 py-4 border-b">
         <div className="flex items-center gap-2 mt-1">
-          <span className='font-semibold text-lg'>
-            Input / Edit
-          </span>
+          <span className="font-semibold text-lg">Input / Edit</span>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="text-3xl cursor-pointer">
             ‹
@@ -100,14 +147,16 @@ function Calendar() {
             ›
           </button>
         </div>
+
+        {/* Calendar */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <div className="grid grid-cols-7 text-center text-xs text-gray-500 mb-3">
             {days.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 text-center gap-y-4">
 
+          <div className="grid grid-cols-7 text-center gap-y-4">
             {calendarDays.map((day, i) => {
               const isSelected = day === selectedDay;
 
@@ -126,11 +175,11 @@ function Calendar() {
                 </button>
               );
             })}
-
           </div>
         </div>
-        <div className="flex gap-6 text-xs mt-4 text-gray-600">
 
+        {/* Legend */}
+        <div className="flex gap-6 text-xs mt-4 text-gray-600">
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
             Entered
@@ -144,7 +193,6 @@ function Calendar() {
           <div className="flex items-center gap-1">
             🔒 Locked
           </div>
-
         </div>
 
       </div>

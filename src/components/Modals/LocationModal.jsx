@@ -4,7 +4,8 @@ import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
-import { segmentApi } from '../../api/Api';
+import { attendanceApi, segmentApi } from '../../api/Api';
+import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function LocationModal() {
   const {
@@ -20,7 +21,7 @@ function LocationModal() {
 
   const { setOpenTimeModal } = useManualTimeContext();
   const { setSelectedSite, selectedSite } = useLocationContext();
-
+  const {attendance} = useAttendanceContext()
   const [step, setStep] = useState('TYPE');
 
   if (!openLocationModal) return null;
@@ -52,7 +53,11 @@ function LocationModal() {
       setOpenTimeModal(true);
       return;
     }
-
+    await attendanceApi.update(attendance.attendance_id, {
+          employee_id: 1,
+          status: "WORKING",
+          work_date: attendance.work_date
+        })
     try {
       await segmentApi.create(payload);
     } catch (err) {

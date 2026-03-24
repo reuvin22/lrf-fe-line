@@ -7,8 +7,9 @@ import { useLocationContext } from '../../context/LocationContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
 import { generateSegmentId } from '../../utils/idGenerator';
 import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
-import { segmentApi } from '../../api/Api';
+import { attendanceApi, segmentApi } from '../../api/Api';
 import { attendanceChecker } from '../../utils/attendanceChecker';
+import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function SegmentModal() {
   const {
@@ -30,6 +31,7 @@ function SegmentModal() {
     setOpenTimeModal
   } = useManualTimeContext()
 
+  const { attendance } = useAttendanceContext()
   if (!openSegmentModal) return null;
 
   const options = [
@@ -43,6 +45,14 @@ function SegmentModal() {
 
     try {
       const attendance = await attendanceChecker();
+
+      if (segment.value === "OFFICE") {
+        await attendanceApi.update(attendance.attendance_id, {
+          employee_id: 1,
+          work_date: attendance.work_date,
+          status: "WORKING",
+        });
+      }
 
       const segmentObj = {
         attendance_id: attendance.attendance_id,
