@@ -35,8 +35,6 @@ function Main() {
 
         setEmployee(foundEmployee);
 
-        console.log("Employee inside effect:", foundEmployee);
-
         const today = new Date().toISOString().split("T")[0];
 
         const attendanceRes = await attendanceApi.getAttendance({
