@@ -7,9 +7,18 @@ const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function Calendar() {
   const navigate = useNavigate();
+
   const [date, setDate] = useState(new Date(2026, 2));
-  const [selectedDay, setSelectedDay] = useState(13);
   const [calendar, setCalendar] = useState([]);
+
+  // ✅ DRY: store today's values once
+  const today = new Date();
+  const todayDay = today.getDate();
+  const todayMonth = today.getMonth();
+  const todayYear = today.getFullYear();
+
+  // ✅ start with no selected day (so today is auto-highlighted)
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -22,6 +31,10 @@ function Calendar() {
 
   const cleanDate = (dateString) => dateString.split("T")[0];
 
+  // ✅ DRY: reusable date formatter
+  const formatDate = (y, m, d) =>
+    `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
   const { setAttendanceCalendar } = useAttendanceContext();
 
   // Fetch attendance data
@@ -29,7 +42,7 @@ function Calendar() {
     const fetchData = async () => {
       try {
         const res = await attendanceApi.getAll();
-        console.log(res.data.data)
+
         const filtered = res.data.data
           .map((item) => ({
             ...item,
@@ -57,13 +70,11 @@ function Calendar() {
 
     setSelectedDay(day);
 
-    const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const formattedDate = formatDate(year, month, day);
 
     const filtered = calendar.filter(
       (item) => cleanDate(item.work_date) === formattedDate
     );
-
-    console.log("Filtered Data:", filtered);
 
     setAttendanceCalendar(filtered);
     navigate(`/calendar/detail`);
@@ -80,7 +91,7 @@ function Calendar() {
   }
 
   const getStatusForDay = (day) => {
-    const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const formattedDate = formatDate(year, month, day);
 
     const found = calendar.find(
       (item) => cleanDate(item.work_date) === formattedDate
@@ -124,7 +135,6 @@ function Calendar() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
-
       <div className="bg-white px-5 py-4 border-b">
         <div className="flex items-center gap-2 mt-1">
           <span className="font-semibold text-lg">Input / Edit</span>
@@ -132,7 +142,6 @@ function Calendar() {
       </div>
 
       <div className="p-4 space-y-4">
-
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="text-3xl cursor-pointer">
@@ -158,7 +167,17 @@ function Calendar() {
 
           <div className="grid grid-cols-7 text-center gap-y-4">
             {calendarDays.map((day, i) => {
-              const isSelected = day === selectedDay;
+              // ✅ check if this day is today
+              const isToday =
+                day &&
+                day === todayDay &&
+                month === todayMonth &&
+                year === todayYear;
+
+              // ✅ selected OR default today
+              const isSelected =
+                day &&
+                (day === selectedDay || (!selectedDay && isToday));
 
               return (
                 <button
@@ -167,7 +186,11 @@ function Calendar() {
                   className={`flex flex-col items-center justify-center h-10 w-10 mx-auto rounded-lg cursor-pointer
                   ${isSelected ? "border-2 border-blue-500" : ""}`}
                 >
-                  <span className={`${day ? "text-gray-800" : "text-gray-300"}`}>
+                  <span
+                    className={`${
+                      day ? "text-gray-800" : "text-gray-300"
+                    }`}
+                  >
                     {day || ""}
                   </span>
 
@@ -190,11 +213,8 @@ function Calendar() {
             Missing
           </div>
 
-          <div className="flex items-center gap-1">
-            🔒 Locked
-          </div>
+          <div className="flex items-center gap-1">🔒 Locked</div>
         </div>
-
       </div>
     </div>
   );
