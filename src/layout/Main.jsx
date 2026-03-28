@@ -34,21 +34,18 @@ function Main() {
         }
 
         setEmployee(foundEmployee);
-
         const today = new Date().toISOString().split("T")[0];
-
         const attendanceRes = await attendanceApi.getAttendance({
-          employee_id: foundEmployee.id,
+          employee_id: foundEmployee.employee_id,
           work_date: today,
         });
-
         let attendances = attendanceRes.data.data || attendanceRes.data;
 
         let currentAttendance;
 
         if (!attendances || attendances.length === 0) {
           const createRes = await attendanceApi.create({
-            employee_id: foundEmployee.id,
+            employee_id: foundEmployee.employee_id,
             work_date: today,
             status: "NOT_STARTED",
           });
@@ -58,11 +55,9 @@ function Main() {
           console.log("Attendance created");
         } else {
           currentAttendance = attendances[0];
-          console.log("Attendance already exists");
         }
 
         setAttendance(currentAttendance);
-        console.log('current: ', attendance)
       } catch (error) {
         console.error("Attendance init error:", error);
       }
@@ -71,9 +66,7 @@ function Main() {
     initAttendance();
   }, []);
 
-  console.log("THIS IS EMPLOYEE:", employee);
-
-  return <Layout />;
+  return <Layout employee={employee}/>;
 }
 
 export default Main;

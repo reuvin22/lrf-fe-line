@@ -1,7 +1,8 @@
 import { attendanceApi } from "../api/Api";
+import { useAttendanceContext } from "../context/AttendanceContext";
 
 export const attendanceChecker = async () => {
-  const today = new Date().toISOString().split("T")[0];
+  const {attendance} = useAttendanceContext()
 
   try {
     const res = await attendanceApi.getAll({
@@ -14,7 +15,8 @@ export const attendanceChecker = async () => {
 
     const newAttendance = await attendanceApi.create({
       employee_id: 1,
-      work_date: today,
+      attendance_id: attendance.attendance_id,
+      work_date: attendance.work_date,
       status: "WORKING",
       total_work_minutes: 0,
       overtime_minutes: 0

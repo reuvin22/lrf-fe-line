@@ -13,16 +13,16 @@ import echo from "../echo";
 import { formattedTime } from "../utils/formattedTime";
 import { attendanceApi, segmentApi } from "../api/Api";
 import formatWorkDate from "../utils/formatWorkDate";
-import { useNavigate } from "react-router-dom";
+import { data, useNavigate } from "react-router-dom";
+import { useAttendanceContext } from "../context/AttendanceContext";
 
-function Layout() {
+function Layout({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(() => () => {});
   const [confirmMessage, setConfirmMessage] = useState("");
   const [openEditModal, setOpenEditModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState(null);
   const [status, setStatus] = useState("Not Started");
-  const [attendance, setAttendance] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
   const {
@@ -35,81 +35,62 @@ function Layout() {
   } = useSegmentContext();
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
-
+  const { attendance, setAttendance } = useAttendanceContext()
   const today = new Date().toDateString();
-
   const fetchSegments = async () => {
+    if (!attendance?.attendance_id) return;
+
     try {
-      const res = await segmentApi.getAll();
-      const data = res.data.data || res.data;
-
-      const todayDate = new Date().toDateString();
-      const todaySegments = data.filter((seg) => {
-        if (!seg.start_time) return false;
-        return new Date(seg.start_time).toDateString() === todayDate;
+      const res = await segmentApi.getAll({
+        attendance_id: attendance.attendance_id,
       });
-
-      setSegments(todaySegments);
-      if (todaySegments.length > 0) {
-        const attendanceId = todaySegments[0].attendance_id;
-        const attendanceRes = await attendanceApi.getById(attendanceId);
-        setAttendance(attendanceRes.data.data || attendanceRes.data);
-      } else {
-        setAttendance(null);
-      }
-
+      const data = res.data.data || res.data;
+      setSegments(data);
     } catch (error) {
       console.error("Error fetching segments:", error);
     }
   };
 
   const fetchAttendance = async () => {
-    try {
-      const res = await attendanceApi.getAll({
-        employee_id: 1
-      });
+    if (!employee?.id) return;
 
+    try {
+      const res = await attendanceApi.getAll({ employee_id: employee.id });
       const data = res.data.data || res.data;
-      console.log('Attendance: ', data)
-      setAttendance(data);
+
+      const todayAttendance = Array.isArray(data)
+        ? data.find((att) => att.work_date === formatWorkDate(new Date()))
+        : data;
+
+      setAttendance(todayAttendance || null);
     } catch (error) {
       console.error("Error fetching attendance:", error);
     }
   };
 
   useEffect(() => {
-    fetchAttendance;
+    fetchAttendance();
   }, []);
-  
+
   useEffect(() => {
-    fetchSegments();
-  }, []);
+    if (segments.length === 0) fetchSegments();
+  }, [attendance]);
 
   useEffect(() => {
     const channel = echo.channel("segments");
-
     const todayDate = new Date().toDateString();
 
     const handler = (e) => {
       const seg = e.segment;
-      if (
-        !seg.start_time ||
-        new Date(seg.start_time).toDateString() !== todayDate
-      ) {
-        return;
-      }
+      if (!seg.start_time || new Date(seg.start_time).toDateString() !== todayDate) return;
 
       setSegments((prev) => {
-        const index = prev.findIndex(
-          (s) => s.segment_id === seg.segment_id
-        );
-
+        const index = prev.findIndex((s) => s.segment_id === seg.segment_id);
         if (index !== -1) {
           const updated = [...prev];
           updated[index] = seg;
           return updated;
         }
-
         return [seg, ...prev];
       });
     };
@@ -126,7 +107,7 @@ function Layout() {
     const channel = echo.channel("attendances");
 
     const handler = (e) => {
-      setAttendance({ data: e.attendance });
+      setAttendance(e.attendance);
     };
 
     channel.listen(".attendances.event", handler);
@@ -138,27 +119,22 @@ function Layout() {
   }, []);
 
   useEffect(() => {
-  const attendanceStatus = attendance?.status;
+    const attendanceStatus = attendance?.status;
 
-  if (attendanceStatus === "END_OF_DAY") {
-    setStatus("End Of Day");
-    return;
-  }
+    if (attendanceStatus === "END_OF_DAY") {
+      setStatus("End Of Day");
+      return;
+    }
 
-  if (segments.length === 0) {
-    setStatus("Not Started");
-    return;
-  }
+    if (segments.length === 0) {
+      setStatus("Not Started");
+      return;
+    }
 
-  const anyActive = segments.some(
-    (seg) => seg.start_time && !seg.end_time
-  );
+    const anyActive = segments.some((seg) => seg.start_time && !seg.end_time);
+    setStatus(anyActive ? "Working" : "Completed");
+  }, [segments, attendance]);
 
-  setStatus(anyActive ? "Working" : "Completed");
-
-}, [segments, attendance]);
-
-  console.log('THIS IS SEGMENTS: ', segments)
   const openConfirmation = (message, action) => {
     setConfirmMessage(message);
     setConfirmAction(() => action);
@@ -183,64 +159,61 @@ function Layout() {
       startTime: segment.start_time,
       endTime: segment.end_time,
     };
-
     setEditingSegment(normalized);
     setOpenEditModal(true);
   };
 
-  // ✅ End segment
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
-
-    const payload = {
-      ...seg,
-      end_time: now,
-    };
+    const payload = { ...seg, end_time: now };
 
     try {
       await segmentApi.update(seg.segment_id, payload);
-
+      console.log(attendance)
       await attendanceApi.update(seg.attendance_id, {
         status: "COMPLETED",
         end_time: now,
       });
-
       await fetchSegments();
     } catch (err) {
       console.error("Update failed:", err);
     }
-
     setOpenConfirm(false);
   };
 
   const handleEndOfDay = () => {
     openConfirmation("Are you sure you want to end work?", async () => {
       setConfirmLoading(true);
-
       const now = getCurrentTime();
 
       try {
+        // 1. Get the attendance ID from the first segment
         const attendanceId = segments[0]?.attendance_id;
-        const attendanceRes = await attendanceApi.getById(attendanceId);
-        const attendanceData = attendanceRes.data;
+        if (!attendanceId) throw new Error("Attendance not found");
 
+        // 2. Fetch the latest attendance from API
+        const attendanceRes = await attendanceApi.getById(attendanceId);
+        const attendanceData = attendanceRes.data.data; // <-- latest object with attendance_id
+
+        // 3. End all segments that haven't ended yet
         await Promise.all(
           segments.map((seg) => {
-            if (!seg.end_time) {
-              return segmentApi.update(seg.segment_id, {
-                ...seg,
-                end_time: now,
-              });
-            }
+            if (!seg.end_time) return segmentApi.update(seg.segment_id, { ...seg, end_time: now });
           })
         );
 
-        await attendanceApi.update(attendanceId, {
-          employee_id: attendanceData.data.employee_id,
-          work_date: attendanceData.data.work_date,
+        console.log("Attendance from API:", attendanceData); // <-- will always have attendance_id
+
+        // 4. Update the attendance status to END_OF_DAY
+        const updatedAttendance = {
+          ...attendanceData,
           status: "END_OF_DAY",
           end_time: now,
-        });
+        };
+        await attendanceApi.update(attendanceId, updatedAttendance);
+
+        // 5. Update context with the latest attendance
+        setAttendance(updatedAttendance);
 
         await fetchSegments();
         navigate("/transportation-expenses");
@@ -252,19 +225,16 @@ function Layout() {
       setOpenConfirm(false);
     });
   };
-
+  
   const handleUpdateSegment = async (updatedSegment) => {
     try {
       const payload = {
         ...updatedSegment,
-        start_time: updatedSegment.start_time
-          ? new Date(updatedSegment.start_time).toISOString()
-          : null,
+        start_time: updatedSegment.start_time,
         end_time: updatedSegment.end_time
-          ? new Date(updatedSegment.end_time).toISOString()
-          : null,
       };
 
+      console.log('THIS IS PAYLOAD: ', payload)
       await segmentApi.update(updatedSegment.segment_id, payload);
       await fetchSegments();
     } catch (err) {
@@ -272,21 +242,16 @@ function Layout() {
     }
   };
 
-  const isEnded = status === "End Of Day";
+  const isEnded = status === "End Of Day" || status === "Completed";
 
   return (
     <div className="max-w-md mx-auto min-h-screen">
       <div className="bg-white px-5 py-4 border-b">
         <p className="text-sm text-gray-500">
-          {attendance?.data?.work_date
-            ? formatWorkDate(attendance.data.work_date)
-            : today}
+          {attendance?.data?.work_date ? formatWorkDate(attendance.data.work_date) : today}
         </p>
-
         <div className="flex items-center gap-2 mt-1">
-          <span className={`font-semibold text-lg ${
-            status === "Working" ? "text-green-600" : "text-gray-600"
-          }`}>
+          <span className={`font-semibold text-lg ${status === "Working" ? "text-green-600" : "text-gray-600"}`}>
             Status: {status}
           </span>
         </div>
@@ -296,16 +261,12 @@ function Layout() {
         {segments.map((seg) => (
           <div
             key={seg.segment_id}
-            className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4
-              ${isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"}
-            `}
-            onClick={() => {
-              if (isEnded) return;
-              handleEditSegment(seg);
-            }}
+            className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 ${
+              isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"
+            }`}
+            onClick={() => !isEnded && handleEditSegment(seg)}
           >
             <div className="flex items-center gap-4">
-              
               <div
                 className={`w-2 h-10 rounded-full ${
                   seg.segment_type === "TRAVEL"
@@ -317,17 +278,12 @@ function Layout() {
                     : "bg-gray-300"
                 }`}
               />
-
               <div>
                 <p className="font-semibold text-gray-800">
-                  {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)}{" "}
-                  {seg.segment_type}
+                  {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)} {seg.segment_type}
                 </p>
-
                 {seg.segment_type !== "OFFICE" && (
-                  <p className="text-sm text-gray-500">
-                    → {seg.site_id || "No Selected Site"}
-                  </p>
+                  <p className="text-sm text-gray-500">→ {seg.site_id || "No Selected Site"}</p>
                 )}
               </div>
             </div>
@@ -336,10 +292,7 @@ function Layout() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  openConfirmation(
-                    `End "${seg.segment_type}" segment?`,
-                    () => handleEndSegment(seg)
-                  );
+                  openConfirmation(`End "${seg.segment_type}" segment?`, () => handleEndSegment(seg));
                 }}
                 className="p-1 rounded-full hover:bg-red-100 text-red-500"
               >
@@ -356,13 +309,11 @@ function Layout() {
               customButton="bg-green-500 text-white py-4 hover:bg-green-600"
               onClick={() => handleStartSegment("default")}
             />
-
             <Button
               text="+ Add Segment (manual)"
               customButton="bg-lime-500 text-white py-4 hover:bg-lime-600"
               onClick={() => handleStartSegment("manual")}
             />
-
             <Button
               text="↪ End Work Day"
               customButton="border border-gray-300 py-4"
@@ -382,11 +333,7 @@ function Layout() {
         onClose={() => setOpenEditModal(false)}
         segmentData={editingSegment}
         segments={["OFFICE", "TRAVEL", "SITE"]}
-        sites={[
-          "Site A - Shinjuku Tower",
-          "Site B - Shibuya Office",
-          "Site C - Roppongi Hills"
-        ]}
+        sites={["Site A - Shinjuku Tower", "Site B - Shibuya Office", "Site C - Roppongi Hills"]}
         onSave={handleUpdateSegment}
       />
 

@@ -11,17 +11,14 @@ function LocationModal() {
   const {
     openLocationModal,
     setOpenLocationModal,
-    setStartSegment,
     recordType,
     selectedSegment,
     setTempSegment,
-    tempSegment,
-    setSegments
+    tempSegment
   } = useSegmentContext();
-
+  
   const { setOpenTimeModal } = useManualTimeContext();
-  const { setSelectedSite, selectedSite } = useLocationContext();
-  const {attendance} = useAttendanceContext()
+  const { attendance } = useAttendanceContext();
   const [step, setStep] = useState('TYPE');
 
   if (!openLocationModal) return null;
@@ -36,10 +33,28 @@ function LocationModal() {
     setStep('TYPE');
     setOpenLocationModal(false);
   };
-  
+
   const handleSelectSite = async (site) => {
+    console.log(attendance)
+    const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
+    const employeeId = tempSegment?.employee_id || attendance?.data.employee_id;
+    const workDate = tempSegment?.work_date || attendance?.data.work_date;
+
+    if (!attendanceId) {
+      console.error("Attendance ID is missings!");
+      return;
+    }
+    console.log(attendance)
+    if (!employeeId) {
+      console.error("Employee ID is missing!");
+      return;
+    }
+
     const payload = {
       ...tempSegment,
+      attendance_id: attendanceId,
+      employee_id: employeeId,
+      work_date: workDate,
       site_id: site.name,
       site_name: site.name,
       start_time: tempSegment?.start_time
@@ -53,15 +68,25 @@ function LocationModal() {
       setOpenTimeModal(true);
       return;
     }
-    await attendanceApi.update(attendance.attendance_id, {
-          employee_id: 1,
-          status: "WORKING",
-          work_date: attendance.work_date
-        })
+
     try {
+      await attendanceApi.update(attendanceId, {
+        attendance_id: attendanceId,
+        employee_id: employeeId,
+        status: "WORKING",
+        work_date: workDate || new Date().toISOString(),
+      });
+
       await segmentApi.create(payload);
+
+      // preserve full payload safely
+      setTempSegment(prev => ({
+        ...prev,
+        ...payload,
+      }));
+
     } catch (err) {
-      console.error("Create failed:", err);
+      console.error("Attendance or segment update failed:", err);
     }
 
     setOpenLocationModal(false);
@@ -71,9 +96,8 @@ function LocationModal() {
     const updatedSegment = {
       ...tempSegment,
       site_id: null,
+      site_name: null,
     };
-
-    console.log("📍 Location Payload (Skip):", updatedSegment);
 
     if (recordType === "manual") {
       setTempSegment(updatedSegment);
@@ -89,9 +113,11 @@ function LocationModal() {
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={handleClose}
       />
+
       <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-7">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Select Site</h2>
+
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -109,7 +135,8 @@ function LocationModal() {
               onClick={() => handleSelectSite(site)}
             />
           ))}
-          {selectedSegment === 'Travel' && (
+
+          {selectedSegment === 'TRAVEL' && (
             <button
               onClick={handleSkip}
               className="w-full py-3 mt-3 text-green-500 rounded-lg font-medium hover:text-green-800 cursor-pointer"

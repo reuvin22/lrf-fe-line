@@ -5,62 +5,64 @@ import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
-import { generateSegmentId } from '../../utils/idGenerator';
-import { formattedLaravelDate } from '../../utils/formattedLaravelDate';
 import { attendanceApi, segmentApi } from '../../api/Api';
-import { attendanceChecker } from '../../utils/attendanceChecker';
 import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function SegmentModal() {
   const {
     setSelectedSegment,
-    setStartSegment,
     openSegmentModal,
     setOpenSegmentModal,
     setOpenLocationModal,
     recordType,
-    setSegments,
     setTempSegment,
     tempSegment
   } = useSegmentContext();
 
-  const {
-    setSelectedSite
-  } = useLocationContext()
-  const {
-    setOpenTimeModal
-  } = useManualTimeContext()
+  const { setOpenTimeModal } = useManualTimeContext();
+  const { attendance } = useAttendanceContext();
 
-  const { attendance } = useAttendanceContext()
   if (!openSegmentModal) return null;
 
   const options = [
-    { name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL"},
+    { name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL" },
     { name: "Site", description: "Construction site work", icon: MapPin, value: "SITE" },
     { name: "Office", description: "Office work", icon: Building2, value: "OFFICE" },
   ];
 
+  console.log(attendance)
   const handleSelect = async (segment) => {
-    const rawStartTime = tempSegment?.start_time || getCurrentTime();
-
+    console.log(attendance)
     try {
-      const attendance = await attendanceChecker();
+      console.log(attendance)
+      const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
 
+      if (!attendanceId) {
+        console.error("Attendance ID missing!");
+        return;
+      }
+      
       if (segment.value === "OFFICE") {
-        await attendanceApi.update(attendance.attendance_id, {
-          employee_id: 1,
+        await attendanceApi.update(attendanceId, {
+          attendance_id: attendanceId,
+          employee_id: attendance.employee_id,
           work_date: attendance.work_date,
           status: "WORKING",
         });
       }
 
+      const rawStartTime = tempSegment?.start_time || getCurrentTime();
+      
       const segmentObj = {
-        attendance_id: attendance.attendance_id,
+        attendance_id: attendanceId,
+        employee_id: attendance.employee_id,
+        work_date: attendance.work_date,
         segment_type: segment.value,
-        type: recordType,
-        start_time: new Date(rawStartTime).toISOString(),
+        type: recordType || "default",
+        start_time: rawStartTime,
         site_id: null,
-        end_time: null
+        site_name: null,
+        end_time: null,
       };
 
       setSelectedSegment(segment.value);
@@ -88,9 +90,11 @@ function SegmentModal() {
         className="absolute inset-0 bg-black/40 pointer-events-auto"
         onClick={() => setOpenSegmentModal(false)}
       />
+
       <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 pointer-events-auto">
         <div className="flex justify-between items-center mb-6 px-1">
           <h2 className="text-xl font-bold text-gray-900">Select Segment Type</h2>
+
           <button
             onClick={() => setOpenSegmentModal(false)}
             className="cursor-pointer text-gray-400 hover:text-gray-600"
