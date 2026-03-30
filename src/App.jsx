@@ -8,6 +8,7 @@ import AppLayout from "./layout/AppLayout";
 import CalendarDetail from "./pages/CalendarDetail";
 import Dashboard from "./pages/Dashboard";
 import TransportationExpense from "./pages/TransportationExpenses";
+import SubContractor from "./pages/SubContractor";
 
 function App() {
   return (
@@ -23,6 +24,10 @@ function App() {
           <Route
             path="/transportation-expenses"
             element={<TransportationExpense />}
+          />
+          <Route
+            path="/subcontractor"
+            element={<SubContractor />}
           />
         </Route>
       </Routes>

@@ -5,10 +5,12 @@ export const LocationContext = createContext();
 export const LocationProvider = ({ children }) => {
   const [openLocationModal, setOpenLocationModal] = useState(false);
   const [selectedSite, setSelectedSite] = useState('');
-
+  const [sites, setSites] = useState([])
   return (
     <LocationContext.Provider
       value={{
+        sites,
+        setSites,
         openLocationModal,
         setOpenLocationModal,
         selectedSite,

@@ -14,31 +14,31 @@ function EditSegmentModal({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
-  const [site_name, setSiteName] = useState("");
+  const [siteName, setSiteName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
   const formatTime = (datetime) => {
     if (!datetime) return "";
     const d = new Date(datetime);
     return d.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false
+      hour12: false,
     });
   };
 
   useEffect(() => {
     if (segmentData) {
-      setSegment(segmentData.segment || "");
-      setSite(segmentData.site || "");
-      setStartTime(formatTime(segmentData.startTime));
-      setEndTime(formatTime(segmentData.endTime));
+      setSegment(segmentData.segment_type || "");
+      setSite(segmentData.site_id || "");
+      setStartTime(formatTime(segmentData.start_time));
+      setEndTime(formatTime(segmentData.end_time));
       setType(segmentData.type || "");
       setSiteName(segmentData.site_name || "");
     }
-  }, [segmentData?.segment_id]);
+  }, [segmentData]);
 
   if (!open) return null;
-
   const isManual = segmentData?.type === "manual";
 
   const handleSegmentChange = (value) => {
@@ -46,15 +46,28 @@ function EditSegmentModal({
 
     if (value === "OFFICE") {
       setSite("");
+      setSiteName("");
     }
 
     if (value === "TRAVEL") {
-      setSite("No Selected Site");
+      setSite("");
+      setSiteName("No Selected Site");
     }
 
     if (value === "SITE") {
       setSite("");
+      setSiteName("");
     }
+  };
+
+  const handleSiteChange = (value) => {
+    setSite(value);
+
+    const selectedSite = sites.find(
+      (s) => String(s.site_id || s.id) === String(value)
+    );
+
+    setSiteName(selectedSite?.name || selectedSite?.site_name || "");
   };
 
   const handleSave = async () => {
@@ -64,10 +77,10 @@ function EditSegmentModal({
 
     const payload = {
       ...segmentData,
-      type: type,
+      type,
       segment_type: segment,
-      site_id: site,
-      site_name: site_name
+      site_id: segment === "OFFICE" ? null : site,
+      site_name: segment === "OFFICE" ? null : siteName,
     };
 
     if (isManual) {
@@ -75,19 +88,21 @@ function EditSegmentModal({
       payload.end_time = `${today} ${endTime}:00`;
     }
 
+    console.log("✅ FINAL PAYLOAD:", payload);
+
     try {
       await onSave(payload);
       onClose();
     } catch (err) {
-      console.error(err);
+      console.error("❌ Save failed:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-      <div className="bg-white rounded-xl w-[90%] max-w-md p-6 space-y-4">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl w-[90%] max-w-md p-6 space-y-4 shadow-lg">
 
         <h2 className="text-lg font-semibold">Edit Segment</h2>
 
@@ -111,16 +126,21 @@ function EditSegmentModal({
             <label className="text-sm text-gray-500">Site</label>
             <select
               value={site}
-              onChange={(e) => setSite(e.target.value)}
+              onChange={(e) => handleSiteChange(e.target.value)}
               className="w-full border rounded-lg p-2 mt-1"
             >
+              <option value="">Select Site</option>
+
               {segment === "TRAVEL" && (
-                <option value="No Selected Site">No Selected Site</option>
+                <option value="">No Selected Site</option>
               )}
 
               {sites.map((s, i) => (
-                <option key={i} value={s}>
-                  {s}
+                <option
+                  key={i}
+                  value={s.site_id}
+                >
+                  {s.site_name}
                 </option>
               ))}
             </select>

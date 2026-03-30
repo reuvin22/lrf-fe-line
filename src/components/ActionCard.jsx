@@ -1,6 +1,7 @@
 import React from 'react'
+import { MapPin } from 'lucide-react'
 
-function ActionCard({ icon: Icon, name, description, onClick }) {
+function ActionCard({ icon: Icon = MapPin, name, description, onClick }) {
   return (
     <button 
       onClick={onClick}

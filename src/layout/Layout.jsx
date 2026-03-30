@@ -11,10 +11,12 @@ import { Square } from "lucide-react";
 import EditSegmentModal from "../components/Modals/EditSegmentModal";
 import echo from "../echo";
 import { formattedTime } from "../utils/formattedTime";
-import { attendanceApi, segmentApi } from "../api/Api";
+import { attendanceApi, constructionSiteApi, segmentApi, siteAssignmentApi } from "../api/Api";
 import formatWorkDate from "../utils/formatWorkDate";
-import { data, useNavigate } from "react-router-dom";
+import { data, useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
+import { useLocationContext } from "../context/LocationContext";
+import { loggedInUser } from "../utils/loggedInUser";
 
 function Layout({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -24,7 +26,8 @@ function Layout({ employee }) {
   const [editingSegment, setEditingSegment] = useState(null);
   const [status, setStatus] = useState("Not Started");
   const [confirmLoading, setConfirmLoading] = useState(false);
-
+  const [isLeader, setIsLeader] = useState(false)
+  const { sites, setSites } = useLocationContext()
   const {
     setOpenSegmentModal,
     setSelectedSegment,
@@ -33,6 +36,7 @@ function Layout({ employee }) {
     setSegments,
     setStartSegment,
   } = useSegmentContext();
+  const loggedIn = loggedInUser
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
   const { attendance, setAttendance } = useAttendanceContext()
@@ -67,6 +71,40 @@ function Layout({ employee }) {
       console.error("Error fetching attendance:", error);
     }
   };
+  const fetchSiteAssignment = async () => {
+    try {
+      const res = await siteAssignmentApi.getAll();
+
+      const data = res.data.data.find(
+        v => v.employee.id === loggedIn.employee_id
+      );
+
+      if (data?.is_leader === true) {
+        setIsLeader(true);
+      }
+      console.log(isLeader)
+      setSites(data ? [data] : []);
+    } catch (error) {
+      console.error("Error fetching sites:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSiteAssignment()
+  }, [])
+  // const fetchSite = async () => {
+  //   try {
+  //     const res = await constructionSiteApi.getAll();
+  //     const data = res.data.data || res.data;
+  //     setSites(data);
+  //   } catch (error) {
+  //     console.error("Error fetching sites:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchSite();
+  // }, []);
 
   useEffect(() => {
     fetchAttendance();
@@ -187,36 +225,30 @@ function Layout({ employee }) {
       const now = getCurrentTime();
 
       try {
-        // 1. Get the attendance ID from the first segment
         const attendanceId = segments[0]?.attendance_id;
         if (!attendanceId) throw new Error("Attendance not found");
 
-        // 2. Fetch the latest attendance from API
         const attendanceRes = await attendanceApi.getById(attendanceId);
-        const attendanceData = attendanceRes.data.data; // <-- latest object with attendance_id
+        const attendanceData = attendanceRes.data.data;
 
-        // 3. End all segments that haven't ended yet
         await Promise.all(
           segments.map((seg) => {
             if (!seg.end_time) return segmentApi.update(seg.segment_id, { ...seg, end_time: now });
           })
         );
 
-        console.log("Attendance from API:", attendanceData); // <-- will always have attendance_id
+        console.log("Attendance from API:", attendanceData);
 
-        // 4. Update the attendance status to END_OF_DAY
         const updatedAttendance = {
           ...attendanceData,
           status: "END_OF_DAY",
           end_time: now,
         };
         await attendanceApi.update(attendanceId, updatedAttendance);
-
-        // 5. Update context with the latest attendance
         setAttendance(updatedAttendance);
 
         await fetchSegments();
-        navigate("/transportation-expenses");
+        navigate(isLeader ? 'subcontractor' : '/transportation-expenses');
       } catch (err) {
         console.error("End of day update failed:", err);
       }
@@ -283,7 +315,7 @@ function Layout({ employee }) {
                   {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)} {seg.segment_type}
                 </p>
                 {seg.segment_type !== "OFFICE" && (
-                  <p className="text-sm text-gray-500">→ {seg.site_id || "No Selected Site"}</p>
+                  <p className="text-sm text-gray-500">→ {seg.site_name || "No Selected Site"}</p>
                 )}
               </div>
             </div>
@@ -325,7 +357,7 @@ function Layout({ employee }) {
       </div>
 
       <SegmentModal />
-      <LocationModal />
+      <LocationModal/>
       <ManualTimeModal />
 
       <EditSegmentModal

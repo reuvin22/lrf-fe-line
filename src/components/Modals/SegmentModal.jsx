@@ -5,7 +5,7 @@ import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { useLocationContext } from '../../context/LocationContext';
 import { getCurrentTime } from '../../utils/getCurrentTime';
-import { attendanceApi, segmentApi } from '../../api/Api';
+import { attendanceApi, segmentApi, siteAssignmentApi, sitesApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function SegmentModal() {
@@ -25,23 +25,22 @@ function SegmentModal() {
   if (!openSegmentModal) return null;
 
   const options = [
-    { name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL" },
-    { name: "Site", description: "Construction site work", icon: MapPin, value: "SITE" },
-    { name: "Office", description: "Office work", icon: Building2, value: "OFFICE" },
+    { id: 1, name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL" },
+    { id: 2, name: "Site", description: "Construction site work", icon: MapPin, value: "SITE" },
+    { id: 3, name: "Office", description: "Office work", icon: Building2, value: "OFFICE" },
   ];
 
-  console.log(attendance)
   const handleSelect = async (segment) => {
-    console.log(attendance)
     try {
-      console.log(attendance)
       const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
-
+      console.log(attendance)
       if (!attendanceId) {
         console.error("Attendance ID missing!");
         return;
       }
-      
+
+      const rawStartTime = tempSegment?.start_time || getCurrentTime();
+
       if (segment.value === "OFFICE") {
         await attendanceApi.update(attendanceId, {
           attendance_id: attendanceId,
@@ -49,10 +48,16 @@ function SegmentModal() {
           work_date: attendance.work_date,
           status: "WORKING",
         });
+
+        await siteAssignmentApi.create({
+          employee_id: attendance.employee_id,
+          site_id: options[0].id,
+          is_leader: false,
+          start_date: attendance.work_date,
+          end_date: null,
+        });
       }
 
-      const rawStartTime = tempSegment?.start_time || getCurrentTime();
-      
       const segmentObj = {
         attendance_id: attendanceId,
         employee_id: attendance.employee_id,

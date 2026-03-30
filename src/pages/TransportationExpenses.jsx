@@ -3,12 +3,8 @@ import { transportationExpensesApi } from "../api/Api";
 import { useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button"; // import your reusable Button
-
-const SITE_OPTIONS = [
-  { id: 1, name: "Site A - Shinjuku Tower" },
-  { id: 2, name: "Site B - Shibuya Office" },
-  { id: 3, name: "Site C - Roppongi Hills" }
-];
+import CONSTANTS from "../constants/Constants";
+import { useLocationContext } from "../context/LocationContext";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -18,7 +14,8 @@ function TransportationExpenseScreen({ onDone }) {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { attendance } = useAttendanceContext();
-  
+  const SITE_OPTIONS = CONSTANTS.SITE_OPTIONS
+  const { sites } = useLocationContext()
   const handleAdd = () => {
     console.log(attendance)
     if (!amount || !site) {
@@ -31,7 +28,7 @@ function TransportationExpenseScreen({ onDone }) {
       alert("System error: attendance not ready");
       return;
     }
-
+    console.log(sites)
     if (!attendance?.employee_id) {
       console.error("❌ employee_id is missing");
       alert("System error: employee not ready");
@@ -54,7 +51,6 @@ function TransportationExpenseScreen({ onDone }) {
     setSite("");
   };
 
-  console.log(attendance)
   const handleDone = async () => {
     if (!attendance.attendance_id) {
       console.error("❌ attendance_id missing on submit");

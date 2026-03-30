@@ -14,20 +14,21 @@ import { useAttendanceContext } from "../context/AttendanceContext";
 import { useSegmentContext } from "../context/SegmentContext";
 
 import {
+  constructionSiteApi,
+  segmentApi,
+  sitesApi,
+  siteSubContractorApi,
+  subContractorApi,
   transportationExpensesApi,
 } from "../api/Api";
 
 import formattedDate from "../utils/formattedDate";
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
-
-const SITE_OPTIONS = [
-  { id: 1, name: "Site A - Shinjuku Tower", icon: MapPin },
-  { id: 2, name: "Site B - Shibuya Office", icon: MapPin },
-  { id: 3, name: "Site C - Roppongi Hills", icon: MapPin },
-];
+import CONSTANTS from "../constants/Constants";
 
 function CalendarDetail() {
+  const SITE_OPTIONS = CONSTANTS.SITE_OPTIONS
   const navigate = useNavigate();
   const { attendanceCalendar } = useAttendanceContext();
   const { year, month, day } = useParams();
@@ -42,9 +43,11 @@ function CalendarDetail() {
 
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState(null);
-
+  const [constructionSites, setConstructionSites] = useState([]);
+  const [siteSubcontractor, setSiteSubcontractor] = useState([]);
+  const [subContractor, setSubContractor] = useState([]);
   const attendanceRaw = attendanceCalendar?.[0];
-
+  
   const attendance = useMemo(() => {
     if (!attendanceRaw) return null;
 
@@ -61,6 +64,54 @@ function CalendarDetail() {
       setLocalSegments(attendance.segments);
     }
   }, [attendance]);
+
+  useEffect(() => {
+    const fetchConstructionSites = async () => {
+      try {
+        const res = await sitesApi.getAll();
+
+        console.log("Construction Sites:", res.data.data);
+
+        setConstructionSites(res?.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch construction sites:", err);
+      }
+    };
+
+    fetchConstructionSites();
+  }, []);
+
+  useEffect(() => {
+    const fetchSiteSubcontractor = async () => {
+      try {
+        const res = await siteSubContractorApi.getAll();
+
+        console.log("Construction Sites:", res.data.data);
+
+        setSiteSubcontractor(res?.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch construction sites:", err);
+      }
+    };
+
+    fetchSiteSubcontractor();
+  }, []);
+
+  useEffect(() => {
+    const fetchSubcontractor = async () => {
+      try {
+        const res = await subContractorApi.getAll();
+
+        console.log("Subcontractor Sites:", res.data.data);
+
+        setSubContractor(res?.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch Subcontractor sites:", err);
+      }
+    };
+
+    fetchSubcontractor();
+  }, []);
 
   const segments = localSegments;
   const hasData = segments.length > 0;
@@ -125,7 +176,7 @@ function CalendarDetail() {
 
   const handleSaveSegment = async (payload) => {
     try {
-      await segmentsApi.update(payload.segment_id, payload);
+      await segmentApi.update(payload.segment_id, payload);
 
       setLocalSegments((prev) =>
         prev.map((seg) =>
@@ -183,7 +234,6 @@ function CalendarDetail() {
           </div>
         ) : (
           <>
-            {/* Segments */}
             <div className="flex flex-col gap-4">
               {segments.map((seg) => {
                 const start = formattedTime(seg.start_time);
@@ -203,8 +253,8 @@ function CalendarDetail() {
 
                       <p className="text-gray-500 text-sm">
                         {seg.segment_type === "TRAVEL"
-                          ? `→ ${seg.site_id || "(unspecified)"}`
-                          : seg.site_id || seg.site_name || "—"}
+                          ? `→ ${seg.site_name || seg.site_id || "(unspecified)"}`
+                          : seg.site_name || seg.site_id || "—"}
                       </p>
                     </div>
                   </div>
@@ -257,23 +307,22 @@ function CalendarDetail() {
               buttonStyle="primary"
               text="Edit Transport"
               customButton="bg-lime-500"
-              onClick={() => setOpenTransportModal(true)}
+              onClick={() => navigate('/transportation-expenses')}
             />
 
             <Button
               buttonStyle="primary"
               text="Edit Subcontractor"
               customButton="bg-lime-500"
-              onClick={() => setOpenSubcontractorModal(true)}
+              onClick={() => navigate('/subcontractor')}
             />
           </>
         )}
       </div>
 
-      {/* Modals */}
       <ManualTimeModal />
 
-      <SubContractorModal
+      {/* <SubContractorModal
         open={openSubcontractorModal}
         setOpen={setOpenSubcontractorModal}
         sites={SITE_OPTIONS}
@@ -282,6 +331,9 @@ function CalendarDetail() {
         onRefetch={fetchUpdatedTransportExpenses}
         employeeId={attendance.employee_id}
         openTransportModalParent={setOpenTransportModal}
+        constructionSite={constructionSites}
+        siteSubcontractor={siteSubcontractor}
+        subContractor={subContractor}
       />
 
       <TransportationExpenseModal
@@ -292,7 +344,7 @@ function CalendarDetail() {
         attendanceId={attendance?.attendance_id}
         onRefetch={fetchUpdatedTransportExpenses}
         employeeId={attendance.employee_id}
-      />
+      /> */}
 
       <SegmentModal />
 
@@ -301,8 +353,9 @@ function CalendarDetail() {
         onClose={() => setOpenEditSegmentModal(false)}
         segmentData={selectedSegment}
         segments={["OFFICE", "SITE", "TRAVEL"]}
-        sites={sites}
-        onSave={handleSaveSegment}
+        sites={constructionSites}
+        onSave={handleSaveSegment
+        }
       />
     </div>
   );

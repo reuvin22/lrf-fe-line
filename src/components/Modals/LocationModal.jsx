@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, MapPin } from 'lucide-react';
 import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
@@ -6,6 +6,7 @@ import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { attendanceApi, segmentApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
+import { useLocation } from 'react-router-dom';
 
 function LocationModal() {
   const {
@@ -14,20 +15,13 @@ function LocationModal() {
     recordType,
     selectedSegment,
     setTempSegment,
-    tempSegment
+    tempSegment,
   } = useSegmentContext();
-  
+  const {sites} = useLocationContext()
   const { setOpenTimeModal } = useManualTimeContext();
   const { attendance } = useAttendanceContext();
   const [step, setStep] = useState('TYPE');
-
   if (!openLocationModal) return null;
-
-  const sites = [
-    { id: "1", name: "Site A - Shinjuku Tower", icon: MapPin },
-    { id: "2", name: "Site B - Shibuya Office", icon: MapPin },
-    { id: "3", name: "Site C - Roppongi Hills", icon: MapPin },
-  ];
 
   const handleClose = () => {
     setStep('TYPE');
@@ -41,7 +35,7 @@ function LocationModal() {
     const workDate = tempSegment?.work_date || attendance?.data.work_date;
 
     if (!attendanceId) {
-      console.error("Attendance ID is missings!");
+      console.error("Attendance ID is missing!");
       return;
     }
     console.log(attendance)
@@ -55,8 +49,8 @@ function LocationModal() {
       attendance_id: attendanceId,
       employee_id: employeeId,
       work_date: workDate,
-      site_id: site.name,
-      site_name: site.name,
+      site_id: String(site.site.site_id),
+      site_name: site.site.site_name,
       start_time: tempSegment?.start_time
         ? new Date(tempSegment.start_time).toISOString()
         : new Date().toISOString(),
@@ -73,13 +67,14 @@ function LocationModal() {
       await attendanceApi.update(attendanceId, {
         attendance_id: attendanceId,
         employee_id: employeeId,
+        site_id: String(site.site.site_id),
+        site_name: site.site.site_name,
         status: "WORKING",
         work_date: workDate || new Date().toISOString(),
       });
 
       await segmentApi.create(payload);
 
-      // preserve full payload safely
       setTempSegment(prev => ({
         ...prev,
         ...payload,
@@ -130,8 +125,8 @@ function LocationModal() {
           {sites.map((site, index) => (
             <ActionCard
               key={index}
-              icon={site.icon}
-              name={site.name}
+              icon={MapPin}
+              name={site.site.site_name}
               onClick={() => handleSelectSite(site)}
             />
           ))}

@@ -18,6 +18,7 @@ function Main() {
 
         if (!foundEmployee) {
           const createRes = await employeeApi.create({
+            employee_id: 1,
             employee_code: `EMP${Date.now()}`,
             name: "John Doe",
             email: email,
