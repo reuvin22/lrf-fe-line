@@ -9,8 +9,13 @@ import CalendarDetail from "./pages/CalendarDetail";
 import Dashboard from "./pages/Dashboard";
 import TransportationExpense from "./pages/TransportationExpenses";
 import SubContractor from "./pages/SubContractor";
+import { useAttendanceContext } from "./context/AttendanceContext";
+import Loading from "./components/Loading";
 
 function App() {
+  const { attendance, employee, attendanceLoading } = useAttendanceContext();
+
+  if (attendanceLoading || !attendance || !employee) return <Loading />;
   return (
     <Router>
       <Routes>

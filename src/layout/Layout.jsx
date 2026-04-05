@@ -67,6 +67,7 @@ function Layout({ employee }) {
         : data;
 
       setAttendance(todayAttendance || null);
+      console.log('today:', todayAttendance)
     } catch (error) {
       console.error("Error fetching attendance:", error);
     }
@@ -74,20 +75,32 @@ function Layout({ employee }) {
   const fetchSiteAssignment = async () => {
     try {
       const res = await siteAssignmentApi.getAll();
+      console.log("Site assignments:", res.data.data);
 
-      const data = res.data.data.find(
-        v => v.employee.id === loggedIn.employee_id
-      );
-
-      if (data?.is_leader === true) {
-        setIsLeader(true);
+      if (!attendance?.employee_id) {
+        console.warn("No attendance loaded yet");
+        return;
       }
-      setSites(data ? [data] : []);
+
+      const employeeSites = res.data.data
+        .filter(v => v.employee.id === attendance.employee_id)
+        .map(v => ({
+          site_id: v.site.site_id,
+          site_name: v.site.site_name,
+          address: v?.site.address,
+          client_name: v.site.client_name,
+          is_leader: v.is_leader
+        }));
+
+      console.log("Mapped employee sites:", employeeSites);
+
+      if (employeeSites.some(v => v.is_leader)) setIsLeader(true);
+
+      setSites(employeeSites);
     } catch (error) {
       console.error("Error fetching sites:", error);
     }
   };
-
   useEffect(() => {
     fetchSiteAssignment()
   }, [])
@@ -203,7 +216,7 @@ function Layout({ employee }) {
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
     const payload = { ...seg, employee_id: loggedInUser.employee_id, end_time: now };
-
+    console.log('ATT: ', attendance)
     setSegments((prev) =>
       prev.map((s) =>
         s.segment_id === seg.segment_id ? { ...s, end_time: now } : s
@@ -222,20 +235,27 @@ function Layout({ employee }) {
   };
 
   const handleEndOfDay = () => {
+    console.log(attendance)
     openConfirmation("Are you sure you want to end work?", async () => {
       setConfirmLoading(true);
       const now = getCurrentTime();
-
+      console.log(attendance)
       try {
         const attendanceId = segments[0]?.attendance_id;
         if (!attendanceId) throw new Error("Attendance not found");
 
         const attendanceRes = await attendanceApi.getById(attendanceId);
         const attendanceData = attendanceRes.data.data;
-
+        console.log(attendanceData)
         await Promise.all(
           segments.map((seg) => {
-            if (!seg.end_time) return segmentApi.update(seg.segment_id, { ...seg, end_time: now });
+            if (!seg.end_time) {
+              return segmentApi.update(seg.segment_id, { 
+                ...seg, 
+                end_time: now,
+                employee_id: attendance.employee_id
+              });
+            }
           })
         );
 
@@ -243,6 +263,7 @@ function Layout({ employee }) {
           ...attendanceData,
           status: "END_OF_DAY",
           end_time: now,
+          employee_id: attendance.employee_id
         };
         await attendanceApi.update(attendanceId, updatedAttendance);
         setAttendance(updatedAttendance);
@@ -357,7 +378,7 @@ function Layout({ employee }) {
       </div>
 
       <SegmentModal />
-      <LocationModal/>
+      <LocationModal sites={sites}/>
       <ManualTimeModal />
 
       <EditSegmentModal

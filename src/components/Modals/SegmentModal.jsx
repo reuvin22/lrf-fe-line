@@ -37,7 +37,7 @@ function SegmentModal() {
       const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
       if (!attendanceId) return;
 
-      const rawStartTime = tempSegment?.start_time || getCurrentTime();
+      const rawStartTime = tempSegment?.start_time || new Date().toISOString();
 
       const segmentObj = {
         attendance_id: attendanceId,
@@ -51,25 +51,26 @@ function SegmentModal() {
         end_time: null,
       };
 
-      setSelectedSegment(segment.value);
       setTempSegment(segmentObj);
+      setSelectedSegment(segment.value);
+
       setOpenSegmentModal(false);
 
-      if (segment.value === "OFFICE") {
-        const tempId = Date.now();
-        setSegments(prev => [
-          { ...segmentObj, segment_id: tempId, _temp: true },
-          ...prev
-        ]);
-
-        if (recordType === "manual") {
-          setOpenTimeModal(true);
-        } else {
-          await segmentApi.create(segmentObj);
-        }
-      } else {
-        setOpenLocationModal(true);
+      if (segment.value !== "OFFICE") {
+        setOpenLocationModal(true); 
+        return;
       }
+
+      // OFFICE logic
+      const tempId = Date.now();
+      setSegments(prev => [{ ...segmentObj, segment_id: tempId, _temp: true }, ...prev]);
+
+      if (recordType === "manual") {
+        setOpenTimeModal(true);
+      } else {
+        await segmentApi.create(segmentObj);
+      }
+
     } catch (err) {
       console.error(err);
     }

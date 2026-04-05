@@ -4,8 +4,9 @@ import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
 import {
   attendanceApi,
-  attendanceSubcontractorSegment,
+  attendanceSubcontractorSegmentApi,
   constructionSiteApi,
+  getAttendanceSubcontractor,
   siteSubContractorApi,
   subContractorApi,
   subContractorReportApi,
@@ -27,6 +28,7 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const location = useLocation();
   const { attendance } = useAttendanceContext();
 
+  
   const fetchSegment = async () => {
     try {
       const res = await attendanceApi.getAll();
@@ -38,7 +40,6 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
       );
 
       setAllSegments(segments);
-
       const validSegments = segments.filter((s) => s.site_name?.trim());
 
       const mapped = validSegments.flatMap((s) => {
@@ -48,34 +49,38 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
 
         if (!matchedSubs.length) return [];
 
-        const groupedByCompany = matchedSubs.reduce((acc, curr) => {
-          const key = `${curr.segment_id}-${curr.company_id}`;
+        const groupedBySiteCompany = {};
 
-          if (!acc[key]) {
-            acc[key] = {
+        matchedSubs.forEach((sub) => {
+          const key = `${s.site_id}-${sub.company_id}`; // group by site + company
+
+          if (!groupedBySiteCompany[key]) {
+            groupedBySiteCompany[key] = {
               site_name: s.site_name,
               site_id: Number(s.site_id),
-              segment_id: curr.segment_id,
-              attendance_id: curr.attendance_id,
-              company: curr.company_name,
-              subcontractor_id: curr.company_id,
+              segment_id: sub.segment_id,
+              segment_ids: [],
+              attendance_ids: [],
+              company: sub.company_name,
+              subcontractor_id: sub.company_id,
               workers: [],
-              contract: curr.contract_type || "QUASI_DELEGATION",
+              contract: sub.contract_type || "QUASI_DELEGATION",
             };
           }
 
-          acc[key].workers.push({
-            id: curr.id,
-            name: curr.worker_name,
-            worker_id: curr.worker_id,
-            start: curr.start_time?.slice(11, 16),
-            end: curr.end_time?.slice(11, 16),
+          groupedBySiteCompany[key].segment_ids.push(sub.segment_id);
+          groupedBySiteCompany[key].attendance_ids.push(sub.attendance_id);
+
+          groupedBySiteCompany[key].workers.push({
+            id: sub.id,
+            name: sub.worker_name,
+            worker_id: sub.worker_id,
+            start: sub.start_time?.slice(11, 16),
+            end: sub.end_time?.slice(11, 16),
           });
+        });
 
-          return acc;
-        }, {});
-
-        return Object.values(groupedByCompany);
+        return Object.values(groupedBySiteCompany);
       });
 
       setCompanies(mapped);
@@ -85,6 +90,10 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
       return [];
     }
   };
+
+  useEffect(() => {
+    fetchSegment();
+  }, []);
 
   const fetchCompanies = async () => {
     try {
@@ -98,6 +107,10 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     }
   };
 
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
   const fetchSiteSubcontractor = async () => {
     try {
       const res = await siteSubContractorApi.getAll();
@@ -110,23 +123,32 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     }
   };
 
+  useEffect(() => {
+    fetchSiteSubcontractor();
+  }, []);
+
   const computeData = (companiesList, allSubs, siteSubs) => {
     if (!companiesList.length || !allSubs.length || !siteSubs.length) return;
 
     const companySiteIds = companiesList.map((c) => Number(c.site_id));
-    const filteredSiteSubs = siteSubs.filter((v) => companySiteIds.includes(Number(v.site_id)));
+    const filteredSiteSubs = siteSubs.filter((v) =>
+      companySiteIds.includes(Number(v.site_id))
+    );
 
     const sitesWithCompanies = companiesList.map((company) => {
-      const matchingSiteSubs = filteredSiteSubs.filter((ss) => ss.site_id === company.site_id);
+      const matchingSiteSubs = filteredSiteSubs.filter(
+        (ss) => ss.site_id === company.site_id
+      );
 
       const companiesForSite = matchingSiteSubs.map((ss) => {
         const sub = allSubs.find((s) => s.subcontractor_id === ss.subcontractor_id);
         return {
           ...sub,
-          workers: sub?.workers || [],
+          workers: [{ name: "", start: "09:00", end: "17:30" }],
           pivot: ss,
           company_id: sub?.subcontractor_id,
-          company_name: sub?.company_name || "",
+          company_name:
+            location.state?.from === "subcontractor" ? sub?.company_name || "" : "",
         };
       });
 
@@ -153,14 +175,144 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     };
 
     init();
+  }, [location.state]);
+
+  const fetchAttendanceSubcontractor = async () => {
+    try {
+      const res = await getAttendanceSubcontractor.getAll({
+        employee_id: loggedInUser.employee_id,
+      });
+
+      const raw = res.data.data || [];
+
+      const grouped = {};
+
+      raw.forEach((item) => {
+        const key = `${item.site.site_id}-${item.subcontractor.subcontractor_id}`;
+
+        if (!grouped[key]) {
+          grouped[key] = {
+            site_name: item.site.site_name,
+            site_id: item.site.site_id,
+            company: item.subcontractor.company_name,
+            subcontractor_id: item.subcontractor.subcontractor_id,
+            contract: item.contract_type,
+            workers: [],
+          };
+        }
+
+        grouped[key].workers.push({
+          id: item.id,
+          name: item.worker.name,
+          worker_id: item.worker.worker_id,
+          start: item.start_time?.slice(11, 16),
+          end: item.end_time?.slice(11, 16),
+        });
+      });
+
+      const formatted = Object.values(grouped);
+
+      setCompanies(formatted);
+    } catch (err) {
+      console.error("Error failed: ", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceSubcontractor();
   }, []);
+
+  useEffect(() => {
+    subContractorApi.getAll().then((res) => {
+      setAllSubcontractors(res.data.data || []);
+    });
+
+    siteSubContractorApi.getAll().then((res) => {
+      setSiteSubcontractors(res.data.data || []);
+    });
+
+    attendanceApi.getAll().then((res) => {
+      const attendanceList = res.data.data || [];
+      const segments = attendanceList.flatMap((a) => a.segments || []);
+      setAllSegments(segments);
+    });
+  }, []);
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      const res = await constructionSiteApi.getAll();
+      const sitesList = res.data.data || [];
+
+      const filteredSites = sitesList.map((site) => {
+        const subcontractorsForSite = siteSubcontractors
+          .filter((ss) => Number(ss.site_id) === Number(site.site_id))
+          .map((ss) => {
+            const sub = allSubcontractors.find(
+              (s) => Number(s.subcontractor_id) === Number(ss.subcontractor_id)
+            );
+
+            return {
+              ...sub,
+              workers: sub?.workers || [],
+              subcontractor_id: sub?.subcontractor_id,
+              company_name: sub?.company_name,
+            };
+          });
+
+        return {
+          ...site,
+          subcontractors: subcontractorsForSite,
+        };
+      });
+
+      setConstructionSites(filteredSites);
+    };
+
+    fetchSites();
+  }, [allSubcontractors, siteSubcontractors]);
+
+  // =========================
+  // ✅ FIX: HYDRATE WORKERS IN EDIT MODE
+  // =========================
+  useEffect(() => {
+    if (location.state?.from !== "subcontractor") return;
+    if (!constructionSites.length || !companies.length) return;
+
+    setCompanies((prev) =>
+      prev.map((company) => {
+        const site = constructionSites.find(
+          (s) => Number(s.site_id) === Number(company.site_id)
+        );
+
+        const matchedSub = site?.subcontractors?.find(
+          (s) =>
+            Number(s.subcontractor_id) ===
+            Number(company.subcontractor_id)
+        );
+
+        return {
+          ...company
+        };
+      })
+    );
+  }, [constructionSites, companies.length]);
+
+
+  const deduplicateCompanies = (companiesList) => {
+    const seen = new Set();
+    return companiesList.filter((company) => {
+      if (seen.has(company.site_name)) return false;
+      seen.add(company.site_name);
+      return true;
+    });
+  };
 
   const fetchSites = async () => {
     try {
       const res = await constructionSiteApi.getAll();
       const sitesList = res.data.data || [];
-
       const segmentSiteIds = allSegments.map((s) => Number(s.site_id));
+
       const filteredSites = sitesList
         .filter((site) => segmentSiteIds.includes(Number(site.site_id)))
         .map((site) => {
@@ -172,7 +324,9 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
               );
 
               const matchedSegment = allSegments.find(
-                (seg) => Number(seg.site_id) === Number(site.site_id)
+                (seg) =>
+                  Number(seg.site_id) === Number(site.site_id) &&
+                  Number(seg.segment_id) === Number(ss.segment_id)
               );
 
               return {
@@ -180,7 +334,8 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
                 company_name: sub?.company_name || "",
                 subcontractor_id: sub?.subcontractor_id,
                 workers: sub?.workers || [],
-                segment_id: matchedSegment?.segment_id || null,
+                segment_ids: matchedSegment ? [matchedSegment.segment_id] : [],
+                segments: matchedSegment ? [matchedSegment] : [],
               };
             });
 
@@ -192,33 +347,53 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
 
       setConstructionSites(filteredSites);
 
-      if (location.state?.from === "subcontractor" && !companies.length && filteredSites.length > 0) {
-      const firstSite = filteredSites[0];
-      const firstSub = firstSite.subcontractors[0];
+      const isEditMode = location.state?.from === "subcontractor";
 
-      setCompanies([
-        {
-          site_name: firstSite.site_name,
-          site_id: firstSite.site_id,
-          company: firstSub?.company_name || "",
-          subcontractor_id: firstSub?.subcontractor_id || null,
-          contract: firstSite.contract_type || "QUASI_DELEGATION",
-          workers: firstSub?.workers?.length
-            ? firstSub.workers.map((w) => ({
-                ...w,
-                start: w.start || "09:00",
-                end: w.end || "17:30",
-              }))
-            : [{ name: "", start: "09:00", end: "17:30" }],
-        },
-      ]);
-    }
+      const allCompanies = filteredSites.flatMap((site) =>
+        site.subcontractors.length
+          ? site.subcontractors.map((sub) => ({
+              site_name: site.site_name,
+              site_id: site.site_id,
+
+              // ✅ FIX HERE
+              company: isEditMode ? sub?.company_name || "" : "",
+
+              subcontractor_id: isEditMode ? sub?.subcontractor_id || null : null,
+
+              contract: site.contract_type || "QUASI_DELEGATION",
+              workers: [
+                {
+                  name: "",
+                  worker_id: null,
+                  start: "09:00",
+                  end: "17:30",
+                },
+              ],
+              segments: sub.segment_ids,
+            }))
+          : [
+              {
+                site_name: site.site_name,
+                site_id: site.site_id,
+
+                // ✅ also here
+                company: "",
+                subcontractor_id: null,
+
+                contract: site.contract_type || "QUASI_DELEGATION",
+                workers: [{ name: "", start: "09:00", end: "17:30" }],
+                segments: [],
+              },
+            ]
+      );
+      setCompanies(deduplicateCompanies(allCompanies));
     } catch (err) {
       console.error("Error fetching construction sites:", err);
     }
   };
 
   useEffect(() => {
+    if (location.state?.from === "subcontractor") return;
     fetchSites();
   }, [allSubcontractors, siteSubcontractors, allSegments]);
 
@@ -228,10 +403,12 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
       return;
     }
 
-    const firstSite = constructionSites[0];
+    const firstSite = constructionSites.find(
+      (s) => !companies.some((c) => c.site_id === s.site_id)
+    ) || constructionSites[0];
     const contractType = sites?.contract_type || "QUASI_DELEGATION";
 
-   const matchedSegment = allSegments.find(
+    const matchedSegment = allSegments.find(
       (s) => Number(s.site_id) === Number(firstSite.site_id)
     );
 
@@ -270,9 +447,19 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     setCompanies((prev) => {
       const updated = [...prev];
       const removed = updated.splice(companyIndex, 1)[0];
-      if (removed?.id) {
-        setDeletedCompanies((prevDeleted) => [...prevDeleted, removed.id]);
+
+      // ✅ KEY FIX: collect ALL worker IDs from removed company
+      if (removed?.workers?.length) {
+        const workerIdsToDelete = removed.workers
+          .filter((w) => w.id)
+          .map((w) => w.id);
+
+        setDeletedWorkers((prevDeleted) => [
+          ...prevDeleted,
+          ...workerIdsToDelete,
+        ]);
       }
+
       return updated;
     });
   };
@@ -326,66 +513,110 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     });
   };
 
-  const saveCompany = async (company) => {
-    try {
-      if (!company.site_name?.trim()) return;
-      if (!company.workers.length) return;
+  const ensureSegment = async (company) => {
+    let segmentId =
+      company.segment_id ||
+      (Array.isArray(company.segment_ids) ? company.segment_ids[0] : null);
+    if (segmentId) return segmentId;
+    const matchedSegment = allSegments.find(
+      (s) => Number(s.site_id) === Number(company.site_id)
+    );
 
-      const today = new Date().toISOString().split("T")[0];
-      
-      for (const worker of company.workers) {
-        if (!worker.name?.trim()) continue;
-        if (!company.segment_id) {
-          console.error("Missing segment_id:", company);
-          continue;
-        }
-        const payload = {
-          attendance_id: attendance.attendance_id,
-          segment_id: company.segment_id,
-          company_id: company.subcontractor_id,
-          company_name: company.company,
-          employee_id: loggedInUser.employee_id,
-          worker_id: worker.worker_id || null,
-          worker_name: worker.name,
-          site_id: company.site_id,
-          site_name: company.site_name,
-          contract_type: company.contract || "QUASI_DELEGATION",
-          start_time: `${today}T${worker.start}:00`,
-          end_time: `${today}T${worker.end}:00`,
-        };
-
-        console.log("Payload to backend:", payload);
-
-        if (worker.id) {
-          await attendanceSubcontractorSegment.update(worker.id, payload);
-        } else {
-          const res = await attendanceSubcontractorSegment.create(payload);
-
-          worker.id = res?.data?.id || res?.data?.data?.id;
-          worker.segment_id = company.segment_id;
-        }
-      }
-    } catch (err) {
-      console.error("Error saving company report:", err);
-      alert("Error saving company report. Please check worker data.");
+    if (matchedSegment) {
+      return matchedSegment.segment_id;
     }
+    console.error("❌ No segment found for site:", company.site_name);
+    return null;
   };
 
-  const handleNext = async () => {
-    if (location.state?.from !== "subcontractor") {
-      navigate("/transportation-expenses");
-      return;
+const saveCompany = async (company) => {
+  try {
+    if (!company.site_name?.trim()) return;
+    if (!company.workers?.length) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const segmentId = await ensureSegment(company);
+
+    if (!segmentId) {
+      throw new Error(`Missing segment for site "${company.site_name}"`);
     }
+
+    for (const worker of company.workers) {
+      if (!worker.name?.trim()) {
+        throw new Error(`Worker name is required for site "${company.site_name}"`);
+      }
+
+      if (!company.subcontractor_id) {
+        throw new Error(`Company must be selected for site "${company.site_name}"`);
+      }
+
+      if (!worker.worker_id) {
+        throw new Error(`Worker must be selected under "${company.company}"`);
+      }
+
+      if (!worker.start || !worker.end) {
+        throw new Error(`Start/End time required for "${worker.name}"`);
+      }
+
+      const payload = {
+        attendance_id: attendance?.attendance_id, // ✅ FIX
+        segment_id: segmentId,
+
+        company_id: company.subcontractor_id,
+        company_name: company.company?.trim(),
+
+        employee_id: loggedInUser.employee_id,
+        worker_id: worker.worker_id,
+        worker_name: worker.name,
+
+        site_id: company.site_id,
+        site_name: company.site_name,
+
+        contract_type: company.contract || "QUASI_DELEGATION",
+
+        start_time: `${today}T${worker.start}:00`,
+        end_time: `${today}T${worker.end}:00`,
+      };
+
+      console.log("✅ FINAL PAYLOAD:", payload);
+
+      if (worker.id) {
+        await attendanceSubcontractorSegmentApi.update(worker.id, payload);
+      } else {
+        const res = await attendanceSubcontractorSegmentApi.create(payload);
+
+        const newId = res?.data?.id || res?.data?.data?.id;
+
+        worker.id = newId;
+        worker.segment_id = segmentId;
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error saving company report:", err.message);
+    alert(err.message);
+  }
+};
+
+  const handleNext = async () => {
+    const isEditMode = location.state?.from === "subcontractor";
+
+    console.log("🚀 handleNext triggered");
 
     setLoading(true);
 
     try {
-      const validCompanies = companies.filter(
+      let validCompanies = companies.filter(
         (c) =>
           constructionSites.some((site) => site.site_id === c.site_id) &&
-          (c.company?.trim() || c.subcontractor_id)
+          (c.company?.trim() || c.subcontractor_id || c.workers?.length)
       );
 
+      // ✅ FIX: merge duplicates
+      validCompanies = mergeDuplicateCompanies(validCompanies);
+      console.log("✅ Valid companies:", validCompanies);
+
+      // 🔍 Validation
       for (const company of validCompanies) {
         if (!company.workers.length) {
           alert(`Please add at least one worker for "${company.company}".`);
@@ -402,22 +633,53 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
       }
 
       for (const workerId of deletedWorkers) {
-        await attendanceSubcontractorSegment.delete(workerId);
+        console.log("🗑️ Deleting worker:", workerId);
+        await attendanceSubcontractorSegmentApi.delete(workerId);
       }
 
       for (const company of validCompanies) {
+        console.log("📦 Saving company:", company);
         await saveCompany(company);
       }
 
       setDeletedWorkers([]);
+
+      console.log("🎉 All companies saved");
+
       onRefetch?.();
-      alert("Update successful!");
+
+      alert("Saved successfully!");
+
+      // 🚀 Navigate AFTER saving
+      if (isEditMode) {
+        navigate("/calendar/detail");
+      } else {
+        navigate("/transportation-expenses");
+      }
+
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error in handleNext:", err);
       alert("Error updating data. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const mergeDuplicateCompanies = (companiesList) => {
+    const map = {};
+
+    companiesList.forEach((company) => {
+      const key = `${company.site_id}-${company.subcontractor_id || company.company}`;
+
+      if (!map[key]) {
+        map[key] = { ...company, workers: [...company.workers] };
+      } else {
+        // ✅ merge workers instead of creating new company
+        map[key].workers = [...map[key].workers, ...company.workers];
+      }
+    });
+
+    return Object.values(map);
   };
 
   return (
@@ -428,11 +690,11 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
         </div>
 
         <div className="space-y-6">
-          {location.state?.from === "subcontractor" &&
-            companies
-              .filter((company) =>
-                constructionSites.some((site) => site.site_id === company.site_id)
-              )
+          {companies
+            .filter((company) => {
+              if (location.state?.from === "subcontractor") return true;
+              return constructionSites.some((site) => site.site_id === company.site_id);
+            })
             .map((company, cIndex) => {
               const currentSite = constructionSites.find(
                 (site) => site.site_id === company.site_id
@@ -440,10 +702,6 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
 
               const companyOptions =
                 currentSite?.subcontractors?.map((sub) => sub.company_name) || [];
-
-              const selectedSubcontractor = currentSite?.subcontractors?.find(
-                (sub) => sub.company_name === company.company
-              );
 
               return (
                 <div key={cIndex} className="border rounded-xl p-4 space-y-4">
@@ -464,37 +722,70 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
                   <Autocomplete
                     freeSolo
                     options={companyOptions}
-                    value={company.company || null}
+                    value={company.company || ""}
                     onChange={(e, newValue) => {
                       const updated = [...companies];
+
                       const selectedSub = currentSite?.subcontractors?.find(
                         (sub) => sub.company_name === newValue
                       );
+
+                      const isFromList = !!selectedSub;
+
+                      updated[cIndex].company = newValue || "";
+
+                      // ✅ If selected from dropdown
+                      if (isFromList) {
+                        updated[cIndex].subcontractor_id =
+                          selectedSub.subcontractor_id;
+
+                        updated[cIndex].availableWorkers =
+                          selectedSub.workers || [];
+                      } else {
+                        // ✅ NEW COMPANY (typed)
+                        updated[cIndex].subcontractor_id = null;
+                        updated[cIndex].availableWorkers = [];
+                      }
+
+                      // ✅ ALWAYS ensure segment_id exists
                       const matchedSegment = allSegments.find(
                         (s) => Number(s.site_id) === Number(currentSite.site_id)
                       );
-                      updated[cIndex].company = newValue || "";
-                      updated[cIndex].subcontractor_id = selectedSub?.subcontractor_id || null;
 
-                      updated[cIndex].segment_id = matchedSegment?.segment_id || company.segment_id || null;
+                      updated[cIndex].segment_id =
+                        matchedSegment?.segment_id ||
+                        updated[cIndex].segment_id ||
+                        null;
+
+                      // ✅ Reset workers ONLY when changing company
+                      updated[cIndex].workers = [
+                        {
+                          name: "",
+                          worker_id: null,
+                          start: "09:00",
+                          end: "17:30",
+                        },
+                      ];
+
                       setCompanies(updated);
                     }}
                     onInputChange={(e, newInputValue) => {
                       const updated = [...companies];
+
                       updated[cIndex].company = newInputValue || "";
 
-                      const selectedSub = currentSite?.subcontractors?.find(
-                        (sub) => sub.company_name === newInputValue
-                      );
-                      updated[cIndex].subcontractor_id = selectedSub?.subcontractor_id || null;
+                      // ✅ VERY IMPORTANT: mark as NEW company
+                      updated[cIndex].subcontractor_id = null;
 
-                      // DO NOT auto-fill worker names anymore
+                      // ✅ Clear workers list (no predefined workers)
+                      updated[cIndex].availableWorkers = [];
+
                       setCompanies(updated);
                     }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        placeholder="Select Company"
+                        placeholder="Select or type Company"
                         size="small"
                         fullWidth
                       />
@@ -508,16 +799,21 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
 
                   <div className="space-y-3 mt-2">
                     {company.workers.map((worker, wIndex) => {
-                      const selectedWorkerIds = company.workers
+                      const selectedWorkers = company.workers
                         .filter((_, idx) => idx !== wIndex)
-                        .map((w) => w.worker_id)
-                        .filter(Boolean);
+                        .map((w) => ({
+                          worker_id: w.worker_id,
+                          name: w.name,
+                        }));
 
                       const workerOptions =
-                        selectedSubcontractor?.workers?.filter(
-                          (option) => !selectedWorkerIds.includes(option.worker_id)
-                        ) || [];
-                      console.log(workerOptions)
+                        company.availableWorkers?.filter((option) => {
+                          return !selectedWorkers.some(
+                            (w) =>
+                              (w.worker_id && w.worker_id === option.worker_id) ||
+                              (!w.worker_id && w.name === option.name)
+                          );
+                        }) || [];
                       return (
                         <div key={wIndex} className="relative border rounded-lg p-2">
                           <div className="flex flex-col gap-1">
@@ -531,38 +827,45 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
                             )}
 
                             <Autocomplete
-  freeSolo
-  options={workerOptions}
-  getOptionLabel={(option) =>
-    typeof option === "string" ? option : option.name || ""
-  }
-  value={worker.name || null}
-  onChange={(e, newValue) => {
-    const updated = [...companies];
-    updated[cIndex].workers[wIndex].name =
-      typeof newValue === "string" ? newValue : newValue?.name || "";
+                              freeSolo
+                              options={workerOptions}
+                              getOptionLabel={(option) =>
+                                typeof option === "string" ? option : option.name || ""
+                              }
+                              value={worker.name || null}
+                              onChange={(e, newValue) => {
+                                const updated = [...companies];
 
-    // If using worker_id
-    updated[cIndex].workers[wIndex].worker_id =
-      typeof newValue === "string" ? null : newValue?.worker_id || null;
+                                const selectedName =
+                                  typeof newValue === "string"
+                                    ? newValue
+                                    : newValue?.name || "";
 
-    setCompanies(updated);
-  }}
-  onInputChange={(e, newInputValue) => {
-    const updated = [...companies];
-    updated[cIndex].workers[wIndex].name = newInputValue || "";
-    updated[cIndex].workers[wIndex].worker_id = null;
-    setCompanies(updated);
-  }}
-  renderInput={(params) => (
-    <TextField
-      {...params}
-      placeholder="Select or type worker name"
-      size="small"
-      fullWidth
-    />
-  )}
-/>
+                                const selectedId =
+                                  typeof newValue === "string"
+                                    ? null
+                                    : newValue?.worker_id || null;
+
+                                updated[cIndex].workers[wIndex].name = selectedName;
+                                updated[cIndex].workers[wIndex].worker_id = selectedId;
+
+                                setCompanies(updated);
+                              }}
+                              onInputChange={(e, newInputValue) => {
+                                const updated = [...companies];
+                                updated[cIndex].workers[wIndex].name = newInputValue || "";
+                                updated[cIndex].workers[wIndex].worker_id = null;
+                                setCompanies(updated);
+                              }}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  placeholder="Select or type worker name"
+                                  size="small"
+                                  fullWidth
+                                />
+                              )}
+                            />
                           </div>
 
                           <div className="flex gap-2 mt-2">
@@ -629,11 +932,13 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
         <div className="mt-6 border-t pt-4 space-y-3">
           <p className="font-semibold text-sm">Entered</p>
 
-          {companies.filter(
-              (company) =>
+          {companies.filter((company) => {
+              if (location.state?.from === "subcontractor") return true;
+              return (
                 company.site_id &&
                 constructionSites.some((site) => site.site_id === company.site_id)
-            )
+              );
+            })
             .map((company, cIndex) => (
               <div key={cIndex}>
                 <p className="text-sm font-medium">

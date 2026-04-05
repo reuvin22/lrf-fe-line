@@ -1,5 +1,3 @@
-// loggedInUser.js
-
 export const loggedInUser = {
   employee_id: 1,
   employee_code: `EMP${Date.now()}`,

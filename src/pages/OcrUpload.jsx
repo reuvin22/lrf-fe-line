@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
+import { attendanceApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
 import { loggedInUser } from "../utils/loggedInUser";
 
 function OcrUpload() {
@@ -16,7 +16,21 @@ function OcrUpload() {
   const [editItem, setEditItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const libraryInputRef = useRef(null);
+  const [attendance, setAttendance] = useState(null)
+  const fetchAttendance = async() => {
+    try{
+      const res = await attendanceApi.getAll()
+      const data = res.data.data
+      setAttendance(data)
+    }catch(err){
+      console.log("FAILED TO FETCH: ", err)
+    }
+  }
 
+  useEffect(() => {
+    fetchAttendance()
+  }, [])
+  console.log(attendance)
   const fetchCategories = async () => {
     try {
       const res = await ocrCategoriesApi.getAll();
@@ -31,22 +45,33 @@ function OcrUpload() {
     fetchCategories();
   }, []);
 
-  // Fetch sites assigned to logged-in user
-  const fetchSites = async () => {
-    try {
-      const res = await siteAssignmentApi.getAll();
-      const allAssignments = res.data.data;
+const fetchSites = async () => {
+  try {
+    const res = await siteAssignmentApi.getAll();
 
-      const userSites = allAssignments
-        .filter((assignment) => assignment.employee.id === loggedInUser.employee_id)
-        .map((assignment) => assignment.site);
+    console.log("SITE ASSIGNMENTS:", res.data);
 
-      setSites(userSites);
-      console.log("User's assigned sites:", userSites);
-    } catch (err) {
-      console.error("Error fetching site assignments:", err);
-    }
-  };
+    const allAssignments = res.data.data || [];
+
+    const userAssignments = allAssignments.filter(
+      (assignment) =>
+        Number(assignment.employee?.id) === Number(attendance[0].employee_id)
+    );
+    console.log(userAssignments)
+    const uniqueSites = Array.from(
+      new Map(
+        userAssignments.map((a) => [
+          a.site?.site_id,
+          a.site,
+        ])
+      ).values()
+    );
+
+    setSites(uniqueSites);
+  } catch (err) {
+    console.error("Error fetching site assignments:", err);
+  }
+};
 
   useEffect(() => {
     fetchSites();
@@ -233,17 +258,17 @@ function OcrUpload() {
           <div>
             <label className="text-sm text-gray-600 font-medium">Site *</label>
             <select
-              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-            >
-              <option value="">Select Site</option>
-              {sites.map((s) => (
-                <option key={s.site_id} value={s.site_id}>
-                  {s.site_name}
-                </option>
-              ))}
-            </select>
+                className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+                value={site}
+                onChange={(e) => setSite(e.target.value)}
+              >
+                <option value="">Select Site</option>
+                {sites.map((s) => (
+                  <option key={s.site_id} value={s.site_id}>
+                    {s.site_name}
+                  </option>
+                ))}
+              </select>
           </div>
 
           <div>

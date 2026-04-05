@@ -5,7 +5,6 @@ import { attendanceApi, siteAssignmentApi } from "../api/Api";
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
-  const [lastUpdated, setLastUpdated] = useState(null);
 
   const toggleSite = (siteId) => {
     setOpenSite(openSite === siteId ? null : siteId);
@@ -38,14 +37,12 @@ function Dashboard() {
         if (siteSegments.some((s) => s.start_time && !s.end_time)) {
           status = "In Progress";
           statusStyle = "bg-yellow-500 text-white";
-        } else if (
-          siteSegments.length > 0 &&
-          siteSegments.every((s) => s.start_time && s.end_time)
-        ) {
+        } else if (siteSegments.length > 0 && siteSegments.every((s) => s.start_time && s.end_time)) {
           status = "Completed";
           statusStyle = "bg-green-500 text-white";
         }
 
+        // Get active employee segments for this assignment
         const employeeSegments = attendanceList
           .filter((a) => a.employee_id === assignment.employee?.id)
           .flatMap((a) => a.segments || []);
@@ -86,8 +83,7 @@ function Dashboard() {
           const subs = existingSite.employees
             .filter(
               (emp) =>
-                emp.contract_type ===
-                (typeKey === "quasi" ? "QUASI_DELEGATION" : "FIXED_PRICE")
+                emp.contract_type === (typeKey === "quasi" ? "QUASI_DELEGATION" : "FIXED_PRICE")
             )
             .reduce((accSub, emp) => {
               const sub = accSub.find((s) => s.company_name === emp.client_name);
@@ -103,27 +99,14 @@ function Dashboard() {
       }, []);
 
       setAssignedSites(groupedSites);
-      if (groupedSites.length && !openSite) setOpenSite(groupedSites[0].id);
-      setLastUpdated(new Date());
+      if (groupedSites.length) setOpenSite(groupedSites[0].id);
     } catch (err) {
       console.error("Error fetching assigned sites:", err);
     }
   };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const pollData = async () => {
-      if (!isMounted) return;
-      await fetchAssignedSites();
-      if (isMounted) setTimeout(pollData, 5000);
-    };
-
-    pollData();
-
-    return () => {
-      isMounted = false;
-    };
+    fetchAssignedSites();
   }, []);
 
   return (
@@ -135,9 +118,7 @@ function Dashboard() {
       <div className="p-4 space-y-4">
         <div className="text-sm text-gray-500 flex items-center gap-2">
           ⏱ Last updated:{" "}
-          {lastUpdated
-            ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-            : "Loading..."}
+          {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
 
         {assignedSites.map((site) => (

@@ -22,31 +22,41 @@ function TransportationExpenseScreen({ onDone }) {
     const fetchExistingExpenses = async () => {
       if (!attendance?.attendance_id) return;
 
-      try {
-        const res = await transportationExpensesApi.getAll({
-          attendance_id: attendance.attendance_id
-        });
+      let existingExpenses = [];
 
-        const existingExpenses = res?.data?.data || [];
-
-        // Map to match your local state format
-        const formattedExpenses = existingExpenses.map((exp) => ({
-          employee: exp.employee_id,
-          attendance_id: exp.attendance_id,
-          amount: exp.amount,
-          route: exp.route,
-          site_id: exp.site_id,
-          site_name: exp.site_name || segmentSites.find(s => s.id === exp.site_id)?.name || "-"
+      // Always refetch if from calendar-detail
+      if (from === "calendar-detail") {
+        try {
+          const res = await transportationExpensesApi.getAll({
+            attendance_id: attendance.attendance_id,
+          });
+          existingExpenses = (res?.data?.data || []).map((exp) => ({
+            ...exp,
+            isExisting: true,
+            site_name:
+              exp.site_name ||
+              segmentSites.find((s) => String(s.id) === String(exp.site_id))?.name ||
+              "-",
+          }));
+        } catch (err) {
+          console.error("Failed to fetch transport expenses:", err);
+        }
+      } else if (Array.isArray(attendance.transportation_expenses)) {
+        existingExpenses = attendance.transportation_expenses.map((exp) => ({
+          ...exp,
+          isExisting: true,
+          site_name:
+            exp.site_name ||
+            segmentSites.find((s) => String(s.id) === String(exp.site_id))?.name ||
+            "-",
         }));
-
-        setExpenses(formattedExpenses);
-      } catch (err) {
-        console.error("Failed to fetch existing transport expenses:", err);
       }
+
+      setExpenses(existingExpenses);
     };
 
     fetchExistingExpenses();
-  }, [attendance, segmentSites]);
+  }, [attendance, segmentSites, from]);
   useEffect(() => {
     const fetchSegmentSites = async () => {
       try {
@@ -205,7 +215,7 @@ function TransportationExpenseScreen({ onDone }) {
             >
               <option value="">Select site</option>
               {segmentSites.map((s) => (
-                <option key={s.id} value={s.id.toString()}>
+                <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
@@ -227,11 +237,42 @@ function TransportationExpenseScreen({ onDone }) {
         {expenses.map((exp, index) => (
           <div
             key={index}
-            className="flex justify-between border rounded-lg p-3 text-sm"
+            className="flex justify-between items-center border rounded-lg p-3 text-sm"
           >
-            <span>¥{exp.amount}</span>
-            <span className="text-gray-600">{exp.route || "-"}</span>
-            <span className="text-gray-500">{exp.site_name}</span>
+            <div className="flex gap-4 items-center">
+              <span>¥{exp.amount}</span>
+              <span className="text-gray-600">{exp.route || "-"}</span>
+              <span className="text-gray-500">{exp.site_name}</span>
+            </div>
+            <div className="flex gap-2">
+              {/* Edit Icon */}
+              <button
+                onClick={() => {
+                  setAmount(exp.amount);
+                  setRoute(exp.route || "");
+                  setSite(String(exp.site_id));
+                  // Remove the item temporarily so adding will overwrite
+                  setExpenses(prev => prev.filter((_, i) => i !== index));
+                }}
+                className="text-blue-500 hover:text-blue-700"
+                title="Edit"
+              >
+                ✏️
+              </button>
+
+              {/* Delete Icon */}
+              <button
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to delete this expense?")) {
+                    setExpenses(prev => prev.filter((_, i) => i !== index));
+                  }
+                }}
+                className="text-red-500 hover:text-red-700"
+                title="Delete"
+              >
+                🗑️
+              </button>
+            </div>
           </div>
         ))}
       </div>

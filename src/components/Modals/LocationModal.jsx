@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { X, MapPin } from 'lucide-react';
 import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
-import { useLocationContext } from '../../context/LocationContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { attendanceApi, segmentApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
-import { useLocation } from 'react-router-dom';
 
-function LocationModal() {
+function LocationModal({ sites }) {
   const {
     openLocationModal,
     setOpenLocationModal,
@@ -18,10 +16,11 @@ function LocationModal() {
     tempSegment,
     setSegments
   } = useSegmentContext();
-  const {sites} = useLocationContext()
+  
   const { setOpenTimeModal } = useManualTimeContext();
   const { attendance } = useAttendanceContext();
   const [step, setStep] = useState('TYPE');
+
   if (!openLocationModal) return null;
 
   const handleClose = () => {
@@ -39,19 +38,21 @@ function LocationModal() {
       return;
     }
 
-    const payload = {
-      ...tempSegment,
-      attendance_id: attendanceId,
-      employee_id: employeeId,
-      work_date: workDate,
-      site_id: String(site.site_id || site.site.site_id),
-      site_name: site.site_name || site.site.site_name,
-      start_time: tempSegment?.start_time
-        ? new Date(tempSegment.start_time).toISOString()
-        : new Date().toISOString(),
-    };
+  const payload = {
+    ...tempSegment,
+    attendance_id: attendanceId,
+    employee_id: employeeId,
+    work_date: workDate,
+    site_id: String(site.site_id || site.site.site_id),
+    site_name: site.site_name || site.site.site_name,
+    start_time: tempSegment?.start_time
+      ? new Date(tempSegment.start_time).toISOString()
+      : new Date().toISOString(),
+    end_time: tempSegment?.end_time
+      ? new Date(tempSegment.end_time).toISOString()
+      : null,
+  };
 
-    // ✅ Optimistically add segment to list
     const tempId = Date.now();
     setSegments(prev => [{ ...payload, segment_id: tempId, _temp: true }, ...prev]);
 
@@ -64,7 +65,6 @@ function LocationModal() {
       return;
     }
 
-    // Update attendance and create segment asynchronously
     try {
       attendanceApi.update(attendanceId, {
         attendance_id: attendanceId,
@@ -76,10 +76,9 @@ function LocationModal() {
       });
 
       const realSegment = await segmentApi.create(payload);
-
-      // Replace temporary segment with real segment
+      const segmentData = realSegment.data.data
       setSegments(prev =>
-        prev.map(s => (s.segment_id === tempId ? realSegment : s))
+        prev.map(s => (s.segment_id === tempId ? segmentData : s))
       );
 
       setTempSegment(payload);
@@ -91,19 +90,64 @@ function LocationModal() {
     }
   };
 
-  const handleSkip = () => {
-    const updatedSegment = {
-      ...tempSegment,
-      site_id: null,
-      site_name: null,
-    };
+  const handleSkip = async () => {
+    const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
+    const employeeId = tempSegment?.employee_id || attendance?.employee_id;
+    const workDate = tempSegment?.work_date || attendance?.work_date;
 
-    if (recordType === "manual") {
-      setTempSegment(updatedSegment);
-      setOpenTimeModal(true);
+    if (!attendanceId || !employeeId) {
+      console.error("Missing attendance or employee ID");
+      return;
     }
 
+    const payload = {
+      ...tempSegment,
+      attendance_id: attendanceId,
+      employee_id: employeeId,
+      work_date: workDate,
+      site_id: null,
+      site_name: "No Selected Site",
+      start_time: tempSegment?.start_time
+        ? new Date(tempSegment.start_time).toISOString()
+        : new Date().toISOString(),
+      end_time: tempSegment?.end_time
+        ? new Date(tempSegment.end_time).toISOString()
+        : null,
+    };
+
+    const tempId = Date.now();
+    setSegments(prev => [{ ...payload, segment_id: tempId, _temp: true }, ...prev]);
+
     setOpenLocationModal(false);
+
+    if (recordType === "manual") {
+      setTempSegment(payload);
+      setOpenTimeModal(true);
+      return;
+    }
+
+    try {
+      attendanceApi.update(attendanceId, {
+        attendance_id: attendanceId,
+        employee_id: employeeId,
+        site_id: payload.site_id,
+        site_name: payload.site_name,
+        status: "WORKING",
+        work_date: workDate,
+      });
+
+      const realSegment = await segmentApi.create(payload);
+      const segmentData = realSegment.data.data;
+      setSegments(prev =>
+        prev.map(s => (s.segment_id === tempId ? segmentData : s))
+      );
+
+      setTempSegment(payload);
+    } catch (err) {
+      console.error("Failed to create segment:", err);
+
+      setSegments(prev => prev.filter(s => s.segment_id !== tempId));
+    }
   };
 
   return (
@@ -126,11 +170,11 @@ function LocationModal() {
         </div>
 
         <div className="min-h-75">
-          {sites.map((site, index) => (
+          {sites?.map((site, index) => (
             <ActionCard
               key={index}
               icon={MapPin}
-              name={site.site.site_name}
+              name={site.site_name}  // always exists now
               onClick={() => handleSelectSite(site)}
             />
           ))}
