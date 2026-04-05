@@ -1,10 +1,8 @@
-import React, { useState } from "react";
-import { transportationExpensesApi } from "../api/Api";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { transportationExpensesApi, attendanceApi } from "../api/Api";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
-import Button from "../components/Button"; // import your reusable Button
-import CONSTANTS from "../constants/Constants";
-import { useLocationContext } from "../context/LocationContext";
+import Button from "../components/Button";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -12,61 +10,130 @@ function TransportationExpenseScreen({ onDone }) {
   const [site, setSite] = useState("");
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [segmentSites, setSegmentSites] = useState([]);
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "default";
+
   const { attendance } = useAttendanceContext();
-  const SITE_OPTIONS = CONSTANTS.SITE_OPTIONS
-  const { sites } = useLocationContext()
-  const handleAdd = () => {
-    console.log(attendance)
-    if (!amount || !site) {
-      alert("Amount and Site are required");
-      return;
-    }
-    console.log(attendance)
-    if (!attendance?.attendance_id) {
-      console.error("❌ attendance_id is missing");
-      alert("System error: attendance not ready");
-      return;
-    }
-    console.log(sites)
-    if (!attendance?.employee_id) {
-      console.error("❌ employee_id is missing");
-      alert("System error: employee not ready");
-      return;
-    }
-    const selectedSite = SITE_OPTIONS.find((s) => s.id === Number(site));
-    const newExpense = {
-      employee: attendance.employee_id,
-      attendance_id: attendance.attendance_id,
-      amount: Number(amount),
-      route: route || null,
-      site_id: selectedSite.id,
-      site_name: selectedSite.name,
+
+  useEffect(() => {
+    const fetchExistingExpenses = async () => {
+      if (!attendance?.attendance_id) return;
+
+      try {
+        const res = await transportationExpensesApi.getAll({
+          attendance_id: attendance.attendance_id
+        });
+
+        const existingExpenses = res?.data?.data || [];
+
+        // Map to match your local state format
+        const formattedExpenses = existingExpenses.map((exp) => ({
+          employee: exp.employee_id,
+          attendance_id: exp.attendance_id,
+          amount: exp.amount,
+          route: exp.route,
+          site_id: exp.site_id,
+          site_name: exp.site_name || segmentSites.find(s => s.id === exp.site_id)?.name || "-"
+        }));
+
+        setExpenses(formattedExpenses);
+      } catch (err) {
+        console.error("Failed to fetch existing transport expenses:", err);
+      }
     };
 
-    setExpenses((prev) => [...prev, newExpense]);
+    fetchExistingExpenses();
+  }, [attendance, segmentSites]);
+  useEffect(() => {
+    const fetchSegmentSites = async () => {
+      try {
+        const res = await attendanceApi.getAll();
+        const attendanceList = res.data.data || [];
+        const segments = attendanceList.flatMap((a) => a.segments || []);
+        // only sites that have a name
+        const uniqueSites = Array.from(
+          new Map(
+            segments
+              .filter((s) => s.site_name?.trim())
+              .map((s) => [s.site_id, { id: s.site_id, name: s.site_name }])
+          ).values()
+        );
+        setSegmentSites(uniqueSites);
+      } catch (err) {
+        console.error("Failed to fetch segment sites:", err);
+      }
+    };
+    fetchSegmentSites();
+  }, []);
 
-    setAmount("");
-    setRoute("");
-    setSite("");
+  const handleRedirect = () => {
+    if (from === "calendar-detail") {
+      navigate("/calendar/detail");
+    } else {
+      navigate("/");
+    }
   };
 
+  const handleAdd = () => {
+  if (!amount || !site) {
+    alert("Amount and Site are required");
+    return;
+  }
+
+  if (!attendance?.attendance_id || !attendance?.employee_id) {
+    alert("System error: attendance not ready");
+    return;
+  }
+
+  const selectedSiteId = Number(site);
+  console.log("Selected site ID:", selectedSiteId);
+  console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
+
+  const selectedSite = segmentSites.find((s) => String(s.id) === site);
+  if (!selectedSite) {
+    alert("Selected site is invalid. Please select a site from the dropdown.");
+    return;
+  }
+
+  const newExpense = {
+    employee: attendance.employee_id,
+    attendance_id: attendance.attendance_id,
+    amount: Number(amount),
+    route: route || null,
+    site_id: selectedSite.id,
+    site_name: selectedSite.name,
+  };
+
+  console.log("📦 Payload being added:", newExpense);
+
+  setExpenses((prev) => [...prev, newExpense]);
+  setAmount("");
+  setRoute("");
+  setSite("");
+};
+
   const handleDone = async () => {
-    if (!attendance.attendance_id) {
+    if (!attendance?.attendance_id) {
       console.error("❌ attendance_id missing on submit");
       return;
     }
 
-    if (expenses.length === 0) {
-      onDone && onDone([]);
-      navigate("/");
+    // Only include new expenses (not existing ones) in the payload
+    const newExpenses = expenses.filter(exp => !exp.isExisting);
+
+    if (newExpenses.length === 0) {
+      // Nothing new to save
+      onDone && onDone(expenses);
+      handleRedirect();
       return;
     }
 
     setIsLoading(true);
-
     try {
-      const payload = expenses.map((exp) => ({
+      const payload = newExpenses.map((exp) => ({
         employee_id: attendance.employee_id,
         attendance_id: attendance.attendance_id,
         amount: exp.amount,
@@ -74,12 +141,12 @@ function TransportationExpenseScreen({ onDone }) {
         site_id: exp.site_id,
       }));
 
-      console.log("📦 FINAL PAYLOAD:", payload);
+      console.log("📦 FINAL PAYLOAD (new only):", payload);
 
       await transportationExpensesApi.create(payload);
 
       onDone && onDone(expenses);
-      navigate("/");
+      handleRedirect();
     } catch (err) {
       console.error("❌ Failed to save expenses:", err);
       alert("Failed to save expenses");
@@ -137,8 +204,8 @@ function TransportationExpenseScreen({ onDone }) {
               className="w-full outline-none bg-transparent text-gray-700"
             >
               <option value="">Select site</option>
-              {SITE_OPTIONS.map((s) => (
-                <option key={s.id} value={s.id}>
+              {segmentSites.map((s) => (
+                <option key={s.id} value={s.id.toString()}>
                   {s.name}
                 </option>
               ))}
@@ -180,8 +247,12 @@ function TransportationExpenseScreen({ onDone }) {
 
         <Button
           buttonStyle="secondary"
-          text="Skip (no transport cost)"
-          onClick={() => navigate("/")}
+          text={
+            from === "calendar-detail"
+              ? "Back to Calendar"
+              : "Skip (no transport cost)"
+          }
+          onClick={handleRedirect}
         />
       </div>
     </div>

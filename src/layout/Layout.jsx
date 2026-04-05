@@ -82,7 +82,6 @@ function Layout({ employee }) {
       if (data?.is_leader === true) {
         setIsLeader(true);
       }
-      console.log(isLeader)
       setSites(data ? [data] : []);
     } catch (error) {
       console.error("Error fetching sites:", error);
@@ -107,6 +106,7 @@ function Layout({ employee }) {
   // }, []);
 
   useEffect(() => {
+    if (!employee || attendance) return;
     fetchAttendance();
   }, []);
 
@@ -123,13 +123,12 @@ function Layout({ employee }) {
       if (!seg.start_time || new Date(seg.start_time).toDateString() !== todayDate) return;
 
       setSegments((prev) => {
-        const index = prev.findIndex((s) => s.segment_id === seg.segment_id);
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = seg;
-          return updated;
-        }
-        return [seg, ...prev];
+        const withoutTemp = prev.filter(p => !p._temp);
+
+        const exists = withoutTemp.some(s => s.segment_id === seg.segment_id);
+        if (exists) return withoutTemp;
+
+        return [seg, ...withoutTemp];
       });
     };
 
@@ -159,13 +158,13 @@ function Layout({ employee }) {
   useEffect(() => {
     const attendanceStatus = attendance?.status;
 
-    if (attendanceStatus === "END_OF_DAY") {
-      setStatus("End Of Day");
+    if (segments.length === 0) {
+      setStatus("Not Started");
       return;
     }
 
-    if (segments.length === 0) {
-      setStatus("Not Started");
+    if (attendanceStatus === "END_OF_DAY") {
+      setStatus("End Of Day");
       return;
     }
 
@@ -203,20 +202,23 @@ function Layout({ employee }) {
 
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
-    const payload = { ...seg, end_time: now };
+    const payload = { ...seg, employee_id: loggedInUser.employee_id, end_time: now };
+
+    setSegments((prev) =>
+      prev.map((s) =>
+        s.segment_id === seg.segment_id ? { ...s, end_time: now } : s
+      )
+    );
+
+    setOpenConfirm(false);
 
     try {
       await segmentApi.update(seg.segment_id, payload);
-      console.log(attendance)
-      await attendanceApi.update(seg.attendance_id, {
-        status: "COMPLETED",
-        end_time: now,
-      });
       await fetchSegments();
     } catch (err) {
       console.error("Update failed:", err);
+      await fetchSegments();
     }
-    setOpenConfirm(false);
   };
 
   const handleEndOfDay = () => {
@@ -236,8 +238,6 @@ function Layout({ employee }) {
             if (!seg.end_time) return segmentApi.update(seg.segment_id, { ...seg, end_time: now });
           })
         );
-
-        console.log("Attendance from API:", attendanceData);
 
         const updatedAttendance = {
           ...attendanceData,
@@ -274,7 +274,7 @@ function Layout({ employee }) {
     }
   };
 
-  const isEnded = status === "End Of Day" || status === "Completed";
+  const isEnded = attendance?.status === "END_OF_DAY";
 
   return (
     <div className="max-w-md mx-auto min-h-screen">
@@ -296,7 +296,7 @@ function Layout({ employee }) {
             className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 ${
               isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"
             }`}
-            onClick={() => !isEnded && handleEditSegment(seg)}
+            onClick={() => !isEnded && !seg._temp && handleEditSegment(seg)}
           >
             <div className="flex items-center gap-4">
               <div
@@ -320,7 +320,7 @@ function Layout({ employee }) {
               </div>
             </div>
 
-            {!isEnded && !seg.end_time && (
+            {!isEnded && !seg.end_time && !seg._temp && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

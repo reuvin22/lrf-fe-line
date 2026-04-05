@@ -54,10 +54,27 @@ function ManualTimeModal() {
       end_time: tempEndTime ? buildDateTime(tempEndTime) : null,
     };
 
+    const tempId = Date.now(); // temporary ID
+
+    // 1️⃣ Add temp segment immediately for instant UI
+    setSegments(prev => [
+      { ...segmentToSave, segment_id: tempId, _temp: true },
+      ...prev,
+    ]);
+
     try {
-      await segmentApi.create(segmentToSave);
+      // 2️⃣ Send to backend
+      const realSegment = await segmentApi.create(segmentToSave);
+
+      // 3️⃣ Replace temp segment with real one
+      setSegments(prev =>
+        prev.map(s => (s.segment_id === tempId ? realSegment : s))
+      );
     } catch (err) {
       console.error("Create segment failed:", err);
+
+      // 4️⃣ Remove temp segment on error
+      setSegments(prev => prev.filter(s => s.segment_id !== tempId));
     } finally {
       setIsLoading(false);
       setOpenTimeModal(false);

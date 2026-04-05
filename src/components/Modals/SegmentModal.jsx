@@ -16,7 +16,9 @@ function SegmentModal() {
     setOpenLocationModal,
     recordType,
     setTempSegment,
-    tempSegment
+    tempSegment,
+    segments,
+    setSegments
   } = useSegmentContext();
 
   const { setOpenTimeModal } = useManualTimeContext();
@@ -33,30 +35,9 @@ function SegmentModal() {
   const handleSelect = async (segment) => {
     try {
       const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
-      console.log(attendance)
-      if (!attendanceId) {
-        console.error("Attendance ID missing!");
-        return;
-      }
+      if (!attendanceId) return;
 
       const rawStartTime = tempSegment?.start_time || getCurrentTime();
-
-      if (segment.value === "OFFICE") {
-        await attendanceApi.update(attendanceId, {
-          attendance_id: attendanceId,
-          employee_id: attendance.employee_id,
-          work_date: attendance.work_date,
-          status: "WORKING",
-        });
-
-        await siteAssignmentApi.create({
-          employee_id: attendance.employee_id,
-          site_id: options[0].id,
-          is_leader: false,
-          start_date: attendance.work_date,
-          end_date: null,
-        });
-      }
 
       const segmentObj = {
         attendance_id: attendanceId,
@@ -75,6 +56,12 @@ function SegmentModal() {
       setOpenSegmentModal(false);
 
       if (segment.value === "OFFICE") {
+        const tempId = Date.now();
+        setSegments(prev => [
+          { ...segmentObj, segment_id: tempId, _temp: true },
+          ...prev
+        ]);
+
         if (recordType === "manual") {
           setOpenTimeModal(true);
         } else {
@@ -83,9 +70,8 @@ function SegmentModal() {
       } else {
         setOpenLocationModal(true);
       }
-
     } catch (err) {
-      console.error("Failed to create attendance/segment:", err);
+      console.error(err);
     }
   };
 

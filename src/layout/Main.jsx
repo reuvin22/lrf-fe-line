@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
 import Layout from "./Layout";
-import { attendanceApi, employeeApi } from "../api/Api";
+import { attendanceApi, employeeApi, attendanceEmployeeSegment } from "../api/Api";
 import { useAttendanceContext } from "../context/AttendanceContext";
 
 function Main() {
   const [employee, setEmployee] = useState(null);
-  const {attendance, setAttendance} = useAttendanceContext()
+  const { attendance, setAttendance } = useAttendanceContext();
+
   useEffect(() => {
     const initAttendance = async () => {
       try {
         const email = "john@example.com";
 
+        // 1️⃣ Get or create employee
         let employeeRes = await employeeApi.getAll();
         let employees = employeeRes.data.data || employeeRes.data;
 
@@ -18,8 +20,8 @@ function Main() {
 
         if (!foundEmployee) {
           const createRes = await employeeApi.create({
-            employee_id: 1,
             employee_code: `EMP${Date.now()}`,
+            employee_id: 1,
             name: "John Doe",
             email: email,
             employment_type: "FULL_TIME",
@@ -35,30 +37,33 @@ function Main() {
         }
 
         setEmployee(foundEmployee);
+
         const today = new Date().toISOString().split("T")[0];
-        const attendanceRes = await attendanceApi.getAttendance({
-          employee_id: foundEmployee.employee_id,
-          work_date: today,
-        });
+        const attendanceRes = await attendanceApi.getAttendance({ work_date: today });
         let attendances = attendanceRes.data.data || attendanceRes.data;
 
         let currentAttendance;
 
         if (!attendances || attendances.length === 0) {
           const createRes = await attendanceApi.create({
-            employee_id: foundEmployee.employee_id,
             work_date: today,
             status: "NOT_STARTED",
           });
 
           currentAttendance = createRes.data.data || createRes.data;
-
           console.log("Attendance created");
         } else {
           currentAttendance = attendances[0];
         }
 
         setAttendance(currentAttendance);
+        console.log(foundEmployee)
+        await attendanceEmployeeSegment.create({
+          attendance_id: currentAttendance.attendance_id,
+          employee_id: foundEmployee.employee_id ,
+        });
+
+        console.log("Employee assigned to attendance");
       } catch (error) {
         console.error("Attendance init error:", error);
       }
@@ -67,7 +72,7 @@ function Main() {
     initAttendance();
   }, []);
 
-  return <Layout employee={employee}/>;
+  return <Layout employee={employee} />;
 }
 
 export default Main;

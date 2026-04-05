@@ -16,6 +16,7 @@ import { useSegmentContext } from "../context/SegmentContext";
 import {
   constructionSiteApi,
   segmentApi,
+  siteAssignmentApi,
   sitesApi,
   siteSubContractorApi,
   subContractorApi,
@@ -26,28 +27,21 @@ import formattedDate from "../utils/formattedDate";
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
 import CONSTANTS from "../constants/Constants";
+import { loggedInUser } from "../utils/loggedInUser";
 
 function CalendarDetail() {
   const SITE_OPTIONS = CONSTANTS.SITE_OPTIONS
   const navigate = useNavigate();
   const { attendanceCalendar } = useAttendanceContext();
   const { year, month, day } = useParams();
-
+  const [siteAssign, setSiteAssign] = useState([])
   const displayDate = formattedDate(year, month, day);
-
-  const { setOpenTimeModal } = useManualTimeContext();
   const { setOpenSegmentModal } = useSegmentContext();
-
-  const [openSubcontractorModal, setOpenSubcontractorModal] = useState(false);
-  const [openTransportModal, setOpenTransportModal] = useState(false);
-
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState(null);
   const [constructionSites, setConstructionSites] = useState([]);
-  const [siteSubcontractor, setSiteSubcontractor] = useState([]);
-  const [subContractor, setSubContractor] = useState([]);
   const attendanceRaw = attendanceCalendar?.[0];
-  
+  const [isLeader, setIsLeader] = useState(false)
   const attendance = useMemo(() => {
     if (!attendanceRaw) return null;
 
@@ -70,8 +64,6 @@ function CalendarDetail() {
       try {
         const res = await sitesApi.getAll();
 
-        console.log("Construction Sites:", res.data.data);
-
         setConstructionSites(res?.data.data || []);
       } catch (err) {
         console.error("Failed to fetch construction sites:", err);
@@ -81,38 +73,27 @@ function CalendarDetail() {
     fetchConstructionSites();
   }, []);
 
-  useEffect(() => {
-    const fetchSiteSubcontractor = async () => {
+    const fetchSiteAssignment = async () => {
       try {
-        const res = await siteSubContractorApi.getAll();
-
-        console.log("Construction Sites:", res.data.data);
-
-        setSiteSubcontractor(res?.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch construction sites:", err);
+        const res = await siteAssignmentApi.getAll();
+  
+        const data = res.data.data.find(
+          v => v.employee.id === loggedInUser.employee_id
+        );
+  
+        if (data?.is_leader === true) {
+          setIsLeader(true);
+        }
+        setSiteAssign(data ? [data] : []);
+      } catch (error) {
+        console.error("Error fetching sites:", error);
       }
     };
+    useEffect(() => {
+      fetchSiteAssignment()
+    }, [])
 
-    fetchSiteSubcontractor();
-  }, []);
-
-  useEffect(() => {
-    const fetchSubcontractor = async () => {
-      try {
-        const res = await subContractorApi.getAll();
-
-        console.log("Subcontractor Sites:", res.data.data);
-
-        setSubContractor(res?.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch Subcontractor sites:", err);
-      }
-    };
-
-    fetchSubcontractor();
-  }, []);
-
+    console.log(siteAssign)
   const segments = localSegments;
   const hasData = segments.length > 0;
 
@@ -307,15 +288,24 @@ function CalendarDetail() {
               buttonStyle="primary"
               text="Edit Transport"
               customButton="bg-lime-500"
-              onClick={() => navigate('/transportation-expenses')}
+              onClick={() =>
+                navigate('/transportation-expenses', {
+                  state: { from: 'calendar-detail' }
+                })
+              }
             />
-
-            <Button
-              buttonStyle="primary"
-              text="Edit Subcontractor"
-              customButton="bg-lime-500"
-              onClick={() => navigate('/subcontractor')}
-            />
+{siteAssign.some(sa => sa.is_leader === true) && (
+  <Button
+    buttonStyle="primary"
+    text="Edit Subcontractor"
+    customButton="bg-lime-500"
+    onClick={() =>
+      navigate('/subcontractor', {
+        state: { from: 'subcontractor' }
+      })
+    }
+  />
+)}
           </>
         )}
       </div>
@@ -334,9 +324,9 @@ function CalendarDetail() {
         constructionSite={constructionSites}
         siteSubcontractor={siteSubcontractor}
         subContractor={subContractor}
-      />
+      /> */}
 
-      <TransportationExpenseModal
+      {/* <TransportationExpenseModal
         open={openTransportModal}
         setOpen={setOpenTransportModal}
         sites={SITE_OPTIONS}

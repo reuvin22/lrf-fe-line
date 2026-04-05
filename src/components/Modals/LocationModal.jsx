@@ -16,6 +16,7 @@ function LocationModal() {
     selectedSegment,
     setTempSegment,
     tempSegment,
+    setSegments
   } = useSegmentContext();
   const {sites} = useLocationContext()
   const { setOpenTimeModal } = useManualTimeContext();
@@ -29,18 +30,12 @@ function LocationModal() {
   };
 
   const handleSelectSite = async (site) => {
-    console.log(attendance)
     const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
-    const employeeId = tempSegment?.employee_id || attendance?.data.employee_id;
-    const workDate = tempSegment?.work_date || attendance?.data.work_date;
+    const employeeId = tempSegment?.employee_id || attendance?.employee_id;
+    const workDate = tempSegment?.work_date || attendance?.work_date;
 
-    if (!attendanceId) {
-      console.error("Attendance ID is missing!");
-      return;
-    }
-    console.log(attendance)
-    if (!employeeId) {
-      console.error("Employee ID is missing!");
+    if (!attendanceId || !employeeId) {
+      console.error("Missing attendance or employee ID");
       return;
     }
 
@@ -49,42 +44,51 @@ function LocationModal() {
       attendance_id: attendanceId,
       employee_id: employeeId,
       work_date: workDate,
-      site_id: String(site.site.site_id),
-      site_name: site.site.site_name,
+      site_id: String(site.site_id || site.site.site_id),
+      site_name: site.site_name || site.site.site_name,
       start_time: tempSegment?.start_time
         ? new Date(tempSegment.start_time).toISOString()
         : new Date().toISOString(),
     };
 
+    // ✅ Optimistically add segment to list
+    const tempId = Date.now();
+    setSegments(prev => [{ ...payload, segment_id: tempId, _temp: true }, ...prev]);
+
+    // Close modal immediately
+    setOpenLocationModal(false);
+
     if (recordType === "manual") {
       setTempSegment(payload);
-      setOpenLocationModal(false);
       setOpenTimeModal(true);
       return;
     }
 
+    // Update attendance and create segment asynchronously
     try {
-      await attendanceApi.update(attendanceId, {
+      attendanceApi.update(attendanceId, {
         attendance_id: attendanceId,
         employee_id: employeeId,
-        site_id: String(site.site.site_id),
-        site_name: site.site.site_name,
+        site_id: payload.site_id,
+        site_name: payload.site_name,
         status: "WORKING",
-        work_date: workDate || new Date().toISOString(),
+        work_date: workDate,
       });
 
-      await segmentApi.create(payload);
+      const realSegment = await segmentApi.create(payload);
 
-      setTempSegment(prev => ({
-        ...prev,
-        ...payload,
-      }));
+      // Replace temporary segment with real segment
+      setSegments(prev =>
+        prev.map(s => (s.segment_id === tempId ? realSegment : s))
+      );
 
+      setTempSegment(payload);
     } catch (err) {
-      console.error("Attendance or segment update failed:", err);
-    }
+      console.error("Failed to create segment:", err);
 
-    setOpenLocationModal(false);
+      // Remove temporary segment on error
+      setSegments(prev => prev.filter(s => s.segment_id !== tempId));
+    }
   };
 
   const handleSkip = () => {
