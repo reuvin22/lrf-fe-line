@@ -24,32 +24,27 @@ function TransportationExpenseScreen({ onDone }) {
 
       let existingExpenses = [];
 
-      // Always refetch if from calendar-detail
-      if (from === "calendar-detail") {
-        try {
-          const res = await transportationExpensesApi.getAll({
-            attendance_id: attendance.attendance_id,
-          });
-          existingExpenses = (res?.data?.data || []).map((exp) => ({
+      try {
+        const res = await transportationExpensesApi.getAll({
+          attendance_id: attendance.attendance_id,
+        });
+
+        const raw = res?.data?.data || [];
+
+        existingExpenses = raw.map((exp) => {
+          const matchedSite = segmentSites.find(
+            (s) => String(s.id) === String(exp.site_id)
+          );
+
+          return {
             ...exp,
             isExisting: true,
-            site_name:
-              exp.site_name ||
-              segmentSites.find((s) => String(s.id) === String(exp.site_id))?.name ||
-              "-",
-          }));
-        } catch (err) {
-          console.error("Failed to fetch transport expenses:", err);
-        }
-      } else if (Array.isArray(attendance.transportation_expenses)) {
-        existingExpenses = attendance.transportation_expenses.map((exp) => ({
-          ...exp,
-          isExisting: true,
-          site_name:
-            exp.site_name ||
-            segmentSites.find((s) => String(s.id) === String(exp.site_id))?.name ||
-            "-",
-        }));
+            site_name: exp.site_name || matchedSite?.name || "-",
+          };
+        });
+
+      } catch (err) {
+        console.error("Failed to fetch transport expenses:", err);
       }
 
       setExpenses(existingExpenses);

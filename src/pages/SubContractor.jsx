@@ -28,7 +28,9 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const location = useLocation();
   const { attendance } = useAttendanceContext();
 
-  
+  const generateTempWorkerId = () => {
+    return Date.now() + Math.floor(Math.random() * 1000);
+  };
   const fetchSegment = async () => {
     try {
       const res = await attendanceApi.getAll();
@@ -551,10 +553,6 @@ const saveCompany = async (company) => {
         throw new Error(`Company must be selected for site "${company.site_name}"`);
       }
 
-      if (!worker.worker_id) {
-        throw new Error(`Worker must be selected under "${company.company}"`);
-      }
-
       if (!worker.start || !worker.end) {
         throw new Error(`Start/End time required for "${worker.name}"`);
       }
@@ -734,30 +732,16 @@ const saveCompany = async (company) => {
 
                       updated[cIndex].company = newValue || "";
 
-                      // ✅ If selected from dropdown
                       if (isFromList) {
-                        updated[cIndex].subcontractor_id =
-                          selectedSub.subcontractor_id;
-
-                        updated[cIndex].availableWorkers =
-                          selectedSub.workers || [];
+                        updated[cIndex].subcontractor_id = selectedSub.subcontractor_id;
+                        updated[cIndex].availableWorkers = selectedSub.workers || [];
                       } else {
-                        // ✅ NEW COMPANY (typed)
+                        // ✅ NEW COMPANY
                         updated[cIndex].subcontractor_id = null;
                         updated[cIndex].availableWorkers = [];
                       }
 
-                      // ✅ ALWAYS ensure segment_id exists
-                      const matchedSegment = allSegments.find(
-                        (s) => Number(s.site_id) === Number(currentSite.site_id)
-                      );
-
-                      updated[cIndex].segment_id =
-                        matchedSegment?.segment_id ||
-                        updated[cIndex].segment_id ||
-                        null;
-
-                      // ✅ Reset workers ONLY when changing company
+                      // ✅ IMPORTANT FIX: CLEAR workers completely
                       updated[cIndex].workers = [
                         {
                           name: "",
@@ -774,11 +758,19 @@ const saveCompany = async (company) => {
 
                       updated[cIndex].company = newInputValue || "";
 
-                      // ✅ VERY IMPORTANT: mark as NEW company
+                      // ✅ treat as NEW company
                       updated[cIndex].subcontractor_id = null;
-
-                      // ✅ Clear workers list (no predefined workers)
                       updated[cIndex].availableWorkers = [];
+
+                      // ✅ CLEAR worker selection (IMPORTANT)
+                      updated[cIndex].workers = [
+                        {
+                          name: "",
+                          worker_id: null,
+                          start: "09:00",
+                          end: "17:30",
+                        },
+                      ];
 
                       setCompanies(updated);
                     }}
@@ -829,32 +821,41 @@ const saveCompany = async (company) => {
                             <Autocomplete
                               freeSolo
                               options={workerOptions}
+                              key={`${company.company}-${wIndex}`}
                               getOptionLabel={(option) =>
                                 typeof option === "string" ? option : option.name || ""
                               }
-                              value={worker.name || null}
+                              value={worker.name || ""}
                               onChange={(e, newValue) => {
                                 const updated = [...companies];
 
-                                const selectedName =
-                                  typeof newValue === "string"
-                                    ? newValue
-                                    : newValue?.name || "";
-
-                                const selectedId =
-                                  typeof newValue === "string"
-                                    ? null
-                                    : newValue?.worker_id || null;
-
-                                updated[cIndex].workers[wIndex].name = selectedName;
-                                updated[cIndex].workers[wIndex].worker_id = selectedId;
+                                if (typeof newValue === "string") {
+                                  // ✅ manual input → generate temp ID
+                                  updated[cIndex].workers[wIndex].name = newValue;
+                                  updated[cIndex].workers[wIndex].worker_id = generateTempWorkerId();
+                                } else if (newValue && newValue.worker_id) {
+                                  // ✅ selected from list
+                                  updated[cIndex].workers[wIndex].name = newValue.name;
+                                  updated[cIndex].workers[wIndex].worker_id = newValue.worker_id;
+                                } else {
+                                  updated[cIndex].workers[wIndex].name = "";
+                                  updated[cIndex].workers[wIndex].worker_id = null;
+                                }
 
                                 setCompanies(updated);
                               }}
                               onInputChange={(e, newInputValue) => {
                                 const updated = [...companies];
+
                                 updated[cIndex].workers[wIndex].name = newInputValue || "";
-                                updated[cIndex].workers[wIndex].worker_id = null;
+
+                                if (newInputValue) {
+                                  // ✅ generate temp ID while typing
+                                  updated[cIndex].workers[wIndex].worker_id = generateTempWorkerId();
+                                } else {
+                                  updated[cIndex].workers[wIndex].worker_id = null;
+                                }
+
                                 setCompanies(updated);
                               }}
                               renderInput={(params) => (
