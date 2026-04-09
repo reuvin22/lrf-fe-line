@@ -17,6 +17,7 @@ import { data, useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
 import { loggedInUser } from "../utils/loggedInUser";
+import { toast } from "react-toastify";
 
 function Layout({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -62,9 +63,13 @@ function Layout({ employee }) {
       const res = await attendanceApi.getAll({ employee_id: employee.id });
       const data = res.data.data || res.data;
 
+      const todayDate = formatWorkDate(new Date());
+
       const todayAttendance = Array.isArray(data)
-        ? data.find((att) => att.work_date === formatWorkDate(new Date()))
-        : data;
+        ? data.find((att) => {
+            return att.work_date === todayDate;
+          })
+        : null;
 
       setAttendance(todayAttendance || null);
       console.log('today:', todayAttendance)
@@ -140,7 +145,7 @@ function Layout({ employee }) {
 
         const exists = withoutTemp.some(s => s.segment_id === seg.segment_id);
         if (exists) return withoutTemp;
-
+        toast.success(`${seg.segment_type} segment added`);
         return [seg, ...withoutTemp];
       });
     };
@@ -157,10 +162,13 @@ function Layout({ employee }) {
     const channel = echo.channel("attendances");
 
     const handler = (e) => {
-      setAttendance(e.attendance);
-    };
+      const att = e.attendance;
+      const todayDate = formatWorkDate(new Date());
 
-    channel.listen(".attendances.event", handler);
+      if (att.work_date !== todayDate) return;
+
+      setAttendance(att);
+    };
 
     return () => {
       channel.stopListening(".attendances.event", handler);
@@ -171,13 +179,14 @@ function Layout({ employee }) {
   useEffect(() => {
     const attendanceStatus = attendance?.status;
 
-    if (segments.length === 0) {
-      setStatus("Not Started");
+    // ✅ ALWAYS prioritize attendance status
+    if (attendanceStatus === "END_OF_DAY") {
+      setStatus("Completed");
       return;
     }
 
-    if (attendanceStatus === "END_OF_DAY") {
-      setStatus("End Of Day");
+    if (segments.length === 0) {
+      setStatus("Not Started");
       return;
     }
 
@@ -239,14 +248,12 @@ function Layout({ employee }) {
     openConfirmation("Are you sure you want to end work?", async () => {
       setConfirmLoading(true);
       const now = getCurrentTime();
-      console.log(attendance)
       try {
         const attendanceId = segments[0]?.attendance_id;
         if (!attendanceId) throw new Error("Attendance not found");
 
         const attendanceRes = await attendanceApi.getById(attendanceId);
         const attendanceData = attendanceRes.data.data;
-        console.log(attendanceData)
         await Promise.all(
           segments.map((seg) => {
             if (!seg.end_time) {
@@ -267,7 +274,7 @@ function Layout({ employee }) {
         };
         await attendanceApi.update(attendanceId, updatedAttendance);
         setAttendance(updatedAttendance);
-
+        toast.success("Work day ended successfully");
         await fetchSegments();
         navigate(isLeader ? 'subcontractor' : '/transportation-expenses');
       } catch (err) {
@@ -295,7 +302,7 @@ function Layout({ employee }) {
     }
   };
 
-  const isEnded = attendance?.status === "END_OF_DAY";
+  const isEnded = attendance?.status === "END_OF_DAY" || status === "Completed";
 
   return (
     <div className="max-w-md mx-auto min-h-screen">
@@ -341,17 +348,19 @@ function Layout({ employee }) {
               </div>
             </div>
 
-            {!isEnded && !seg.end_time && !seg._temp && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openConfirmation(`End "${seg.segment_type}" segment?`, () => handleEndSegment(seg));
-                }}
-                className="p-1 rounded-full hover:bg-red-100 text-red-500"
-              >
-                <Square size={18} fill="currentColor" />
-              </button>
-            )}
+            <div className="w-6 flex justify-center">
+              {!isEnded && !seg.end_time && !seg._temp && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openConfirmation(`End "${seg.segment_type}" segment?`, () => handleEndSegment(seg));
+                  }}
+                  className="p-1 rounded-full hover:bg-red-100 text-red-500"
+                >
+                  <Square size={18} fill="currentColor" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
 

@@ -42,7 +42,7 @@ function ConfirmationModal({ message, onConfirm, onCancel, loading = false }) {
             className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 flex items-center justify-center min-w-[90px]"
           >
             {loading ? (
-              <span className="animate-pulse">Loading...</span>
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             ) : (
               "Confirm"
             )}

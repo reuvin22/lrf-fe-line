@@ -3,6 +3,7 @@ import { transportationExpensesApi, attendanceApi } from "../api/Api";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button";
+import { toast } from "react-toastify";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -84,12 +85,12 @@ function TransportationExpenseScreen({ onDone }) {
 
   const handleAdd = () => {
   if (!amount || !site) {
-    alert("Amount and Site are required");
+    toast.error("Amount and Site are required");
     return;
   }
 
   if (!attendance?.attendance_id || !attendance?.employee_id) {
-    alert("System error: attendance not ready");
+    toast.error("System error: attendance not ready");
     return;
   }
 
@@ -99,7 +100,7 @@ function TransportationExpenseScreen({ onDone }) {
 
   const selectedSite = segmentSites.find((s) => String(s.id) === site);
   if (!selectedSite) {
-    alert("Selected site is invalid. Please select a site from the dropdown.");
+    toast.error("Selected site is invalid. Please select a site from the dropdown.");
     return;
   }
 
@@ -149,12 +150,12 @@ function TransportationExpenseScreen({ onDone }) {
       console.log("📦 FINAL PAYLOAD (new only):", payload);
 
       await transportationExpensesApi.create(payload);
-
+      toast.success('Saved Successfully!')
       onDone && onDone(expenses);
       handleRedirect();
     } catch (err) {
       console.error("❌ Failed to save expenses:", err);
-      alert("Failed to save expenses");
+      toast.error("Failed to save expenses");
     } finally {
       setIsLoading(false);
     }

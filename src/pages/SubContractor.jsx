@@ -14,6 +14,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { loggedInUser } from "../utils/loggedInUser";
+import { toast } from "react-toastify";
 
 function SubContractor({ sites, constructionSite, subContractor = [], onRefetch }) {
   const [companies, setCompanies] = useState([]);
@@ -401,7 +402,7 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
 
   const addCompany = () => {
     if (constructionSites.length === 0) {
-      alert("No available construction sites");
+      toast.error("No available construction sites");
       return;
     }
 
@@ -592,15 +593,12 @@ const saveCompany = async (company) => {
     }
   } catch (err) {
     console.error("❌ Error saving company report:", err.message);
-    alert(err.message);
+    toast.error(err.message);
   }
 };
 
   const handleNext = async () => {
     const isEditMode = location.state?.from === "subcontractor";
-
-    console.log("🚀 handleNext triggered");
-
     setLoading(true);
 
     try {
@@ -609,22 +607,18 @@ const saveCompany = async (company) => {
           constructionSites.some((site) => site.site_id === c.site_id) &&
           (c.company?.trim() || c.subcontractor_id || c.workers?.length)
       );
-
-      // ✅ FIX: merge duplicates
       validCompanies = mergeDuplicateCompanies(validCompanies);
       console.log("✅ Valid companies:", validCompanies);
-
-      // 🔍 Validation
       for (const company of validCompanies) {
         if (!company.workers.length) {
-          alert(`Please add at least one worker for "${company.company}".`);
+          toast.error(`Please add at least one worker for "${company.company}".`);
           setLoading(false);
           return;
         }
 
         const hasEmptyWorker = company.workers.some((w) => !w.name?.trim());
         if (hasEmptyWorker) {
-          alert(`All workers must have a name for "${company.company}".`);
+          toast.error(`All workers must have a name for "${company.company}".`);
           setLoading(false);
           return;
         }
@@ -645,10 +639,7 @@ const saveCompany = async (company) => {
       console.log("🎉 All companies saved");
 
       onRefetch?.();
-
-      alert("Saved successfully!");
-
-      // 🚀 Navigate AFTER saving
+      toast.success("Saved successfully!");
       if (isEditMode) {
         navigate("/calendar/detail");
       } else {
@@ -657,7 +648,7 @@ const saveCompany = async (company) => {
 
     } catch (err) {
       console.error("❌ Error in handleNext:", err);
-      alert("Error updating data. Please try again.");
+      toast.error("Error updating data. Please try again.");
     } finally {
       setLoading(false);
     }

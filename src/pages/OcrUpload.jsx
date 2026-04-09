@@ -3,6 +3,9 @@ import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
 import { attendanceApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
 import { loggedInUser } from "../utils/loggedInUser";
+import ConfirmationModal from "../components/Modals/ConfirmationModal";
+import { useAttendanceContext } from "../context/AttendanceContext";
+import { toast } from "react-toastify";
 
 function OcrUpload() {
   const [imageFile, setImageFile] = useState(null);
@@ -16,21 +19,12 @@ function OcrUpload() {
   const [editItem, setEditItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const libraryInputRef = useRef(null);
-  const [attendance, setAttendance] = useState(null)
-  const fetchAttendance = async() => {
-    try{
-      const res = await attendanceApi.getAll()
-      const data = res.data.data
-      setAttendance(data)
-    }catch(err){
-      console.log("FAILED TO FETCH: ", err)
-    }
-  }
-
-  useEffect(() => {
-    fetchAttendance()
-  }, [])
-  console.log(attendance)
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const { attendance } = useAttendanceContext()
+  const [removeImage, setRemoveImage] = useState(false);
+  const [previousImagePath, setPreviousImagePath] = useState(null);
   const fetchCategories = async () => {
     try {
       const res = await ocrCategoriesApi.getAll();
@@ -45,37 +39,41 @@ function OcrUpload() {
     fetchCategories();
   }, []);
 
-const fetchSites = async () => {
-  try {
-    const res = await siteAssignmentApi.getAll();
+  const fetchSites = async () => {
+    try {
+      const res = await siteAssignmentApi.getAll();
+      const allAssignments = res.data.data || [];
 
-    console.log("SITE ASSIGNMENTS:", res.data);
 
-    const allAssignments = res.data.data || [];
+      const employeeId = attendance?.employee_id;
 
-    const userAssignments = allAssignments.filter(
-      (assignment) =>
-        Number(assignment.employee?.id) === Number(attendance[0].employee_id)
-    );
-    console.log(userAssignments)
-    const uniqueSites = Array.from(
-      new Map(
-        userAssignments.map((a) => [
-          a.site?.site_id,
-          a.site,
-        ])
-      ).values()
-    );
+      if (!employeeId) {
+        console.log("No employeeId yet, skipping...");
+        return;
+      }
 
-    setSites(uniqueSites);
-  } catch (err) {
-    console.error("Error fetching site assignments:", err);
-  }
-};
+      const userAssignments = allAssignments.filter((assignment) => {
+        const match =
+          Number(assignment.employee?.id) === Number(employeeId);
+        return match;
+      });
+
+      const uniqueSites = Array.from(
+        new Map(
+          userAssignments
+            .filter((a) => a.site)
+            .map((a) => [a.site.site_id, a.site])
+        ).values()
+      );
+      setSites(uniqueSites);
+    } catch (err) {
+      console.error("Error fetching site assignments:", err);
+    }
+  };
 
   useEffect(() => {
-    fetchSites();
-  }, []);
+      fetchSites();
+  }, [attendance]);
 
   const fetchUploads = async () => {
     try {
@@ -87,15 +85,19 @@ const fetchSites = async () => {
   };
 
   useEffect(() => {
-    fetchUploads();
+    const load = async () => {
+      await fetchUploads();
+    };
+
+    load();
   }, []);
 
-  // Handle image selection
   const handleImage = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+      setRemoveImage(false);
     }
   };
 
@@ -109,6 +111,11 @@ const fetchSites = async () => {
   };
 
   const handleUpload = async () => {
+    if (!site) {
+      toast.error("Please select a site");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -118,12 +125,16 @@ const fetchSites = async () => {
         base64Image = await convertToBase64(imageFile);
       }
 
+      const fileName = previousImagePath
+        ? previousImagePath.split('/').pop()
+        : null;
+
       const payload = {
         uploaded_by: loggedInUser.employee_id,
         category_id: category ? parseInt(category) : null,
         site_id: site ? parseInt(site) : null,
         subcontractor_id: null,
-        attendance_id: 6,
+        attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
         image_path: null,
@@ -136,18 +147,22 @@ const fetchSites = async () => {
         note: note || null,
         uploaded_at: new Date().toISOString(),
         processed_at: null,
+        image_base64: removeImage ? "" : (base64Image ?? null),
+        previous_image_path: fileName
       };
 
       if (editItem) {
-        // Use the correct ID field
         await ocrUploadApi.update(editItem.upload_id, payload);
+        toast.success("Document updated successfully");
+        setPreviousImagePath(null);
       } else {
         await ocrUploadApi.create(payload);
+        toast.success("Document uploaded successfully");
       }
 
-      fetchUploads();
+      await fetchUploads();
 
-      // Reset form
+      // reset form
       setImageFile(null);
       setImagePreview(null);
       setSite("");
@@ -155,9 +170,9 @@ const fetchSites = async () => {
       setCategory("");
       setEditItem(null);
 
-      console.log("Upload successful!");
     } catch (err) {
       console.error("Error saving upload:", err);
+      toast.error("Failed to save document ❌");
     } finally {
       setLoading(false);
     }
@@ -165,19 +180,40 @@ const fetchSites = async () => {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setImagePreview(item.image_path);
-    setCategory(item.category.category_id);
-    setSite(item.site.site_id);
+    setRemoveImage(false);
+
+    const fixedUrl = item.image_path?.replace(/\\\//g, "/");
+    setImagePreview(fixedUrl);
+
+    setPreviousImagePath(item.image_path);
+    setCategory(item.category?.category_id || "");
+    setSite(item.site?.site_id || "");
     setNote(item.note);
     setImageFile(null);
   };
 
-  const handleDelete = async (upload_id) => {
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    setDeleteLoading(true);
+
     try {
-      await ocrUploadApi.delete(upload_id);
-      setUploadedItems((prev) => prev.filter((i) => i.upload_id !== upload_id));
+      await ocrUploadApi.delete(deleteId);
+
+      setUploadedItems((prev) =>
+        prev.filter((i) => i.upload_id !== deleteId)
+      );
+
+      toast.success("Document deleted successfully");
+
+      setShowConfirm(false);
+      setDeleteId(null);
+
     } catch (err) {
       console.error("Error deleting upload:", err);
+      toast.error("Failed to delete document");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -197,6 +233,9 @@ const fetchSites = async () => {
                 <img
                   src={imagePreview}
                   alt="preview"
+                  onError={(e) => {
+                    e.target.src = "";
+                  }}
                   className="max-h-full max-w-full object-contain"
                 />
               </div>
@@ -206,6 +245,7 @@ const fetchSites = async () => {
                 onClick={() => {
                   setImageFile(null);
                   setImagePreview(null);
+                  setRemoveImage(true);
                 }}
                 customButton="w-full"
               />
@@ -305,7 +345,7 @@ const fetchSites = async () => {
             <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">
-                  {item.category.category_name} {item.site.site_name}{" "}
+                  {item.category?.category_name || "No Category"} - {item.site?.site_name || "No Site"}{" "} 
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -322,7 +362,10 @@ const fetchSites = async () => {
                   </button>
                   <button
                     className="text-red-600 text-xs"
-                    onClick={() => handleDelete(item.upload_id)}
+                    onClick={() => {
+                      setDeleteId(item.upload_id);
+                      setShowConfirm(true);
+                    }}
                   >
                     Delete
                   </button>
@@ -334,6 +377,19 @@ const fetchSites = async () => {
           ))}
         </div>
       </div>
+      {showConfirm && (
+        <ConfirmationModal
+          message="Are you sure you want to delete this document?"
+          onConfirm={handleDelete}
+          onCancel={() => {
+            if (!deleteLoading) {
+              setShowConfirm(false);
+              setDeleteId(null);
+            }
+          }}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }

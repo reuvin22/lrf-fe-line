@@ -40,7 +40,6 @@ function Calendar() {
         }));
         console.log(data)
         setAttendanceCalendar(data);
-        setAttendance(data);
         setCalendar(data);
       } catch (error) {
         console.error("Error fetching attendance:", error);
@@ -61,10 +60,10 @@ function Calendar() {
     // ✅ SAVE SELECTED DATE (IMPORTANT FIX)
     setSelectedDate(formatted);
 
-    const filtered = calendar.filter(
+    const selectedAttendance = calendar.find(
       (item) => item.work_date === formatted
     );
-
+    setAttendance(selectedAttendance || null);
     try {
       const allExpensesResponses = await Promise.all(
         filtered.map((att) =>

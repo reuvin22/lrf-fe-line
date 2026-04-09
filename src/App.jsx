@@ -11,6 +11,7 @@ import TransportationExpense from "./pages/TransportationExpenses";
 import SubContractor from "./pages/SubContractor";
 import { useAttendanceContext } from "./context/AttendanceContext";
 import Loading from "./components/Loading";
+import { ToastContainer } from "react-toastify";
 
 function App() {
   const { attendance, employee, attendanceLoading } = useAttendanceContext();
@@ -36,6 +37,15 @@ function App() {
           />
         </Route>
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+      />
     </Router>
   );
 }
