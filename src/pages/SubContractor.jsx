@@ -692,13 +692,8 @@ const saveCompany = async (company) => {
                 (site) => site.site_id === company.site_id
               );
 
-              const alreadySelectedCompanies = companies
-                .filter((c, i) => i !== cIndex && c.site_id === company.site_id && c.company)
-                .map((c) => c.company);
-
-              const companyOptions = (
-                currentSite?.subcontractors?.map((sub) => sub.company_name) || []
-              ).filter((name) => !alreadySelectedCompanies.includes(name));
+              const companyOptions =
+                currentSite?.subcontractors?.map((sub) => sub.company_name) || [];
 
               return (
                 <div key={cIndex} className="border rounded-xl p-4 space-y-4">
@@ -718,7 +713,14 @@ const saveCompany = async (company) => {
 
                   <Autocomplete
                     freeSolo
-                    options={companyOptions}
+                    options={companyOptions.filter((name) =>
+                      !companies.some(
+                        (c) =>
+                          c.site_id === company.site_id &&
+                          c.company === name &&
+                          c.company !== company.company
+                      )
+                    )}
                     value={company.company || ""}
                     onChange={(e, newValue) => {
                       const updated = [...companies];
