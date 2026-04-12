@@ -277,9 +277,6 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     fetchSites();
   }, [allSubcontractors, siteSubcontractors]);
 
-  // =========================
-  // ✅ FIX: HYDRATE WORKERS IN EDIT MODE
-  // =========================
   useEffect(() => {
     if (location.state?.from !== "subcontractor") return;
     if (!constructionSites.length || !companies.length) return;
