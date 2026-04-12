@@ -6,7 +6,7 @@ import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { attendanceApi, segmentApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
 
-function LocationModal({ sites }) {
+function LocationModal({ sites, open: openProp, onClose: onCloseProp, onSelectSite }) {
   const {
     openLocationModal,
     setOpenLocationModal,
@@ -20,13 +20,22 @@ function LocationModal({ sites }) {
   const { setOpenTimeModal } = useManualTimeContext();
   const { attendance } = useAttendanceContext();
 
-  if (!openLocationModal) return null;
+  const isOpen = openProp !== undefined ? openProp : openLocationModal;
+
+  if (!isOpen) return null;
 
   const handleClose = () => {
-    setOpenLocationModal(false);
+    if (onCloseProp) onCloseProp();
+    else setOpenLocationModal(false);
   };
 
   const handleSelectSite = async (site) => {
+    if (onSelectSite) {
+      onSelectSite(site);
+      handleClose();
+      return;
+    }
+
     const attendanceId =
       tempSegment?.attendance_id || attendance?.attendance_id;
     const employeeId =
