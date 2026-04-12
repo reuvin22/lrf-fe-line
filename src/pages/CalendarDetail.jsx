@@ -9,6 +9,7 @@ import LocationModal from "../components/Modals/LocationModal";
 
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useSegmentContext } from "../context/SegmentContext";
+import { useLocationContext } from "../context/LocationContext";
 
 import {
   segmentApi,
@@ -32,6 +33,7 @@ function CalendarDetail() {
   : "No Date";
 
   const { segments, setSegments, setOpenSegmentModal } = useSegmentContext();
+  const { sites, setSites } = useLocationContext();
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState(null);
   const [constructionSites, setConstructionSites] = useState([]);
@@ -72,6 +74,15 @@ function CalendarDetail() {
         );
         if (data.some((d) => d.is_leader)) setIsLeader(true);
         setSiteAssign(data);
+
+        const mappedSites = data.map((v) => ({
+          site_id: v.site.site_id,
+          site_name: v.site.site_name,
+          address: v.site?.address,
+          client_name: v.site.client_name,
+          is_leader: v.is_leader,
+        }));
+        setSites(mappedSites);
       } catch (err) {
         console.error("Error fetching site assignments:", err);
       }
@@ -120,16 +131,6 @@ function CalendarDetail() {
   useEffect(() => {
     fetchTransportExpenses();
   }, [attendance, location.key]);
-
-  const assignedSites = useMemo(() =>
-    siteAssign.map((v) => ({
-      site_id: v.site.site_id,
-      site_name: v.site.site_name,
-      address: v.site?.address,
-      client_name: v.site.client_name,
-    })),
-    [siteAssign]
-  );
 
   const totalTransportAmount = useMemo(() => {
     return localExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -300,7 +301,7 @@ function CalendarDetail() {
       </div>
 
       <SegmentModal onSave={handleAddSegment} />
-      <LocationModal sites={assignedSites} />
+      <LocationModal sites={sites} />
       <EditSegmentModal
         open={openEditSegmentModal}
         onClose={() => setOpenEditSegmentModal(false)}
