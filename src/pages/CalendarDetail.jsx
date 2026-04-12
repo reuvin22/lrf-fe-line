@@ -121,6 +121,16 @@ function CalendarDetail() {
     fetchTransportExpenses();
   }, [attendance, location.key]);
 
+  const assignedSites = useMemo(() =>
+    siteAssign.map((v) => ({
+      site_id: v.site.site_id,
+      site_name: v.site.site_name,
+      address: v.site?.address,
+      client_name: v.site.client_name,
+    })),
+    [siteAssign]
+  );
+
   const totalTransportAmount = useMemo(() => {
     return localExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }, [localExpenses]);
@@ -290,7 +300,7 @@ function CalendarDetail() {
       </div>
 
       <SegmentModal onSave={handleAddSegment} />
-      <LocationModal sites={constructionSites} />
+      <LocationModal sites={assignedSites} />
       <EditSegmentModal
         open={openEditSegmentModal}
         onClose={() => setOpenEditSegmentModal(false)}
