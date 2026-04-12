@@ -19,7 +19,7 @@ import { useLocationContext } from "../context/LocationContext";
 import { loggedInUser } from "../utils/loggedInUser";
 import { toast } from "react-toastify";
 
-function Layout({ employee }) {
+function Attendance({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(() => () => {});
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -191,7 +191,7 @@ function Layout({ employee }) {
     }
 
     const anyActive = segments.some((seg) => seg.start_time && !seg.end_time);
-    setStatus(anyActive ? "Working" : "Completed");
+    setStatus(anyActive ? "Working" : "Not Started");
   }, [segments, attendance]);
 
   const openConfirmation = (message, action) => {
@@ -302,7 +302,7 @@ function Layout({ employee }) {
     }
   };
 
-  const isEnded = attendance?.status === "END_OF_DAY" || status === "Completed";
+  const isEnded = attendance?.status === "END_OF_DAY";
 
   return (
     <div className="max-w-md mx-auto min-h-screen">
@@ -413,4 +413,4 @@ function Layout({ employee }) {
   );
 }
 
-export default Layout;
+export default Attendance;
