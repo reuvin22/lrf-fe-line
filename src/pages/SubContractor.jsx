@@ -15,7 +15,6 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
-import { loggedInUser } from "../utils/loggedInUser";
 import { toast } from "react-toastify";
 
 function SubContractor({ sites, constructionSite, subContractor = [], onRefetch }) {
@@ -30,7 +29,7 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const [openSitePicker, setOpenSitePicker] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendance } = useAttendanceContext();
+  const { attendance, employee } = useAttendanceContext();
   const { sites: assignedSites } = useLocationContext();
 
   const generateTempWorkerId = () => {
@@ -187,7 +186,7 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const fetchAttendanceSubcontractor = async () => {
     try {
       const res = await getAttendanceSubcontractor.getAll({
-        employee_id: loggedInUser.employee_id,
+        employee_id: employee?.employee_id,
       });
 
       const raw = res.data.data || [];
@@ -569,7 +568,7 @@ const saveCompany = async (company) => {
         company_id: company.subcontractor_id,
         company_name: company.company?.trim(),
 
-        employee_id: loggedInUser.employee_id,
+        employee_id: employee?.employee_id,
         worker_id: worker.worker_id,
         worker_name: worker.name,
 
