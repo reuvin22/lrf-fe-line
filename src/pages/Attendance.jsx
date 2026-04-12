@@ -275,6 +275,7 @@ function Attendance({ employee }) {
     try {
       const payload = {
         ...updatedSegment,
+        employee_id: attendance.employee_id,
         start_time: updatedSegment.start_time,
         end_time: updatedSegment.end_time
       };
@@ -380,7 +381,7 @@ function Attendance({ employee }) {
         onClose={() => setOpenEditModal(false)}
         segmentData={editingSegment}
         segments={["OFFICE", "TRAVEL", "SITE"]}
-        sites={["Site A - Shinjuku Tower", "Site B - Shibuya Office", "Site C - Roppongi Hills"]}
+        sites={sites}
         onSave={handleUpdateSegment}
       />
 

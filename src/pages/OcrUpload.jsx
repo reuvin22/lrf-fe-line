@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
 import { attendanceApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
-import { loggedInUser } from "../utils/loggedInUser";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
+import { useLocationContext } from "../context/LocationContext";
 import { toast } from "react-toastify";
 
 function OcrUpload() {
@@ -13,7 +13,7 @@ function OcrUpload() {
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState("");
   const [site, setSite] = useState("");
-  const [sites, setSites] = useState([]);
+  const { sites, setSites } = useLocationContext();
   const [note, setNote] = useState("");
   const [uploadedItems, setUploadedItems] = useState([]);
   const [editItem, setEditItem] = useState(null);
@@ -41,38 +41,28 @@ function OcrUpload() {
 
   const fetchSites = async () => {
     try {
+      if (!attendance?.employee_id) return;
+
       const res = await siteAssignmentApi.getAll();
-      const allAssignments = res.data.data || [];
+      const employeeSites = res.data.data
+        .filter(v => v.employee.id === attendance.employee_id)
+        .map(v => ({
+          site_id: v.site.site_id,
+          site_name: v.site.site_name,
+          address: v?.site.address,
+          client_name: v.site.client_name,
+        }));
 
-
-      const employeeId = attendance?.employee_id;
-
-      if (!employeeId) {
-        console.log("No employeeId yet, skipping...");
-        return;
-      }
-
-      const userAssignments = allAssignments.filter((assignment) => {
-        const match =
-          Number(assignment.employee?.id) === Number(employeeId);
-        return match;
-      });
-
-      const uniqueSites = Array.from(
-        new Map(
-          userAssignments
-            .filter((a) => a.site)
-            .map((a) => [a.site.site_id, a.site])
-        ).values()
-      );
-      setSites(uniqueSites);
+      setSites(employeeSites);
     } catch (err) {
       console.error("Error fetching site assignments:", err);
     }
   };
 
   useEffect(() => {
+    if (attendance?.employee_id && sites.length === 0) {
       fetchSites();
+    }
   }, [attendance]);
 
   const fetchUploads = async () => {
@@ -130,9 +120,9 @@ function OcrUpload() {
         : null;
 
       const payload = {
-        uploaded_by: loggedInUser.employee_id,
-        category_id: category ? parseInt(category) : null,
-        site_id: site ? parseInt(site) : null,
+        uploaded_by: attendance.employee_id,
+        category_id: category ? category.category_id : null,
+        site_id: site ? site.site_id : null,
         subcontractor_id: null,
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
@@ -151,6 +141,7 @@ function OcrUpload() {
         previous_image_path: fileName
       };
 
+      console.log(payload)
       if (editItem) {
         await ocrUploadApi.update(editItem.upload_id, payload);
         toast.success("Document updated successfully");
