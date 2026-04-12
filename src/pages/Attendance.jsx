@@ -37,7 +37,6 @@ function Attendance({ employee }) {
     setSegments,
     setStartSegment,
   } = useSegmentContext();
-  const loggedIn = loggedInUser
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
   const { attendance, setAttendance } = useAttendanceContext()
@@ -109,19 +108,6 @@ function Attendance({ employee }) {
   useEffect(() => {
     fetchSiteAssignment()
   }, [])
-  // const fetchSite = async () => {
-  //   try {
-  //     const res = await constructionSiteApi.getAll();
-  //     const data = res.data.data || res.data;
-  //     setSites(data);
-  //   } catch (error) {
-  //     console.error("Error fetching sites:", error);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchSite();
-  // }, []);
 
   useEffect(() => {
     if (!employee || attendance) return;
@@ -179,7 +165,6 @@ function Attendance({ employee }) {
   useEffect(() => {
     const attendanceStatus = attendance?.status;
 
-    // ✅ ALWAYS prioritize attendance status
     if (attendanceStatus === "END_OF_DAY") {
       setStatus("Completed");
       return;
@@ -235,7 +220,6 @@ function Attendance({ employee }) {
     setOpenConfirm(false);
 
     try {
-      console.log(attendance)
       await segmentApi.update(seg.segment_id, payload);
       await fetchSegments();
     } catch (err) {

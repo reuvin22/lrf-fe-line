@@ -17,15 +17,14 @@ export const AttendanceProvider = ({ children }) => {
 
       const email = "john@example.com";
 
-      // 1️⃣ Fetch all employees
       const employeeRes = await employeeApi.getAll();
       const employees = employeeRes.data.data || employeeRes.data;
 
       let foundEmployee = employees.find(emp => emp.email === email);
 
-      // 2️⃣ Create employee only if not found
       if (!foundEmployee) {
         const createRes = await employeeApi.create({
+          employee_id: crypto.randomUUID,
           employee_code: `EMP${Date.now()}`,
           name: "John Doe",
           email,
