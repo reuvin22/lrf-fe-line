@@ -692,8 +692,13 @@ const saveCompany = async (company) => {
                 (site) => site.site_id === company.site_id
               );
 
-              const companyOptions =
-                currentSite?.subcontractors?.map((sub) => sub.company_name) || [];
+              const alreadySelectedCompanies = companies
+                .filter((c, i) => i !== cIndex && c.site_id === company.site_id && c.company)
+                .map((c) => c.company);
+
+              const companyOptions = (
+                currentSite?.subcontractors?.map((sub) => sub.company_name) || []
+              ).filter((name) => !alreadySelectedCompanies.includes(name));
 
               return (
                 <div key={cIndex} className="border rounded-xl p-4 space-y-4">
