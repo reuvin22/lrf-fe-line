@@ -66,7 +66,7 @@ function Calendar() {
     setAttendance(selectedAttendance || null);
     try {
       const allExpensesResponses = await Promise.all(
-        filtered.map((att) =>
+        [selectedAttendance].filter(Boolean).map((att) =>
           transportationExpensesApi
             .getAll({ attendance_id: att.attendance_id || att.id })
             .then((res) => res?.data?.data || [])

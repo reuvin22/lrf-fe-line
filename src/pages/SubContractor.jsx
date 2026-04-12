@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Clock, Plus } from "lucide-react";
 import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
+import LocationModal from "../components/Modals/LocationModal";
 import {
   attendanceApi,
   attendanceSubcontractorSegmentApi,
@@ -13,7 +14,7 @@ import {
 } from "../api/Api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
-import { loggedInUser } from "../utils/loggedInUser";
+import { useLocationContext } from "../context/LocationContext";
 import { toast } from "react-toastify";
 
 function SubContractor({ sites, constructionSite, subContractor = [], onRefetch }) {
@@ -25,9 +26,11 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const [allSegments, setAllSegments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletedWorkers, setDeletedWorkers] = useState([]);
+  const [openSitePicker, setOpenSitePicker] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendance } = useAttendanceContext();
+  const { attendance, employee } = useAttendanceContext();
+  const { sites: assignedSites } = useLocationContext();
 
   const generateTempWorkerId = () => {
     return Date.now() + Math.floor(Math.random() * 1000);
@@ -183,7 +186,7 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   const fetchAttendanceSubcontractor = async () => {
     try {
       const res = await getAttendanceSubcontractor.getAll({
-        employee_id: loggedInUser.employee_id,
+        employee_id: employee?.employee_id,
       });
 
       const raw = res.data.data || [];
@@ -274,9 +277,6 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
     fetchSites();
   }, [allSubcontractors, siteSubcontractors]);
 
-  // =========================
-  // ✅ FIX: HYDRATE WORKERS IN EDIT MODE
-  // =========================
   useEffect(() => {
     if (location.state?.from !== "subcontractor") return;
     if (!constructionSites.length || !companies.length) return;
@@ -401,28 +401,28 @@ function SubContractor({ sites, constructionSite, subContractor = [], onRefetch 
   }, [allSubcontractors, siteSubcontractors, allSegments]);
 
   const addCompany = () => {
-    if (constructionSites.length === 0) {
+    if (assignedSites.length === 0 && constructionSites.length === 0) {
       toast.error("No available construction sites");
       return;
     }
+    setOpenSitePicker(true);
+  };
 
-    const firstSite = constructionSites.find(
-      (s) => !companies.some((c) => c.site_id === s.site_id)
-    ) || constructionSites[0];
-    const contractType = sites?.contract_type || "QUASI_DELEGATION";
+  const handleSiteSelect = (site) => {
+    const contractType = constructionSites.find(
+      (s) => Number(s.site_id) === Number(site.site_id)
+    )?.contract_type || "QUASI_DELEGATION";
 
     const matchedSegment = allSegments.find(
-      (s) => Number(s.site_id) === Number(firstSite.site_id)
+      (s) => Number(s.site_id) === Number(site.site_id)
     );
-
-    const segmentId = matchedSegment?.segment_id || null;
 
     setCompanies((prev) => [
       ...prev,
       {
-        site_name: firstSite.site_name,
-        site_id: firstSite.site_id,
-        segment_id: segmentId,
+        site_name: site.site_name,
+        site_id: site.site_id,
+        segment_id: matchedSegment?.segment_id || null,
         company: "",
         subcontractor_id: null,
         contract: contractType,
@@ -565,7 +565,7 @@ const saveCompany = async (company) => {
         company_id: company.subcontractor_id,
         company_name: company.company?.trim(),
 
-        employee_id: loggedInUser.employee_id,
+        employee_id: employee?.employee_id,
         worker_id: worker.worker_id,
         worker_name: worker.name,
 
@@ -710,7 +710,14 @@ const saveCompany = async (company) => {
 
                   <Autocomplete
                     freeSolo
-                    options={companyOptions}
+                    options={companyOptions.filter((name) =>
+                      !companies.some(
+                        (c) =>
+                          c.site_id === company.site_id &&
+                          c.company === name &&
+                          c.company !== company.company
+                      )
+                    )}
                     value={company.company || ""}
                     onChange={(e, newValue) => {
                       const updated = [...companies];
@@ -982,6 +989,13 @@ const saveCompany = async (company) => {
           />
         </div>
       </div>
+
+      <LocationModal
+        open={openSitePicker}
+        onClose={() => setOpenSitePicker(false)}
+        sites={assignedSites}
+        onSelectSite={handleSiteSelect}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { X, MapPin } from 'lucide-react';
 import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
@@ -6,7 +6,7 @@ import { useManualTimeContext } from '../../context/ManualTimeContext';
 import { attendanceApi, segmentApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
 
-function LocationModal({ sites }) {
+function LocationModal({ sites, open: openProp, onClose: onCloseProp, onSelectSite }) {
   const {
     openLocationModal,
     setOpenLocationModal,
@@ -16,47 +16,59 @@ function LocationModal({ sites }) {
     tempSegment,
     setSegments
   } = useSegmentContext();
-  
+
   const { setOpenTimeModal } = useManualTimeContext();
   const { attendance } = useAttendanceContext();
-  const [step, setStep] = useState('TYPE');
 
-  if (!openLocationModal) return null;
+  const isOpen = openProp !== undefined ? openProp : openLocationModal;
+
+  if (!isOpen) return null;
 
   const handleClose = () => {
-    setStep('TYPE');
-    setOpenLocationModal(false);
+    if (onCloseProp) onCloseProp();
+    else setOpenLocationModal(false);
   };
 
   const handleSelectSite = async (site) => {
-    const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
-    const employeeId = tempSegment?.employee_id || attendance?.employee_id;
-    const workDate = tempSegment?.work_date || attendance?.work_date;
+    if (onSelectSite) {
+      onSelectSite(site);
+      handleClose();
+      return;
+    }
+
+    const attendanceId =
+      tempSegment?.attendance_id || attendance?.attendance_id;
+    const employeeId =
+      tempSegment?.employee_id || attendance?.employee_id;
+    const workDate =
+      tempSegment?.work_date || attendance?.work_date;
 
     if (!attendanceId || !employeeId) {
       console.error("Missing attendance or employee ID");
       return;
     }
 
-  const payload = {
-    ...tempSegment,
-    attendance_id: attendanceId,
-    employee_id: employeeId,
-    work_date: workDate,
-    site_id: String(site.site_id || site.site.site_id),
-    site_name: site.site_name || site.site.site_name,
-    start_time: tempSegment?.start_time
-      ? new Date(tempSegment.start_time).toISOString()
-      : new Date().toISOString(),
-    end_time: tempSegment?.end_time
-      ? new Date(tempSegment.end_time).toISOString()
-      : null,
-  };
+    const payload = {
+      ...tempSegment,
+      attendance_id: attendanceId,
+      employee_id: employeeId,
+      work_date: workDate,
+      site_id: String(site.site_id || site.site?.site_id),
+      site_name: site.site_name || site.site?.site_name,
+      start_time: tempSegment?.start_time
+        ? new Date(tempSegment.start_time).toISOString()
+        : new Date().toISOString(),
+      end_time: tempSegment?.end_time
+        ? new Date(tempSegment.end_time).toISOString()
+        : null,
+    };
 
     const tempId = Date.now();
-    setSegments(prev => [{ ...payload, segment_id: tempId, _temp: true }, ...prev]);
+    setSegments(prev => [
+      { ...payload, segment_id: tempId, _temp: true },
+      ...prev
+    ]);
 
-    // Close modal immediately
     setOpenLocationModal(false);
 
     if (recordType === "manual") {
@@ -76,24 +88,30 @@ function LocationModal({ sites }) {
       });
 
       const realSegment = await segmentApi.create(payload);
-      const segmentData = realSegment.data.data
+      const segmentData = realSegment.data.data;
+
       setSegments(prev =>
-        prev.map(s => (s.segment_id === tempId ? segmentData : s))
+        prev.map(s =>
+          s.segment_id === tempId ? segmentData : s
+        )
       );
 
       setTempSegment(payload);
     } catch (err) {
       console.error("Failed to create segment:", err);
-
-      // Remove temporary segment on error
-      setSegments(prev => prev.filter(s => s.segment_id !== tempId));
+      setSegments(prev =>
+        prev.filter(s => s.segment_id !== tempId)
+      );
     }
   };
 
   const handleSkip = async () => {
-    const attendanceId = tempSegment?.attendance_id || attendance?.attendance_id;
-    const employeeId = tempSegment?.employee_id || attendance?.employee_id;
-    const workDate = tempSegment?.work_date || attendance?.work_date;
+    const attendanceId =
+      tempSegment?.attendance_id || attendance?.attendance_id;
+    const employeeId =
+      tempSegment?.employee_id || attendance?.employee_id;
+    const workDate =
+      tempSegment?.work_date || attendance?.work_date;
 
     if (!attendanceId || !employeeId) {
       console.error("Missing attendance or employee ID");
@@ -116,7 +134,10 @@ function LocationModal({ sites }) {
     };
 
     const tempId = Date.now();
-    setSegments(prev => [{ ...payload, segment_id: tempId, _temp: true }, ...prev]);
+    setSegments(prev => [
+      { ...payload, segment_id: tempId, _temp: true },
+      ...prev
+    ]);
 
     setOpenLocationModal(false);
 
@@ -138,15 +159,19 @@ function LocationModal({ sites }) {
 
       const realSegment = await segmentApi.create(payload);
       const segmentData = realSegment.data.data;
+
       setSegments(prev =>
-        prev.map(s => (s.segment_id === tempId ? segmentData : s))
+        prev.map(s =>
+          s.segment_id === tempId ? segmentData : s
+        )
       );
 
       setTempSegment(payload);
     } catch (err) {
       console.error("Failed to create segment:", err);
-
-      setSegments(prev => prev.filter(s => s.segment_id !== tempId));
+      setSegments(prev =>
+        prev.filter(s => s.segment_id !== tempId)
+      );
     }
   };
 
@@ -157,10 +182,11 @@ function LocationModal({ sites }) {
         onClick={handleClose}
       />
 
-      <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-7">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Select Site</h2>
-
+      <div className="relative bg-white w-full max-w-sm h-[80vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-bold text-gray-900">
+            Select Site
+          </h2>
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -169,25 +195,27 @@ function LocationModal({ sites }) {
           </button>
         </div>
 
-        <div className="min-h-75">
+        <div className="flex-1 overflow-y-auto px-6 py-4 hide-scrollbar">
           {sites?.map((site, index) => (
             <ActionCard
               key={index}
               icon={MapPin}
-              name={site.site_name}  // always exists now
+              name={site.site_name}
               onClick={() => handleSelectSite(site)}
             />
           ))}
+        </div>
 
-          {selectedSegment === 'TRAVEL' && (
+        {selectedSegment === 'TRAVEL' && (
+          <div className="p-4 border-t bg-white">
             <button
               onClick={handleSkip}
-              className="w-full py-3 mt-3 text-green-500 rounded-lg font-medium hover:text-green-800 cursor-pointer"
+              className="w-full py-3 text-green-500 font-semibold rounded-lg hover:text-green-700"
             >
               Skip (No Site)
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

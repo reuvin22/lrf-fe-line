@@ -1,6 +1,6 @@
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 import Button from "../components/Button";
 import SegmentModal from "../components/Modals/SegmentModal";
@@ -9,34 +9,30 @@ import LocationModal from "../components/Modals/LocationModal";
 
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useSegmentContext } from "../context/SegmentContext";
+import { useLocationContext } from "../context/LocationContext";
 
 import {
   segmentApi,
   siteAssignmentApi,
-  sitesApi,
   transportationExpensesApi,
 } from "../api/Api";
 
-import formattedDate from "../utils/formattedDate";
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
-import { loggedInUser } from "../utils/loggedInUser";
 
 function CalendarDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendanceCalendar, selectedDate } = useAttendanceContext();
-  const { year, month, day } = useParams();
+  const { attendanceCalendar, selectedDate, employee } = useAttendanceContext();
   const displayDate = selectedDate
   ? formatWorkDate(selectedDate)
   : "No Date";
 
-  const { segments, setSegments, setOpenSegmentModal } = useSegmentContext();
+  const { segments, setSegments, setOpenSegmentModal, setRecordType, setSelectedSegment: setSegmentType } = useSegmentContext();
+  const { sites, setSites } = useLocationContext();
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
-  const [selectedSegment, setSelectedSegment] = useState(null);
-  const [constructionSites, setConstructionSites] = useState([]);
+  const [editingSegment, setEditingSegment] = useState(null);
   const [siteAssign, setSiteAssign] = useState([]);
-  const [isLeader, setIsLeader] = useState(false);
   const [localExpenses, setLocalExpenses] = useState([]);
 
   const attendanceRaw = attendanceCalendar.find(a => a.work_date === selectedDate)
@@ -50,56 +46,57 @@ function CalendarDetail() {
 
   const hasData = !!attendance;
 
-  // --- Fetch construction sites ---
   useEffect(() => {
-    const fetchConstructionSites = async () => {
-      try {
-        const res = await sitesApi.getAll();
-        setConstructionSites(res?.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch construction sites:", err);
-      }
-    };
-    fetchConstructionSites();
-  }, []);
+    if (!employee?.employee_id) return;
 
-  useEffect(() => {
     const fetchSiteAssignment = async () => {
       try {
         const res = await siteAssignmentApi.getAll();
         const data = res.data.data.filter(
-          (v) => v.employee.id === loggedInUser.employee_id
+          (v) => v.employee.id === employee.employee_id
         );
-        if (data.some((d) => d.is_leader)) setIsLeader(true);
         setSiteAssign(data);
+
+        const mappedSites = data.map((v) => ({
+          site_id: v.site.site_id,
+          site_name: v.site.site_name,
+          address: v.site?.address,
+          client_name: v.site.client_name,
+          is_leader: v.is_leader,
+        }));
+        setSites(mappedSites);
       } catch (err) {
         console.error("Error fetching site assignments:", err);
       }
     };
-    fetchSiteAssignment();
-  }, []);
 
-  const fetchSegments = async () => {
-    if (!attendance) {
-      setSegments([]); // ✅ clear old data
+    fetchSiteAssignment();
+  }, [employee]);
+
+  const fetchSegments = useCallback(async () => {
+    const attendanceId = attendance?.attendance_id;
+
+    if (!attendanceId) {
+      setSegments([]);
       return;
     }
 
     try {
       const res = await segmentApi.getAll({
-        attendance_id: attendance.attendance_id,
+        attendance_id: attendanceId,
       });
+
       setSegments(res?.data?.data || []);
     } catch (err) {
       console.error("Failed to fetch segments:", err);
     }
-  };
+  }, [attendance?.attendance_id, setSegments]);
 
   useEffect(() => {
     if (attendance) {
       fetchSegments();
     }
-  }, [attendance]);
+  }, [attendance, segments]);
 
   const fetchTransportExpenses = async () => {
     if (!attendance) {
@@ -143,15 +140,25 @@ function CalendarDetail() {
   }, [segments]);
 
   const handleEditSegment = (seg) => {
-    setSelectedSegment(seg);
+    setEditingSegment(seg);
     setOpenEditSegmentModal(true);
+    console.log(seg)
   };
 
   const handleSaveSegment = async (payload) => {
     try {
-      await segmentApi.update(payload.segment_id, payload);
+      if (!payload.segment_id || String(payload.segment_id).length > 10) {
+        throw new Error("Invalid segment_id (likely temporary frontend ID)");
+      }
+
+      await segmentApi.update(payload.segment_id, {
+        ...payload,
+        employee_id: employee?.employee_id,
+        attendance_id: attendance?.attendance_id,
+      });
+
       setOpenEditSegmentModal(false);
-      fetchSegments(); // refresh segments after edit
+      await fetchSegments();
     } catch (err) {
       console.error("Failed to update segment", err);
     }
@@ -159,8 +166,19 @@ function CalendarDetail() {
 
   const handleAddSegment = async (newSegment) => {
     try {
-      await segmentApi.create(newSegment);
-      fetchSegments(); // refresh segments after add
+      const res = await segmentApi.create({
+        ...newSegment,
+        attendance_id: attendance?.attendance_id,
+      });
+
+      // optional but BEST PRACTICE:
+      const createdSegment = res?.data?.data;
+
+      if (createdSegment) {
+        setSegments((prev) => [...prev, createdSegment]);
+      } else {
+        fetchSegments();
+      }
     } catch (err) {
       console.error("Failed to add segment:", err);
     }
@@ -267,7 +285,11 @@ function CalendarDetail() {
                   Add Segment
                 </div>
               }
-              onClick={() => setOpenSegmentModal(true)}
+              onClick={() => {
+                setRecordType("default");
+                setSegmentType("");
+                setOpenSegmentModal(true);
+              }}
             />
 
             <Button
@@ -290,13 +312,13 @@ function CalendarDetail() {
       </div>
 
       <SegmentModal onSave={handleAddSegment} />
-      <LocationModal sites={constructionSites} />
+      <LocationModal sites={sites} />
       <EditSegmentModal
         open={openEditSegmentModal}
         onClose={() => setOpenEditSegmentModal(false)}
-        segmentData={selectedSegment}
+        segmentData={editingSegment}
         segments={["OFFICE", "SITE", "TRAVEL"]}
-        sites={constructionSites}
+        sites={sites}
         onSave={handleSaveSegment}
       />
     </div>

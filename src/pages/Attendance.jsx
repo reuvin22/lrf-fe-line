@@ -16,9 +16,10 @@ import formatWorkDate from "../utils/formatWorkDate";
 import { data, useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
+import { loggedInUser } from "../utils/loggedInUser";
 import { toast } from "react-toastify";
 
-function Attendance() {
+function Attendance({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(() => () => {});
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -28,22 +29,22 @@ function Attendance() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [isLeader, setIsLeader] = useState(false)
   const { sites, setSites } = useLocationContext()
-  
   const {
     setOpenSegmentModal,
     setSelectedSegment,
     setRecordType,
     segments,
     setSegments,
+    setStartSegment,
   } = useSegmentContext();
+  const loggedIn = loggedInUser
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
   const { attendance, setAttendance } = useAttendanceContext()
   const today = new Date().toDateString();
-  console.log(attendance)
   const fetchSegments = async () => {
     if (!attendance?.attendance_id) return;
-    
+
     try {
       const res = await segmentApi.getAll({
         attendance_id: attendance.attendance_id,
@@ -56,29 +57,26 @@ function Attendance() {
   };
 
   const fetchAttendance = async () => {
-    if (!employee?.employee_id) return;
+    if (!employee?.id) return;
 
     try {
-      const res = await attendanceApi.getAll({ 
-        employee_id: employee.employee_id
-      });
-
+      const res = await attendanceApi.getAll({ employee_id: employee.id });
       const data = res.data.data || res.data;
 
       const todayDate = formatWorkDate(new Date());
 
       const todayAttendance = Array.isArray(data)
-        ? data.find((att) => att.work_date === todayDate)
+        ? data.find((att) => {
+            return att.work_date === todayDate;
+          })
         : null;
 
       setAttendance(todayAttendance || null);
-      console.log('today:', todayAttendance);
-
+      console.log('today:', todayAttendance)
     } catch (error) {
       console.error("Error fetching attendance:", error);
     }
   };
-  console.log(attendance)
   const fetchSiteAssignment = async () => {
     try {
       const res = await siteAssignmentApi.getAll();
@@ -90,7 +88,7 @@ function Attendance() {
       }
 
       const employeeSites = res.data.data
-        .filter(v => v.employee.employee_id === attendance.employee_id)
+        .filter(v => v.employee.id === attendance.employee_id)
         .map(v => ({
           site_id: v.site.site_id,
           site_name: v.site.site_name,
@@ -111,9 +109,22 @@ function Attendance() {
   useEffect(() => {
     fetchSiteAssignment()
   }, [])
+  // const fetchSite = async () => {
+  //   try {
+  //     const res = await constructionSiteApi.getAll();
+  //     const data = res.data.data || res.data;
+  //     setSites(data);
+  //   } catch (error) {
+  //     console.error("Error fetching sites:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchSite();
+  // }, []);
 
   useEffect(() => {
-    if (attendance) return;
+    if (!employee || attendance) return;
     fetchAttendance();
   }, []);
 
@@ -180,7 +191,7 @@ function Attendance() {
     }
 
     const anyActive = segments.some((seg) => seg.start_time && !seg.end_time);
-    setStatus(anyActive ? "Working" : "Completed");
+    setStatus(anyActive ? "Working" : "Not Started");
   }, [segments, attendance]);
 
   const openConfirmation = (message, action) => {
@@ -213,7 +224,8 @@ function Attendance() {
 
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
-    const payload = { ...seg, employee_id: attendance.employee_id, end_time: now };
+    const payload = { ...seg, employee_id: loggedInUser.employee_id, end_time: now };
+    console.log('ATT: ', attendance)
     setSegments((prev) =>
       prev.map((s) =>
         s.segment_id === seg.segment_id ? { ...s, end_time: now } : s
@@ -223,7 +235,6 @@ function Attendance() {
     setOpenConfirm(false);
 
     try {
-      console.log(seg)
       await segmentApi.update(seg.segment_id, payload);
       await fetchSegments();
     } catch (err) {
@@ -291,7 +302,7 @@ function Attendance() {
     }
   };
 
-  const isEnded = attendance?.status === "END_OF_DAY" || status === "Completed";
+  const isEnded = attendance?.status === "END_OF_DAY";
 
   return (
     <div className="max-w-md mx-auto min-h-screen">
