@@ -224,8 +224,8 @@ function Attendance({ employee }) {
 
   const handleEndSegment = async (seg) => {
     const now = new Date().toISOString();
-    const payload = { ...seg, employee_id: loggedInUser.employee_id, end_time: now };
-    console.log('ATT: ', attendance)
+    const payload = { ...seg, employee_id: attendance.employee_id, end_time: now };
+
     setSegments((prev) =>
       prev.map((s) =>
         s.segment_id === seg.segment_id ? { ...s, end_time: now } : s
@@ -235,6 +235,7 @@ function Attendance({ employee }) {
     setOpenConfirm(false);
 
     try {
+      console.log(attendance)
       await segmentApi.update(seg.segment_id, payload);
       await fetchSegments();
     } catch (err) {

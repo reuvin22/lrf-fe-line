@@ -40,6 +40,7 @@ function SegmentModal() {
       const rawStartTime = tempSegment?.start_time || new Date().toISOString();
 
       const segmentObj = {
+        segment_id: crypto.randomUUID(),
         attendance_id: attendanceId,
         employee_id: attendance.employee_id,
         work_date: attendance.work_date,
