@@ -99,7 +99,7 @@ function OcrUpload() {
       reader.onerror = (error) => reject(error);
     });
   };
-
+  console.log(categories)
   const handleUpload = async () => {
     if (!site) {
       toast.error("Please select a site");
@@ -107,7 +107,7 @@ function OcrUpload() {
     }
 
     setLoading(true);
-
+    console.log(categories)
     try {
       let base64Image = null;
 
@@ -118,11 +118,13 @@ function OcrUpload() {
       const fileName = previousImagePath
         ? previousImagePath.split('/').pop()
         : null;
+      const selectedCategory = categories.find(c => String(c.category_id) === String(category));
+      const selectedSite = sites.find(s => String(s.site_id) === String(site));
 
       const payload = {
         uploaded_by: attendance.employee_id,
-        category_id: category ? category.category_id : null,
-        site_id: site ? site.site_id : null,
+        category_id: selectedCategory?.category_id ?? null,
+        site_id: selectedSite?.site_id ?? null,
         subcontractor_id: null,
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
