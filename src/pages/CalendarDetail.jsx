@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 import Button from "../components/Button";
 import SegmentModal from "../components/Modals/SegmentModal";
@@ -73,27 +73,30 @@ function CalendarDetail() {
     fetchSiteAssignment();
   }, [employee]);
 
-  const fetchSegments = async () => {
-    if (!attendance) {
-      setSegments([]); // ✅ clear old data
+  const fetchSegments = useCallback(async () => {
+    const attendanceId = attendance?.attendance_id;
+
+    if (!attendanceId) {
+      setSegments([]);
       return;
     }
 
     try {
       const res = await segmentApi.getAll({
-        attendance_id: attendance.attendance_id,
+        attendance_id: attendanceId,
       });
+
       setSegments(res?.data?.data || []);
     } catch (err) {
       console.error("Failed to fetch segments:", err);
     }
-  };
+  }, [attendance?.attendance_id, setSegments]);
 
   useEffect(() => {
     if (attendance) {
       fetchSegments();
     }
-  }, [attendance]);
+  }, [attendance, segments]);
 
   const fetchTransportExpenses = async () => {
     if (!attendance) {
@@ -139,16 +142,23 @@ function CalendarDetail() {
   const handleEditSegment = (seg) => {
     setEditingSegment(seg);
     setOpenEditSegmentModal(true);
+    console.log(seg)
   };
 
   const handleSaveSegment = async (payload) => {
     try {
+      if (!payload.segment_id || String(payload.segment_id).length > 10) {
+        throw new Error("Invalid segment_id (likely temporary frontend ID)");
+      }
+
       await segmentApi.update(payload.segment_id, {
         ...payload,
         employee_id: employee?.employee_id,
+        attendance_id: attendance?.attendance_id,
       });
+
       setOpenEditSegmentModal(false);
-      fetchSegments();
+      await fetchSegments();
     } catch (err) {
       console.error("Failed to update segment", err);
     }
@@ -156,8 +166,19 @@ function CalendarDetail() {
 
   const handleAddSegment = async (newSegment) => {
     try {
-      await segmentApi.create(newSegment);
-      fetchSegments(); // refresh segments after add
+      const res = await segmentApi.create({
+        ...newSegment,
+        attendance_id: attendance?.attendance_id,
+      });
+
+      // optional but BEST PRACTICE:
+      const createdSegment = res?.data?.data;
+
+      if (createdSegment) {
+        setSegments((prev) => [...prev, createdSegment]);
+      } else {
+        fetchSegments();
+      }
     } catch (err) {
       console.error("Failed to add segment:", err);
     }
