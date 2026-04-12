@@ -143,9 +143,12 @@ function CalendarDetail() {
 
   const handleSaveSegment = async (payload) => {
     try {
-      await segmentApi.update(payload.segment_id, payload);
+      await segmentApi.update(payload.segment_id, {
+        ...payload,
+        employee_id: employee?.employee_id,
+      });
       setOpenEditSegmentModal(false);
-      fetchSegments(); // refresh segments after edit
+      fetchSegments();
     } catch (err) {
       console.error("Failed to update segment", err);
     }
