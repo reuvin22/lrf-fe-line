@@ -14,7 +14,6 @@ import { useLocationContext } from "../context/LocationContext";
 import {
   segmentApi,
   siteAssignmentApi,
-  sitesApi,
   transportationExpensesApi,
 } from "../api/Api";
 
@@ -33,7 +32,6 @@ function CalendarDetail() {
   const { sites, setSites } = useLocationContext();
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState(null);
-  const [constructionSites, setConstructionSites] = useState([]);
   const [siteAssign, setSiteAssign] = useState([]);
   const [localExpenses, setLocalExpenses] = useState([]);
 
@@ -47,19 +45,6 @@ function CalendarDetail() {
   }, [attendanceRaw]);
 
   const hasData = !!attendance;
-
-  // --- Fetch construction sites ---
-  useEffect(() => {
-    const fetchConstructionSites = async () => {
-      try {
-        const res = await sitesApi.getAll();
-        setConstructionSites(res?.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch construction sites:", err);
-      }
-    };
-    fetchConstructionSites();
-  }, []);
 
   useEffect(() => {
     if (!employee?.employee_id) return;
@@ -309,7 +294,7 @@ function CalendarDetail() {
         onClose={() => setOpenEditSegmentModal(false)}
         segmentData={editingSegment}
         segments={["OFFICE", "SITE", "TRAVEL"]}
-        sites={constructionSites}
+        sites={sites}
         onSave={handleSaveSegment}
       />
     </div>
