@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 
@@ -18,27 +18,23 @@ import {
   transportationExpensesApi,
 } from "../api/Api";
 
-import formattedDate from "../utils/formattedDate";
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
-import { loggedInUser } from "../utils/loggedInUser";
 
 function CalendarDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendanceCalendar, selectedDate } = useAttendanceContext();
-  const { year, month, day } = useParams();
+  const { attendanceCalendar, selectedDate, employee } = useAttendanceContext();
   const displayDate = selectedDate
   ? formatWorkDate(selectedDate)
   : "No Date";
 
-  const { segments, setSegments, setOpenSegmentModal } = useSegmentContext();
+  const { segments, setSegments, setOpenSegmentModal, setRecordType, setSelectedSegment: setSegmentType } = useSegmentContext();
   const { sites, setSites } = useLocationContext();
   const [openEditSegmentModal, setOpenEditSegmentModal] = useState(false);
-  const [selectedSegment, setSelectedSegment] = useState(null);
+  const [editingSegment, setEditingSegment] = useState(null);
   const [constructionSites, setConstructionSites] = useState([]);
   const [siteAssign, setSiteAssign] = useState([]);
-  const [isLeader, setIsLeader] = useState(false);
   const [localExpenses, setLocalExpenses] = useState([]);
 
   const attendanceRaw = attendanceCalendar.find(a => a.work_date === selectedDate)
@@ -66,13 +62,14 @@ function CalendarDetail() {
   }, []);
 
   useEffect(() => {
+    if (!employee?.employee_id) return;
+
     const fetchSiteAssignment = async () => {
       try {
         const res = await siteAssignmentApi.getAll();
         const data = res.data.data.filter(
-          (v) => v.employee.id === loggedInUser.employee_id
+          (v) => v.employee.id === employee.employee_id
         );
-        if (data.some((d) => d.is_leader)) setIsLeader(true);
         setSiteAssign(data);
 
         const mappedSites = data.map((v) => ({
@@ -87,8 +84,9 @@ function CalendarDetail() {
         console.error("Error fetching site assignments:", err);
       }
     };
+
     fetchSiteAssignment();
-  }, []);
+  }, [employee]);
 
   const fetchSegments = async () => {
     if (!attendance) {
@@ -154,7 +152,7 @@ function CalendarDetail() {
   }, [segments]);
 
   const handleEditSegment = (seg) => {
-    setSelectedSegment(seg);
+    setEditingSegment(seg);
     setOpenEditSegmentModal(true);
   };
 
@@ -278,7 +276,11 @@ function CalendarDetail() {
                   Add Segment
                 </div>
               }
-              onClick={() => setOpenSegmentModal(true)}
+              onClick={() => {
+                setRecordType("default");
+                setSegmentType("");
+                setOpenSegmentModal(true);
+              }}
             />
 
             <Button
@@ -305,7 +307,7 @@ function CalendarDetail() {
       <EditSegmentModal
         open={openEditSegmentModal}
         onClose={() => setOpenEditSegmentModal(false)}
-        segmentData={selectedSegment}
+        segmentData={editingSegment}
         segments={["OFFICE", "SITE", "TRAVEL"]}
         sites={constructionSites}
         onSave={handleSaveSegment}
