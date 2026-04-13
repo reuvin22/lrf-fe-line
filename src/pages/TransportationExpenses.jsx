@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button";
 import { toast } from "react-toastify";
+import ConfirmationModal from "../components/Modals/ConfirmationModal";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -12,7 +13,12 @@ function TransportationExpenseScreen({ onDone }) {
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [segmentSites, setSegmentSites] = useState([]);
-
+  const [confirmData, setConfirmData] = useState({
+    open: false,
+    index: null,
+    loading: false,
+  });
+  const [deletedIds, setDeletedIds] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "default";
@@ -39,11 +45,11 @@ function TransportationExpenseScreen({ onDone }) {
 
           return {
             ...exp,
+            expense_id: exp.expense_id,
             isExisting: true,
             site_name: exp.site_name || matchedSite?.name || "-",
           };
         });
-
       } catch (err) {
         console.error("Failed to fetch transport expenses:", err);
       }
@@ -116,49 +122,75 @@ function TransportationExpenseScreen({ onDone }) {
   console.log("📦 Payload being added:", newExpense);
 
   setExpenses((prev) => [...prev, newExpense]);
-  setAmount("");
-  setRoute("");
-  setSite("");
-};
+    setAmount("");
+    setRoute("");
+    setSite("");
+  };
 
   const handleDone = async () => {
-    if (!attendance?.attendance_id) {
-      console.error("❌ attendance_id missing on submit");
-      return;
-    }
+    if (!attendance?.attendance_id) return;
 
-    // Only include new expenses (not existing ones) in the payload
     const newExpenses = expenses.filter(exp => !exp.isExisting);
 
-    if (newExpenses.length === 0) {
-      // Nothing new to save
-      onDone && onDone(expenses);
-      handleRedirect();
-      return;
-    }
-
     setIsLoading(true);
+
     try {
-      const payload = newExpenses.map((exp) => ({
-        employee_id: attendance.employee_id,
-        attendance_id: attendance.attendance_id,
-        amount: exp.amount,
-        route: exp.route,
-        site_id: exp.site_id,
-      }));
+      // ✅ CREATE new
+      if (newExpenses.length > 0) {
+        const payload = newExpenses.map((exp) => ({
+          employee_id: attendance.employee_id,
+          attendance_id: attendance.attendance_id,
+          amount: exp.amount,
+          route: exp.route,
+          site_id: exp.site_id,
+        }));
 
-      console.log("📦 FINAL PAYLOAD (new only):", payload);
+        console.log("📦 CREATE PAYLOAD:", payload);
 
-      await transportationExpensesApi.create(payload);
-      toast.success('Saved Successfully!')
+        await transportationExpensesApi.create(payload);
+      }
+
+      if (deletedIds.length > 0) {
+        const flatIds = deletedIds.flat().filter(Boolean);
+
+        console.log("🗑️ DELETE IDS (FLAT):", flatIds);
+
+        await transportationExpensesApi.bulkDelete({
+          ids: flatIds,
+        });
+      }
+
+      toast.success("Saved Successfully!");
       onDone && onDone(expenses);
       handleRedirect();
+
     } catch (err) {
-      console.error("❌ Failed to save expenses:", err);
-      toast.error("Failed to save expenses");
+      console.error("❌ Failed:", err);
+      toast.error("Failed to save changes");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmDelete = () => {
+    const exp = expenses[confirmData.index];
+    if (!exp) return;
+
+    if (exp.isExisting && exp.expense_id) {
+      setDeletedIds((prev) => [...prev, exp.expense_id]);
+    }
+
+    setExpenses((prev) =>
+      prev.filter((_, i) => i !== confirmData.index)
+    );
+
+    setConfirmData({ open: false, index: null, loading: false });
+
+    toast.success("Removed");
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmData({ open: false, index: null });
   };
 
   return (
@@ -256,12 +288,13 @@ function TransportationExpenseScreen({ onDone }) {
                 ✏️
               </button>
 
-              {/* Delete Icon */}
               <button
                 onClick={() => {
-                  if (window.confirm("Are you sure you want to delete this expense?")) {
-                    setExpenses(prev => prev.filter((_, i) => i !== index));
-                  }
+                  setConfirmData({
+                    open: true,
+                    index,
+                    loading: false,
+                  });
                 }}
                 className="text-red-500 hover:text-red-700"
                 title="Delete"
@@ -273,7 +306,6 @@ function TransportationExpenseScreen({ onDone }) {
         ))}
       </div>
 
-      {/* Actions */}
       <div className="mt-auto space-y-2 pt-4">
         <Button
           buttonStyle="primary"
@@ -292,6 +324,16 @@ function TransportationExpenseScreen({ onDone }) {
           onClick={handleRedirect}
         />
       </div>
+      <ConfirmationModal
+        message={
+          confirmData.open
+            ? `Delete expense ¥${expenses[confirmData.index]?.amount}?`
+            : null
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmData({ open: false, index: null, loading: false })}
+        loading={confirmData.loading}
+      />
     </div>
   );
 }

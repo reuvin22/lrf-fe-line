@@ -7,97 +7,99 @@ function Dashboard() {
   const [assignedSites, setAssignedSites] = useState([]);
 
   const fetchDashboard = async () => {
+    const now = new Date();
+    const utc8 = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const date = utc8.toISOString().split("T")[0];
+
     try {
       const [dashboardRes, siteRes] = await Promise.all([
-        dashboardApi.getAll(),
+        dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
       ]);
 
       const attendanceList = dashboardRes.data.data || [];
       const assignments = siteRes.data.data || [];
 
-      // ✅ STEP 1: CREATE UNIQUE SITES ONLY
-      // We use a Map because it automatically handles unique keys
       const siteMap = new Map();
 
+      // ✅ STEP 1: CREATE SITES
       assignments.forEach((assignment) => {
         const site = assignment.site;
         if (!site || !site.site_id) return;
 
-        // If we haven't added this site ID yet, add it
         if (!siteMap.has(site.site_id)) {
           siteMap.set(site.site_id, {
             id: site.site_id,
             name: site.site_name,
             employees: [],
-            employeeMap: {}, // To track unique active people
+            employeeMap: {},
             subcontractors: {
-              quasi: [],
-              fixed: [],
+              quasi: {},
+              fixed: {},
             },
           });
         }
       });
 
-      // Convert Map back to an array for processing
       const groupedSites = Array.from(siteMap.values());
 
-      // ✅ STEP 2: MAP ACTIVITIES (Only for people present)
       attendanceList.forEach((attendance) => {
         (attendance.activities || []).forEach((activity) => {
-          const siteId = activity.site_id;
-          const empId = activity.employee;
+          const siteId = activity.site?.site_id;
+          if (!siteId) return;
 
           const site = groupedSites.find((s) => s.id === siteId);
           if (!site) return;
 
+          const emp = activity.employee;
+          if (!emp) return;
+
+          const empId = emp.id;
+
           if (!site.employeeMap[empId]) {
-            // Find employee info from assignments
-            const empInfo = assignments.find(a => a.employee?.id === empId);
             site.employeeMap[empId] = {
-              id: empId,
-              name: empInfo?.employee?.name || "Unknown",
+              id: emp.id,
+              name: emp.name,
+              status: emp.status,
               activities: [],
             };
           }
+
           site.employeeMap[empId].activities.push(activity);
         });
-      });
 
-      // ✅ STEP 3: COUNT SUBCONTRACTORS (Only active people)
-      groupedSites.forEach((site) => {
-        const quasiCounts = {};
-        const fixedCounts = {};
+        (attendance.attendance_subcontractor || []).forEach((sub) => {
+          const siteId = sub.site?.site_id;
+          if (!siteId) return;
 
-        Object.keys(site.employeeMap).forEach((empId) => {
-          // Get the specific assignment for this person at THIS site
-          const assignment = assignments.find(
-            (a) => a.employee?.id === empId && a.site?.site_id === site.id
+          const site = groupedSites.find((s) => s.id === siteId);
+          if (!site) return;
+
+          const company = sub.subcontractor?.company_name || "Unknown";
+          const empId = sub.employee_id;
+
+          if (!empId) return;
+
+          const employeeExists = Object.values(site.employeeMap).some(
+            (e) => e.id === empId
           );
 
-          if (!assignment) return;
+          if (!employeeExists) return;
 
-          const type = assignment.site?.contract_type;
-          const client = assignment.site?.client_name;
-
-          if (!client) return;
-
-          if (type === "QUASI_DELEGATION") {
-            quasiCounts[client] = (quasiCounts[client] || 0) + 1;
-          } else if (type === "FIXED_PRICE") {
-            fixedCounts[client] = (fixedCounts[client] || 0) + 1;
+          if (sub.contract_type === "QUASI_DELEGATION") {
+            if (!site.subcontractors.quasi[company]) {
+              site.subcontractors.quasi[company] = new Set();
+            }
+            site.subcontractors.quasi[company].add(empId);
+          } else if (sub.contract_type === "FIXED_PRICE") {
+            if (!site.subcontractors.fixed[company]) {
+              site.subcontractors.fixed[company] = new Set();
+            }
+            site.subcontractors.fixed[company].add(empId);
           }
         });
-
-        site.subcontractors.quasi = Object.entries(quasiCounts).map(([company_name, count]) => ({
-          company_name, count
-        }));
-        site.subcontractors.fixed = Object.entries(fixedCounts).map(([company_name, count]) => ({
-          company_name, count
-        }));
       });
 
-      // ✅ STEP 4: FINAL STATUS PROCESSING
       groupedSites.forEach((site) => {
         let siteHasActive = false;
 
@@ -111,7 +113,10 @@ function Dashboard() {
 
           if (latest) {
             const now = new Date().getTime();
-            const end = latest.end_time ? new Date(latest.end_time).getTime() : null;
+            const end = latest.end_time
+              ? new Date(latest.end_time).getTime()
+              : null;
+
             const isActive = !latest.end_time || now <= end;
 
             if (isActive) {
@@ -120,15 +125,36 @@ function Dashboard() {
             }
           }
 
-          return { id: emp.id, name: emp.name, segment: segmentLabel };
+          return {
+            id: emp.id,
+            name: emp.name,
+            status: emp.status,
+            segment: segmentLabel,
+          };
         });
+
+        site.subcontractors.quasi = Object.entries(site.subcontractors.quasi).map(
+          ([company_name, workers]) => ({
+            company_name,
+            count: workers.size,
+          })
+        );
+
+        site.subcontractors.fixed = Object.entries(site.subcontractors.fixed).map(
+          ([company_name, workers]) => ({
+            company_name,
+            count: workers.size,
+          })
+        );
 
         if (site.employees.length === 0) {
           site.status = "Not Started";
           site.statusStyle = "bg-gray-400 text-white";
         } else {
           site.status = siteHasActive ? "In Progress" : "Completed";
-          site.statusStyle = siteHasActive ? "bg-yellow-500 text-white" : "bg-green-500 text-white";
+          site.statusStyle = siteHasActive
+            ? "bg-yellow-500 text-white"
+            : "bg-green-500 text-white";
         }
 
         delete site.employeeMap;
