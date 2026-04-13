@@ -41,15 +41,16 @@ const Loading = () => {
         {LETTERS.map((letter, i) => (
           <span
             key={i}
-            className={`text-6xl sm:text-7xl font-extrabold transition-all duration-500 ${showLetters ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-              }`}
+            className={`text-6xl sm:text-7xl font-extrabold transition-all duration-500 ${
+              showLetters ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
             style={{
               color: letter.color,
               transitionDelay: `${i * 150}ms`,
               animation: showLetters ? `letter-bounce 0.6s ease-in-out infinite` : "none",
               animationDelay: `${i * 0.15}s`,
               textShadow: "2px 3px 0px rgba(0,0,0,0.1)",
-              fontFamily: "'Comic Sans MS', 'Chalkboard SE', cursive",
+              fontFamily: "'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', system-ui, sans-serif",
             }}
           >
             {letter.char}
