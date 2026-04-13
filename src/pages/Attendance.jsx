@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 
 function Attendance({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(() => () => {});
+  const [confirmAction, setConfirmAction] = useState(() => () => { });
   const [confirmMessage, setConfirmMessage] = useState("");
   const [openEditModal, setOpenEditModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState(null);
@@ -65,8 +65,8 @@ function Attendance({ employee }) {
 
       const todayAttendance = Array.isArray(data)
         ? data.find((att) => {
-            return att.work_date === todayDate;
-          })
+          return att.work_date === todayDate;
+        })
         : null;
 
       setAttendance(todayAttendance || null);
@@ -241,8 +241,8 @@ function Attendance({ employee }) {
         await Promise.all(
           segments.map((seg) => {
             if (!seg.end_time) {
-              return segmentApi.update(seg.segment_id, { 
-                ...seg, 
+              return segmentApi.update(seg.segment_id, {
+                ...seg,
                 end_time: now,
                 employee_id: attendance.employee_id
               });
@@ -269,7 +269,7 @@ function Attendance({ employee }) {
       setOpenConfirm(false);
     });
   };
-  
+
   const handleUpdateSegment = async (updatedSegment) => {
     try {
       const payload = {
@@ -306,22 +306,20 @@ function Attendance({ employee }) {
         {segments.map((seg) => (
           <div
             key={seg.segment_id}
-            className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 ${
-              isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"
-            }`}
+            className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 ${isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"
+              }`}
             onClick={() => !isEnded && !seg._temp && handleEditSegment(seg)}
           >
             <div className="flex items-center gap-4">
               <div
-                className={`w-2 h-10 rounded-full ${
-                  seg.segment_type === "TRAVEL"
+                className={`w-2 h-10 rounded-full ${seg.segment_type === "TRAVEL"
                     ? "bg-orange-400"
                     : seg.segment_type === "OFFICE"
-                    ? "bg-blue-500"
-                    : seg.segment_type === "SITE"
-                    ? "bg-green-500"
-                    : "bg-gray-300"
-                }`}
+                      ? "bg-blue-500"
+                      : seg.segment_type === "SITE"
+                        ? "bg-green-500"
+                        : "bg-gray-300"
+                  }`}
               />
               <div>
                 <p className="font-semibold text-gray-800">
@@ -372,7 +370,7 @@ function Attendance({ employee }) {
       </div>
 
       <SegmentModal />
-      <LocationModal sites={sites}/>
+      <LocationModal sites={sites} />
       <ManualTimeModal />
 
       <EditSegmentModal

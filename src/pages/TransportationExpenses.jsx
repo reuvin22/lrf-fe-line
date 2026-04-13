@@ -45,7 +45,7 @@ function TransportationExpenseScreen({ onDone }) {
 
           return {
             ...exp,
-            expense_id: exp.expense_id,
+            id: exp.id ?? exp.expense_id,
             isExisting: true,
             site_name: exp.site_name || matchedSite?.name || "-",
           };
@@ -90,38 +90,38 @@ function TransportationExpenseScreen({ onDone }) {
   };
 
   const handleAdd = () => {
-  if (!amount || !site) {
-    toast.error("Amount and Site are required");
-    return;
-  }
+    if (!amount || !site) {
+      toast.error("Amount and Site are required");
+      return;
+    }
 
-  if (!attendance?.attendance_id || !attendance?.employee_id) {
-    toast.error("System error: attendance not ready");
-    return;
-  }
+    if (!attendance?.attendance_id || !attendance?.employee_id) {
+      toast.error("System error: attendance not ready");
+      return;
+    }
 
-  const selectedSiteId = Number(site);
-  console.log("Selected site ID:", selectedSiteId);
-  console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
+    const selectedSiteId = Number(site);
+    console.log("Selected site ID:", selectedSiteId);
+    console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
 
-  const selectedSite = segmentSites.find((s) => String(s.id) === site);
-  if (!selectedSite) {
-    toast.error("Selected site is invalid. Please select a site from the dropdown.");
-    return;
-  }
+    const selectedSite = segmentSites.find((s) => String(s.id) === site);
+    if (!selectedSite) {
+      toast.error("Selected site is invalid. Please select a site from the dropdown.");
+      return;
+    }
 
-  const newExpense = {
-    employee: attendance.employee_id,
-    attendance_id: attendance.attendance_id,
-    amount: Number(amount),
-    route: route || null,
-    site_id: selectedSite.id,
-    site_name: selectedSite.name,
-  };
+    const newExpense = {
+      employee: attendance.employee_id,
+      attendance_id: attendance.attendance_id,
+      amount: Number(amount),
+      route: route || null,
+      site_id: selectedSite.id,
+      site_name: selectedSite.name,
+    };
 
-  console.log("📦 Payload being added:", newExpense);
+    console.log("📦 Payload being added:", newExpense);
 
-  setExpenses((prev) => [...prev, newExpense]);
+    setExpenses((prev) => [...prev, newExpense]);
     setAmount("");
     setRoute("");
     setSite("");
@@ -150,13 +150,12 @@ function TransportationExpenseScreen({ onDone }) {
         await transportationExpensesApi.create(payload);
       }
 
+      // ✅ DELETE collected
       if (deletedIds.length > 0) {
-        const flatIds = deletedIds.flat().filter(Boolean);
+        console.log("🗑️ DELETE IDS:", deletedIds);
 
-        console.log("🗑️ DELETE IDS (FLAT):", flatIds);
-
-        await transportationExpensesApi.bulkDelete({
-          ids: flatIds,
+        await transportationExpensesApi.delete({
+          ids: deletedIds,
         });
       }
 
@@ -176,8 +175,8 @@ function TransportationExpenseScreen({ onDone }) {
     const exp = expenses[confirmData.index];
     if (!exp) return;
 
-    if (exp.isExisting && exp.expense_id) {
-      setDeletedIds((prev) => [...prev, exp.expense_id]);
+    if (exp.isExisting && exp.id) {
+      setDeletedIds((prev) => [...prev, exp.id]);
     }
 
     setExpenses((prev) =>

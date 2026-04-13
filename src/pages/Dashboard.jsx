@@ -168,7 +168,7 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboard();
-    
+
     const interval = setInterval(() => {
       fetchDashboard();
     }, 5000);
@@ -242,15 +242,14 @@ function Dashboard() {
                           <span>{emp.name}</span>
 
                           <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              emp.segment === "TRAVEL"
+                            className={`text-xs px-2 py-1 rounded ${emp.segment === "TRAVEL"
                                 ? "bg-green-600 text-white"
                                 : emp.segment === "SITE"
-                                ? "bg-blue-600 text-white"
-                                : emp.segment === "OFFICE"
-                                ? "bg-yellow-600 text-white"
-                                : "bg-gray-600 text-white"
-                            }`}
+                                  ? "bg-blue-600 text-white"
+                                  : emp.segment === "OFFICE"
+                                    ? "bg-yellow-600 text-white"
+                                    : "bg-gray-600 text-white"
+                              }`}
                           >
                             {emp.segment}
                           </span>

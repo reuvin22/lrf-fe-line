@@ -58,7 +58,7 @@ function SegmentModal() {
       setOpenSegmentModal(false);
 
       if (segment.value !== "OFFICE") {
-        setOpenLocationModal(true); 
+        setOpenLocationModal(true);
         return;
       }
 

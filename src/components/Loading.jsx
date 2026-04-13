@@ -41,9 +41,8 @@ const Loading = () => {
         {LETTERS.map((letter, i) => (
           <span
             key={i}
-            className={`text-6xl sm:text-7xl font-extrabold transition-all duration-500 ${
-              showLetters ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-            }`}
+            className={`text-6xl sm:text-7xl font-extrabold transition-all duration-500 ${showLetters ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+              }`}
             style={{
               color: letter.color,
               transitionDelay: `${i * 150}ms`,

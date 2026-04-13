@@ -31,7 +31,7 @@ function SubContractor({ onRefetch }) {
   const location = useLocation();
   const { attendance, employee } = useAttendanceContext();
   const { sites: assignedSites } = useLocationContext();
-
+  const { fetchAttendanceCalendar } = useAttendanceContext()
   // ✅ INIT
   useEffect(() => {
     const init = async () => {
@@ -70,52 +70,52 @@ function SubContractor({ onRefetch }) {
   }, []);
 
   const fetchAttendanceSubcontractor = async (subsList = []) => {
-  try {
-    const res = await attendanceSubcontractorSegmentApi.getAll({
-      employee_id: employee?.employee_id,
-      attendance_id: attendance?.attendance_id,
-    });
-
-    const raw = res.data.data || [];
-    const grouped = {};
-
-    raw.forEach((item) => {
-      const siteId = item.site?.site_id;
-      const subcontractorId = item.subcontractor?.subcontractor_id;
-
-      const key = `${siteId}-${subcontractorId}`;
-
-      if (!grouped[key]) {
-        const matchedSub = subsList.find(
-          (s) =>
-            Number(s.subcontractor_id) === Number(subcontractorId)
-        );
-
-        grouped[key] = {
-          site_name: item.site?.site_name || "",
-          site_id: siteId,
-          company: item.subcontractor?.company_name || "",
-          subcontractor_id: subcontractorId,
-          contract: item.contract_type || "QUASI_DELEGATION",
-          availableWorkers: matchedSub?.workers || [],
-          workers: [],
-        };
-      }
-
-      grouped[key].workers.push({
-        uuid: item.uuid ?? null,
-        name: item.worker?.name || "",
-        worker_id: item.worker?.worker_id || null,
-        start: item.start_time?.slice(11, 16),
-        end: item.end_time?.slice(11, 16),
+    try {
+      const res = await attendanceSubcontractorSegmentApi.getAll({
+        employee_id: employee?.employee_id,
+        attendance_id: attendance?.attendance_id,
       });
-    });
 
-    setCompanies(Object.values(grouped));
-  } catch (err) {
-    console.error("❌ Error fetching attendance segment:", err);
-  }
-};
+      const raw = res.data.data || [];
+      const grouped = {};
+
+      raw.forEach((item) => {
+        const siteId = item.site?.site_id;
+        const subcontractorId = item.subcontractor?.subcontractor_id;
+
+        const key = `${siteId}-${subcontractorId}`;
+
+        if (!grouped[key]) {
+          const matchedSub = subsList.find(
+            (s) =>
+              Number(s.subcontractor_id) === Number(subcontractorId)
+          );
+
+          grouped[key] = {
+            site_name: item.site?.site_name || "",
+            site_id: siteId,
+            company: item.subcontractor?.company_name || "",
+            subcontractor_id: subcontractorId,
+            contract: item.contract_type || "QUASI_DELEGATION",
+            availableWorkers: matchedSub?.workers || [],
+            workers: [],
+          };
+        }
+
+        grouped[key].workers.push({
+          uuid: item.uuid ?? null,
+          name: item.worker?.name || "",
+          worker_id: item.worker?.worker_id || null,
+          start: item.start_time?.slice(11, 16),
+          end: item.end_time?.slice(11, 16),
+        });
+      });
+
+      setCompanies(Object.values(grouped));
+    } catch (err) {
+      console.error("❌ Error fetching attendance segment:", err);
+    }
+  };
 
   const buildConstructionSites = async (subs, siteSubs, segments) => {
     try {
@@ -239,91 +239,91 @@ function SubContractor({ onRefetch }) {
     setCompanies((prev) => prev.filter((_, i) => i !== index));
   };
 
-const ensureWorkerExists = async (worker, company) => {
-  try {
-    if (worker.worker_id && !worker.worker_id.startsWith("temp-")) {
+  const ensureWorkerExists = async (worker, company) => {
+    try {
+      if (worker.worker_id && !worker.worker_id.startsWith("temp-")) {
+        return {
+          worker_id: worker.worker_id,
+          employee_id: worker.employee_id || null,
+        };
+      }
+
+      const empRes = await employeeApi.create({
+        name: worker.name,
+      });
+
+      const employeeId = empRes.data.data.employee_id;
+
+      const workerRes = await subContractorWorkerApi.create({
+        subcontractor_id: company.subcontractor_id,
+        name: worker.name,
+        name_kana: "ダミー",
+        status: "ACTIVE",
+      });
+
+      const workerId = workerRes.data.data.worker_id;
+      console.log(workerId)
       return {
-        worker_id: worker.worker_id,
-        employee_id: worker.employee_id || null,
-      };
-    }
-
-    const empRes = await employeeApi.create({
-      name: worker.name,
-    });
-
-    const employeeId = empRes.data.data.employee_id;
-
-    const workerRes = await subContractorWorkerApi.create({
-      subcontractor_id: company.subcontractor_id,
-      name: worker.name,
-      name_kana: "ダミー",
-      status: "ACTIVE",
-    });
-    
-    const workerId = workerRes.data.data.worker_id;
-    console.log(workerId)
-    return {
-      worker_id: workerId,
-      employee_id: employeeId,
-    };
-
-  } catch (err) {
-    console.error("❌ Failed to create worker:", err);
-    throw err;
-  }
-};
-
-const saveCompany = async (company) => {
-  try {
-    const today = new Date().toISOString().split("T")[0];
-
-    for (const worker of company.workers) {
-      let finalWorkerId = worker.worker_id;
-      let finalEmployeeId = employee?.employee_id;
-
-      if (!worker.worker_id) {
-        const ids = await ensureWorkerExists(worker, company);
-
-        finalWorkerId = ids.worker_id;
-        finalEmployeeId = ids.employee_id;
-        console.log(finalWorkerId, finalEmployeeId)
-
-        worker.worker_id = finalWorkerId;
-        worker.employee_id = finalEmployeeId;
-      }
-
-      const payload = {
-        attendance_id: attendance?.attendance_id,
-        company_id: company.subcontractor_id,
-        company_name: company.company,
-
-        // ✅ IMPORTANT
-        employee_id: finalEmployeeId,
-        worker_id: finalWorkerId,
-
-        worker_name: worker.name,
-        site_id: company.site_id,
-        site_name: company.site_name,
-        contract_type: company.contract,
-        start_time: `${today}T${worker.start}:00`,
-        end_time: `${today}T${worker.end}:00`,
+        worker_id: workerId,
+        employee_id: employeeId,
       };
 
-      if (worker.uuid) {
-        await attendanceSubcontractorSegmentApi.update(worker.uuid, payload);
-      } else {
-        const res = await attendanceSubcontractorSegmentApi.create(payload);
-        worker.uuid = res.data.data.uuid;
-      }
+    } catch (err) {
+      console.error("❌ Failed to create worker:", err);
+      throw err;
     }
+  };
 
-    return true;
-  } catch (err) {
-    toast.error(err.message);
-    return false;
-  }
-};
+  const saveCompany = async (company) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      for (const worker of company.workers) {
+        let finalWorkerId = worker.worker_id;
+        let finalEmployeeId = employee?.employee_id;
+
+        if (!worker.worker_id) {
+          const ids = await ensureWorkerExists(worker, company);
+
+          finalWorkerId = ids.worker_id;
+          finalEmployeeId = ids.employee_id;
+          console.log(finalWorkerId, finalEmployeeId)
+
+          worker.worker_id = finalWorkerId;
+          worker.employee_id = finalEmployeeId;
+        }
+
+        const payload = {
+          attendance_id: attendance?.attendance_id,
+          company_id: company.subcontractor_id,
+          company_name: company.company,
+
+          // ✅ IMPORTANT
+          employee_id: finalEmployeeId,
+          worker_id: finalWorkerId,
+
+          worker_name: worker.name,
+          site_id: company.site_id,
+          site_name: company.site_name,
+          contract_type: company.contract,
+          start_time: `${today}T${worker.start}:00`,
+          end_time: `${today}T${worker.end}:00`,
+        };
+
+        if (worker.uuid) {
+          await attendanceSubcontractorSegmentApi.update(worker.uuid, payload);
+        } else {
+          const res = await attendanceSubcontractorSegmentApi.create(payload);
+          worker.uuid = res.data.data.uuid;
+        }
+      }
+
+      return true;
+    } catch (err) {
+      toast.error(err.message);
+      return false;
+    }
+  };
 
   const handleNext = async () => {
     setLoading(true);
@@ -337,6 +337,7 @@ const saveCompany = async (company) => {
       }
 
       toast.success("Saved successfully!");
+
       onRefetch?.();
 
       navigate(
@@ -473,54 +474,54 @@ const saveCompany = async (company) => {
                             )}
 
                             <Autocomplete
-  freeSolo
-  options={workerOptions}
-  getOptionLabel={(option) =>
-    typeof option === "string" ? option : option.name || ""
-  }
-  value={
-    company.availableWorkers?.find(
-      (w) => w.worker_id === worker.worker_id
-    ) || worker.name || ""
-  }
-  onChange={(e, newValue) => {
-    const updated = [...companies];
+                              freeSolo
+                              options={workerOptions}
+                              getOptionLabel={(option) =>
+                                typeof option === "string" ? option : option.name || ""
+                              }
+                              value={
+                                company.availableWorkers?.find(
+                                  (w) => w.worker_id === worker.worker_id
+                                ) || worker.name || ""
+                              }
+                              onChange={(e, newValue) => {
+                                const updated = [...companies];
 
-    if (typeof newValue === "string") {
-      updated[cIndex].workers[wIndex] = {
-        ...updated[cIndex].workers[wIndex],
-        name: newValue,
-        worker_id: null,
-      };
-    } else if (newValue) {
-      updated[cIndex].workers[wIndex] = {
-        ...updated[cIndex].workers[wIndex],
-        name: newValue.name,
-        worker_id: newValue.worker_id,
-      };
-    }
+                                if (typeof newValue === "string") {
+                                  updated[cIndex].workers[wIndex] = {
+                                    ...updated[cIndex].workers[wIndex],
+                                    name: newValue,
+                                    worker_id: null,
+                                  };
+                                } else if (newValue) {
+                                  updated[cIndex].workers[wIndex] = {
+                                    ...updated[cIndex].workers[wIndex],
+                                    name: newValue.name,
+                                    worker_id: newValue.worker_id,
+                                  };
+                                }
 
-    setCompanies(updated);
-  }}
-  onInputChange={(e, newInputValue) => {
-    const updated = [...companies];
+                                setCompanies(updated);
+                              }}
+                              onInputChange={(e, newInputValue) => {
+                                const updated = [...companies];
 
-    updated[cIndex].workers[wIndex] = {
-      ...updated[cIndex].workers[wIndex],
-      name: newInputValue || "",
-    };
+                                updated[cIndex].workers[wIndex] = {
+                                  ...updated[cIndex].workers[wIndex],
+                                  name: newInputValue || "",
+                                };
 
-    setCompanies(updated);
-  }}
-  renderInput={(params) => (
-    <TextField
-      {...params}
-      placeholder="Select or type worker name"
-      size="small"
-      fullWidth
-    />
-  )}
-/>
+                                setCompanies(updated);
+                              }}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  placeholder="Select or type worker name"
+                                  size="small"
+                                  fullWidth
+                                />
+                              )}
+                            />
                           </div>
 
                           <div className="flex gap-2 mt-2">
@@ -588,12 +589,12 @@ const saveCompany = async (company) => {
           <p className="font-semibold text-sm">Entered</p>
 
           {companies.filter((company) => {
-              if (location.state?.from === "subcontractor") return true;
-              return (
-                company.site_id &&
-                constructionSites.some((site) => site.site_id === company.site_id)
-              );
-            })
+            if (location.state?.from === "subcontractor") return true;
+            return (
+              company.site_id &&
+              constructionSites.some((site) => site.site_id === company.site_id)
+            );
+          })
             .map((company, cIndex) => (
               <div key={cIndex}>
                 <p className="text-sm font-medium">

@@ -302,17 +302,17 @@ function OcrUpload() {
           <div>
             <label className="text-sm text-gray-600 font-medium">Site *</label>
             <select
-                className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-              >
-                <option value="">Select Site</option>
-                {sites.map((s) => (
-                  <option key={s.site_id} value={s.site_id}>
-                    {s.site_name}
-                  </option>
-                ))}
-              </select>
+              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+            >
+              <option value="">Select Site</option>
+              {sites.map((s) => (
+                <option key={s.site_id} value={s.site_id}>
+                  {s.site_name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -366,12 +366,12 @@ function OcrUpload() {
             <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">
-                  {item.category?.category_name || "No Category"} - {item.site?.site_name || "No Site"}{" "} 
+                  {item.category?.category_name || "No Category"} - {item.site?.site_name || "No Site"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : ""}
                 </p>
                 <div className="flex gap-2">

@@ -49,15 +49,12 @@ function Calendar() {
     fetchAttendance();
   }, [year, month]);
 
-  // ✅ CLICK DAY
   const handleClick = async (day) => {
     if (!day) return;
 
     setSelectedDay(day);
 
     const formatted = formatDate(year, month, day);
-
-    // ✅ SAVE SELECTED DATE (IMPORTANT FIX)
     setSelectedDate(formatted);
 
     const selectedAttendance = calendar.find(
@@ -174,7 +171,6 @@ function Calendar() {
           </div>
         </div>
 
-        {/* Legend */}
         <div className="flex gap-6 text-xs mt-4 text-gray-600">
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-green-500 rounded-full"></span> Entered
