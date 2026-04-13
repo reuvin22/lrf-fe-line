@@ -109,10 +109,14 @@ function OcrUpload() {
     setLoading(true);
     console.log(categories)
     try {
-      let base64Image = null;
+      let imageBase64Payload;
 
-      if (imageFile) {
-        base64Image = await convertToBase64(imageFile);
+      if (removeImage) {
+        imageBase64Payload = "";
+      } else if (imageFile) {
+        imageBase64Payload = await convertToBase64(imageFile);
+      } else {
+        imageBase64Payload = undefined;
       }
 
       const fileName = previousImagePath
@@ -129,7 +133,7 @@ function OcrUpload() {
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
-        image_path: null,
+        image_path: imagePreview ? imagePreview : "",
         ocr_result_amount: null,
         ocr_result_date: null,
         ocr_result_raw: null,
@@ -139,9 +143,12 @@ function OcrUpload() {
         note: note || null,
         uploaded_at: new Date().toISOString(),
         processed_at: null,
-        image_base64: removeImage ? "" : (base64Image ?? null),
         previous_image_path: fileName
       };
+
+      if (imageBase64Payload !== undefined) {
+        payload.image_base64 = imageBase64Payload;
+      }
 
       console.log(payload)
       if (editItem) {
@@ -174,7 +181,7 @@ function OcrUpload() {
   const handleEdit = (item) => {
     setEditItem(item);
     setRemoveImage(false);
-
+    console.log(item.image_path)
     const fixedUrl = item.image_path?.replace(/\\\//g, "/");
     setImagePreview(fixedUrl);
 
