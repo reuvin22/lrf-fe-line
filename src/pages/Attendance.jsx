@@ -11,12 +11,10 @@ import { Square } from "lucide-react";
 import EditSegmentModal from "../components/Modals/EditSegmentModal";
 import echo from "../echo";
 import { formattedTime } from "../utils/formattedTime";
-import { attendanceApi, constructionSiteApi, segmentApi, siteAssignmentApi } from "../api/Api";
+import { attendanceApi, segmentApi, siteAssignmentApi } from "../api/Api";
 import formatWorkDate from "../utils/formatWorkDate";
-import { data, useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
-import { loggedInUser } from "../utils/loggedInUser";
 import { toast } from "react-toastify";
 
 function Attendance({ employee }) {

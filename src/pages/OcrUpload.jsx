@@ -197,6 +197,17 @@ function OcrUpload() {
         prev.filter((i) => i.upload_id !== deleteId)
       );
 
+      if (editItem?.upload_id === deleteId) {
+        setEditItem(null);
+        setImageFile(null);
+        setImagePreview(null);
+        setSite("");
+        setNote("");
+        setCategory("");
+        setRemoveImage(false);
+        setPreviousImagePath(null);
+      }
+
       toast.success("Document deleted successfully");
 
       setShowConfirm(false);
@@ -313,6 +324,23 @@ function OcrUpload() {
               className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
             />
           </div>
+
+          {editItem && (
+            <Button
+              buttonStyle="secondary"
+              text="Cancel Edit"
+              onClick={() => {
+                setEditItem(null);
+                setImageFile(null);
+                setImagePreview(null);
+                setSite("");
+                setNote("");
+                setCategory("");
+                setRemoveImage(false);
+                setPreviousImagePath(null);
+              }}
+            />
+          )}
 
           <Button
             buttonStyle="primary"

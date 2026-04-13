@@ -15,10 +15,12 @@ import {
   segmentApi,
   siteAssignmentApi,
   transportationExpensesApi,
+  getAttendanceSubcontractor,
 } from "../api/Api";
 
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
+import { toast } from "react-toastify";
 
 function CalendarDetail() {
   const navigate = useNavigate();
@@ -34,6 +36,7 @@ function CalendarDetail() {
   const [editingSegment, setEditingSegment] = useState(null);
   const [siteAssign, setSiteAssign] = useState([]);
   const [localExpenses, setLocalExpenses] = useState([]);
+  const [subcontractors, setSubcontractors] = useState([]);
 
   const attendanceRaw = attendanceCalendar.find(a => a.work_date === selectedDate)
   const attendance = useMemo(() => {
@@ -71,32 +74,32 @@ function CalendarDetail() {
     };
 
     fetchSiteAssignment();
-  }, [employee]);
+    }, [employee]);
 
-  const fetchSegments = useCallback(async () => {
-    const attendanceId = attendance?.attendance_id;
+    const fetchSegments = useCallback(async () => {
+      const attendanceId = attendance?.attendance_id;
 
-    if (!attendanceId) {
-      setSegments([]);
-      return;
-    }
+      if (!attendanceId) {
+        setSegments([]);
+        return;
+      }
 
-    try {
-      const res = await segmentApi.getAll({
-        attendance_id: attendanceId,
-      });
+      try {
+        const res = await segmentApi.getAll({
+          attendance_id: attendanceId,
+        });
 
-      setSegments(res?.data?.data || []);
-    } catch (err) {
-      console.error("Failed to fetch segments:", err);
-    }
-  }, [attendance?.attendance_id, setSegments]);
+        setSegments(res?.data?.data || []);
+      } catch (err) {
+        console.error("Failed to fetch segments:", err);
+      }
+    }, [attendance?.attendance_id, setSegments]);
 
-  useEffect(() => {
-    if (attendance) {
-      fetchSegments();
-    }
-  }, [attendance, segments]);
+    useEffect(() => {
+      if (attendance) {
+        fetchSegments();
+      }
+    }, [attendance, fetchSegments])
 
   const fetchTransportExpenses = async () => {
     if (!attendance) {
@@ -117,6 +120,25 @@ function CalendarDetail() {
   useEffect(() => {
     fetchTransportExpenses();
   }, [attendance, location.key]);
+
+  const fetchSubcontractors = async () => {
+    if (!attendance?.attendance_id) {
+      setSubcontractors([]);
+      return;
+    }
+    try {
+      const res = await getAttendanceSubcontractor.getAll({
+        attendance_id: attendance.attendance_id,
+      });
+      setSubcontractors(res?.data?.data || []);
+    } catch (err) {
+      console.error("Failed to fetch subcontractors:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubcontractors();
+  }, [attendance]);
 
   const totalTransportAmount = useMemo(() => {
     return localExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -147,10 +169,6 @@ function CalendarDetail() {
 
   const handleSaveSegment = async (payload) => {
     try {
-      if (!payload.segment_id || String(payload.segment_id).length > 10) {
-        throw new Error("Invalid segment_id (likely temporary frontend ID)");
-      }
-
       await segmentApi.update(payload.segment_id, {
         ...payload,
         employee_id: employee?.employee_id,
@@ -159,6 +177,7 @@ function CalendarDetail() {
 
       setOpenEditSegmentModal(false);
       await fetchSegments();
+      toast.success("Segment updated successfully");
     } catch (err) {
       console.error("Failed to update segment", err);
     }
@@ -179,6 +198,8 @@ function CalendarDetail() {
       } else {
         fetchSegments();
       }
+
+      toast.success("New segment added successfully!");
     } catch (err) {
       console.error("Failed to add segment:", err);
     }
@@ -261,15 +282,14 @@ function CalendarDetail() {
               {/* Subcontractors */}
               <div className="space-y-1">
                 <span>Subcontractors</span>
-                {siteAssign.length > 0 ? (
-                  siteAssign.map((assign) => {
-                    const company = assign.site?.client_name || "Unknown Company";
-                    return (
-                      <p key={assign.assignment_id} className="text-sm mt-1">
-                        {company} 1 ppl 09:00-17:30
-                      </p>
-                    );
-                  })
+                {subcontractors.length > 0 ? (
+                  subcontractors.map((item) => (
+                    <p key={item.id} className="text-sm mt-1">
+                      {item.subcontractor?.company_name || "Unknown"} —{" "}
+                      {item.worker?.name || "Worker"}{" "}
+                      {item.start_time?.slice(11, 16)}–{item.end_time?.slice(11, 16)}
+                    </p>
+                  ))
                 ) : (
                   <p className="text-sm mt-1 text-gray-500">No subcontractors assigned</p>
                 )}
