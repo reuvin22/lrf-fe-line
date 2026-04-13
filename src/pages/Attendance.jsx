@@ -16,6 +16,7 @@ import formatWorkDate from "../utils/formatWorkDate";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 function Attendance({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
