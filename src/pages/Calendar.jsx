@@ -55,10 +55,6 @@ function Calendar() {
     setSelectedDay(day);
 
     const formatted = formatDate(year, month, day);
-<<<<<<< HEAD
-
-=======
->>>>>>> 0399291fbf912bfc46c8b5be9b1d71658213b13a
     setSelectedDate(formatted);
 
     const selectedAttendance = calendar.find(
