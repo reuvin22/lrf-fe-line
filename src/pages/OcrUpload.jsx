@@ -155,7 +155,6 @@ function OcrUpload() {
 
       await fetchUploads();
 
-      // reset form
       setImageFile(null);
       setImagePreview(null);
       setSite("");
@@ -223,13 +222,11 @@ function OcrUpload() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-white px-5 py-4 border-b">
         <span className="font-semibold text-lg">Document Upload</span>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Upload Area */}
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
           {imagePreview ? (
             <div className="flex flex-col items-center gap-4">
@@ -281,7 +278,6 @@ function OcrUpload() {
           />
         </div>
 
-        {/* Form */}
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
           <div>
             <label className="text-sm text-gray-600 font-medium">Category *</label>

@@ -17,7 +17,6 @@ const Loading = () => {
 
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-gradient-to-b from-[hsl(140,60%,95%)] via-[hsl(140,50%,90%)] to-[hsl(80,50%,88%)] overflow-hidden relative px-4">
-      {/* Floating bubbles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(6)].map((_, i) => (
           <div
@@ -36,7 +35,6 @@ const Loading = () => {
         ))}
       </div>
 
-      {/* Bouncing letters */}
       <div className="flex gap-2 sm:gap-3">
         {LETTERS.map((letter, i) => (
           <span
@@ -58,7 +56,6 @@ const Loading = () => {
         ))}
       </div>
 
-      {/* Loading dots */}
       <div className="flex gap-2 mt-5">
         {[0, 1, 2].map((i) => (
           <span

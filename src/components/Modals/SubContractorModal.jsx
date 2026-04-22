@@ -25,7 +25,6 @@ function SubContractorModal({
 
   const companyOptions = subContractor.map((c) => c.company_name) || [];
 
-  // ================= FETCH EXISTING =================
   const fetchCompanies = async (siteId) => {
     try {
       const { data } = await siteSubContractorApi.getAll({ site_id: siteId });
@@ -62,7 +61,6 @@ function SubContractorModal({
     }
   }, [open, constructionSite]);
 
-  // ================= WORKERS =================
   const addWorker = (companyIndex) => {
     const updated = [...companies];
     updated[companyIndex].workers.push({
@@ -81,7 +79,6 @@ function SubContractorModal({
     }
   };
 
-  // ================= COMPANY =================
   const addCompany = () => {
     setCompanies([
       ...companies,
@@ -126,7 +123,6 @@ function SubContractorModal({
     setCompanies(updated);
   };
 
-  // ================= SAVE =================
   const saveCompany = async (company) => {
     try {
       const sub = subContractor.find(
@@ -155,15 +151,12 @@ function SubContractorModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      {/* BACKDROP */}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={() => setOpen(false)}
       />
 
-      {/* MODAL */}
       <div className="relative bg-white w-full max-w-md rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
-        {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">
             Subcontractor Report
@@ -176,7 +169,6 @@ function SubContractorModal({
           </button>
         </div>
 
-        {/* SITE */}
         <p className="text-sm text-gray-600 mb-4">
           Site:{" "}
           <span className="font-medium">
@@ -184,7 +176,6 @@ function SubContractorModal({
           </span>
         </p>
 
-        {/* COMPANIES */}
         <div className="space-y-6">
           {companies.map((company, cIndex) => {
             const workerOptions =
@@ -197,7 +188,6 @@ function SubContractorModal({
                 key={cIndex}
                 className="border rounded-xl p-4 space-y-4"
               >
-                {/* COMPANY */}
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-sm text-gray-600">
                     Company
@@ -234,7 +224,6 @@ function SubContractorModal({
                   )}
                 />
 
-                {/* CONTRACT */}
                 <div className="mt-2">
                   <label className="text-sm text-gray-600">
                     Contract Type
@@ -242,7 +231,6 @@ function SubContractorModal({
                   <p className="text-sm">{company.contract}</p>
                 </div>
 
-                {/* WORKERS */}
                 <div className="space-y-3 mt-2">
                   {company.workers.map((worker, wIndex) => (
                     <div
@@ -282,7 +270,6 @@ function SubContractorModal({
                         />
                       </div>
 
-                      {/* TIME */}
                       <div className="flex gap-2 mt-2">
                         <div className="flex items-center border rounded-lg px-2 py-1 flex-1">
                           <Clock
@@ -324,7 +311,6 @@ function SubContractorModal({
                   ))}
                 </div>
 
-                {/* ACTIONS */}
                 <div className="flex flex-col gap-2 mt-2">
                   <button
                     onClick={() => addWorker(cIndex)}
@@ -347,7 +333,6 @@ function SubContractorModal({
           })}
         </div>
 
-        {/* ADD COMPANY */}
         <button
           onClick={addCompany}
           className="mt-4 text-green-600 flex items-center gap-1 text-sm"
@@ -355,7 +340,6 @@ function SubContractorModal({
           <Plus size={16} /> Add Another Company
         </button>
 
-        {/* SUMMARY */}
         <div className="mt-6 border-t pt-4 space-y-3">
           <p className="font-semibold text-sm">Entered</p>
 

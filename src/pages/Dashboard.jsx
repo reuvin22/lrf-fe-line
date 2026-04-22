@@ -16,21 +16,18 @@ function Dashboard() {
       const attendanceList = dashboardRes.data.data || [];
       const assignments = siteRes.data.data || [];
 
-      // ✅ STEP 1: CREATE UNIQUE SITES ONLY
-      // We use a Map because it automatically handles unique keys
       const siteMap = new Map();
 
       assignments.forEach((assignment) => {
         const site = assignment.site;
         if (!site || !site.site_id) return;
 
-        // If we haven't added this site ID yet, add it
         if (!siteMap.has(site.site_id)) {
           siteMap.set(site.site_id, {
             id: site.site_id,
             name: site.site_name,
             employees: [],
-            employeeMap: {}, // To track unique active people
+            employeeMap: {},
             subcontractors: {
               quasi: [],
               fixed: [],
@@ -39,10 +36,8 @@ function Dashboard() {
         }
       });
 
-      // Convert Map back to an array for processing
       const groupedSites = Array.from(siteMap.values());
 
-      // ✅ STEP 2: MAP ACTIVITIES (Only for people present)
       attendanceList.forEach((attendance) => {
         (attendance.activities || []).forEach((activity) => {
           const siteId = activity.site_id;
@@ -52,7 +47,6 @@ function Dashboard() {
           if (!site) return;
 
           if (!site.employeeMap[empId]) {
-            // Find employee info from assignments
             const empInfo = assignments.find(a => a.employee?.id === empId);
             site.employeeMap[empId] = {
               id: empId,
@@ -64,13 +58,11 @@ function Dashboard() {
         });
       });
 
-      // ✅ STEP 3: COUNT SUBCONTRACTORS (Only active people)
       groupedSites.forEach((site) => {
         const quasiCounts = {};
         const fixedCounts = {};
 
         Object.keys(site.employeeMap).forEach((empId) => {
-          // Get the specific assignment for this person at THIS site
           const assignment = assignments.find(
             (a) => a.employee?.id === empId && a.site?.site_id === site.id
           );
@@ -97,7 +89,6 @@ function Dashboard() {
         }));
       });
 
-      // ✅ STEP 4: FINAL STATUS PROCESSING
       groupedSites.forEach((site) => {
         let siteHasActive = false;
 
@@ -156,13 +147,11 @@ function Dashboard() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-white px-5 py-4 border-b">
         <span className="font-semibold text-lg">Dashboard</span>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">
           ⏱ Last updated:{" "}
           {new Date().toLocaleTimeString([], {
@@ -171,13 +160,11 @@ function Dashboard() {
           })}
         </div>
 
-        {/* Sites */}
         {assignedSites.map((site) => (
           <div
             key={site.id}
             className="bg-white rounded-2xl shadow-sm overflow-hidden"
           >
-            {/* Header */}
             <div
               className="flex items-center justify-between px-4 py-3 cursor-pointer"
               onClick={() => toggleSite(site.id)}
@@ -199,10 +186,8 @@ function Dashboard() {
               </span>
             </div>
 
-            {/* Content */}
             {openSite === site.id && (
               <div className="border-t px-4 py-4 space-y-4">
-                {/* EMPLOYEES */}
                 <div>
                   <p className="text-xs text-gray-500 mb-2">EMPLOYEES</p>
 
@@ -279,7 +264,6 @@ function Dashboard() {
           </div>
         ))}
 
-        {/* Empty State */}
         {!assignedSites.length && (
           <div className="text-center text-sm text-gray-500 py-10">
             No assigned sites found

@@ -62,7 +62,6 @@ function SegmentModal() {
         return;
       }
 
-      // OFFICE logic
       const tempId = Date.now();
       setSegments(prev => [{ ...segmentObj, segment_id: tempId, _temp: true }, ...prev]);
 

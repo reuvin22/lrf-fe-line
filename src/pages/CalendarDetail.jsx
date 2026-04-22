@@ -103,7 +103,7 @@ function CalendarDetail() {
 
   const fetchTransportExpenses = async () => {
     if (!attendance) {
-      setLocalExpenses([]); // ✅ clear old data
+      setLocalExpenses([]);
       return;
     }
 
@@ -190,7 +190,6 @@ function CalendarDetail() {
         attendance_id: attendance?.attendance_id,
       });
 
-      // optional but BEST PRACTICE:
       const createdSegment = res?.data?.data;
 
       if (createdSegment) {
@@ -260,7 +259,6 @@ function CalendarDetail() {
               })}
             </div>
 
-            {/* Summary */}
             <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
               <div className="flex justify-between">
                 <span>Actual</span>
@@ -279,7 +277,6 @@ function CalendarDetail() {
               </div>
               <hr />
 
-              {/* Subcontractors */}
               <div className="space-y-1">
                 <span>Subcontractors</span>
                 {subcontractors.length > 0 ? (
@@ -296,7 +293,6 @@ function CalendarDetail() {
               </div>
             </div>
 
-            {/* Actions */}
             <Button
               buttonStyle="primary"
               text={

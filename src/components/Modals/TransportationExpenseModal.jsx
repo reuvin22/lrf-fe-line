@@ -23,10 +23,8 @@ function TransportationExpenseModal({
   const [deletedIds, setDeletedIds] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Reset expenses whenever modal opens
   useEffect(() => {
     if (open) {
-      // Ensure each expense has employee_id and site_id as number
       const normalized = (initialExpenses || []).map(exp => ({
         ...exp,
         employee_id: employeeId,

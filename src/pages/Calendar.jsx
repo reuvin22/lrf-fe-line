@@ -49,7 +49,6 @@ function Calendar() {
     fetchAttendance();
   }, [year, month]);
 
-  // ✅ CLICK DAY
   const handleClick = async (day) => {
     if (!day) return;
 
@@ -57,7 +56,6 @@ function Calendar() {
 
     const formatted = formatDate(year, month, day);
 
-    // ✅ SAVE SELECTED DATE (IMPORTANT FIX)
     setSelectedDate(formatted);
 
     const selectedAttendance = calendar.find(
@@ -129,7 +127,6 @@ function Calendar() {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="text-3xl cursor-pointer">‹</button>
           <h2 className="font-semibold text-gray-800">
@@ -138,7 +135,6 @@ function Calendar() {
           <button onClick={nextMonth} className="text-3xl cursor-pointer">›</button>
         </div>
 
-        {/* Calendar */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <div className="grid grid-cols-7 text-center text-xs text-gray-500 mb-3">
             {days.map((d) => (
