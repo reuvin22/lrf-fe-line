@@ -76,7 +76,12 @@ function ManualTimeModal() {
       setOpenTimeModal(false);
     }
   };
+<<<<<<< HEAD
   
+=======
+
+  // **Render nothing if modal is closed**
+>>>>>>> 0399291fbf912bfc46c8b5be9b1d71658213b13a
   if (!openTimeModal) return null;
 
   return (
@@ -131,11 +136,10 @@ function ManualTimeModal() {
           <button
             onClick={handleSave}
             disabled={!!errorMessage || isLoading}
-            className={`w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center ${
-              errorMessage || isLoading
+            className={`w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center ${errorMessage || isLoading
                 ? "bg-gray-300 text-gray-700 cursor-not-allowed"
                 : "bg-green-500 text-white hover:bg-green-600"
-            }`}
+              }`}
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

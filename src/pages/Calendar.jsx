@@ -55,7 +55,10 @@ function Calendar() {
     setSelectedDay(day);
 
     const formatted = formatDate(year, month, day);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0399291fbf912bfc46c8b5be9b1d71658213b13a
     setSelectedDate(formatted);
 
     const selectedAttendance = calendar.find(
@@ -170,7 +173,6 @@ function Calendar() {
           </div>
         </div>
 
-        {/* Legend */}
         <div className="flex gap-6 text-xs mt-4 text-gray-600">
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-green-500 rounded-full"></span> Entered

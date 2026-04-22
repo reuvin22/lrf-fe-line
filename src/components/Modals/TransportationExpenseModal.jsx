@@ -64,12 +64,12 @@ function TransportationExpenseModal({
       prev.map((exp, i) =>
         i === index
           ? {
-              ...exp,
-              [field]: field === "site_id" ? Number(value) : value,
-              ...(field === "site_id"
-                ? { site_name: sites.find(s => s.id === Number(value))?.name || "" }
-                : {})
-            }
+            ...exp,
+            [field]: field === "site_id" ? Number(value) : value,
+            ...(field === "site_id"
+              ? { site_name: sites.find(s => s.id === Number(value))?.name || "" }
+              : {})
+          }
           : exp
       )
     );

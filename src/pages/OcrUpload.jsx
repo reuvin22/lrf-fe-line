@@ -109,10 +109,14 @@ function OcrUpload() {
     setLoading(true);
     console.log(categories)
     try {
-      let base64Image = null;
+      let imageBase64Payload;
 
-      if (imageFile) {
-        base64Image = await convertToBase64(imageFile);
+      if (removeImage) {
+        imageBase64Payload = "";
+      } else if (imageFile) {
+        imageBase64Payload = await convertToBase64(imageFile);
+      } else {
+        imageBase64Payload = undefined;
       }
 
       const fileName = previousImagePath
@@ -129,7 +133,7 @@ function OcrUpload() {
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
-        image_path: null,
+        image_path: imagePreview ? imagePreview : "",
         ocr_result_amount: null,
         ocr_result_date: null,
         ocr_result_raw: null,
@@ -139,9 +143,12 @@ function OcrUpload() {
         note: note || null,
         uploaded_at: new Date().toISOString(),
         processed_at: null,
-        image_base64: removeImage ? "" : (base64Image ?? null),
         previous_image_path: fileName
       };
+
+      if (imageBase64Payload !== undefined) {
+        payload.image_base64 = imageBase64Payload;
+      }
 
       console.log(payload)
       if (editItem) {
@@ -173,7 +180,7 @@ function OcrUpload() {
   const handleEdit = (item) => {
     setEditItem(item);
     setRemoveImage(false);
-
+    console.log(item.image_path)
     const fixedUrl = item.image_path?.replace(/\\\//g, "/");
     setImagePreview(fixedUrl);
 
@@ -298,17 +305,17 @@ function OcrUpload() {
           <div>
             <label className="text-sm text-gray-600 font-medium">Site *</label>
             <select
-                className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-              >
-                <option value="">Select Site</option>
-                {sites.map((s) => (
-                  <option key={s.site_id} value={s.site_id}>
-                    {s.site_name}
-                  </option>
-                ))}
-              </select>
+              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+            >
+              <option value="">Select Site</option>
+              {sites.map((s) => (
+                <option key={s.site_id} value={s.site_id}>
+                  {s.site_name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -362,12 +369,12 @@ function OcrUpload() {
             <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">
-                  {item.category?.category_name || "No Category"} - {item.site?.site_name || "No Site"}{" "} 
+                  {item.category?.category_name || "No Category"} - {item.site?.site_name || "No Site"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : ""}
                 </p>
                 <div className="flex gap-2">

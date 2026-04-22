@@ -15,7 +15,6 @@ import {
   segmentApi,
   siteAssignmentApi,
   transportationExpensesApi,
-  getAttendanceSubcontractor,
 } from "../api/Api";
 
 import { formattedTime } from "../utils/formattedTime";
@@ -25,10 +24,10 @@ import { toast } from "react-toastify";
 function CalendarDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendanceCalendar, selectedDate, employee } = useAttendanceContext();
+  const { attendanceCalendar, selectedDate, employee, fetchAttendanceCalendar } = useAttendanceContext();
   const displayDate = selectedDate
-  ? formatWorkDate(selectedDate)
-  : "No Date";
+    ? formatWorkDate(selectedDate)
+    : "No Date";
 
   const { segments, setSegments, setOpenSegmentModal, setRecordType, setSelectedSegment: setSegmentType } = useSegmentContext();
   const { sites, setSites } = useLocationContext();
@@ -36,9 +35,9 @@ function CalendarDetail() {
   const [editingSegment, setEditingSegment] = useState(null);
   const [siteAssign, setSiteAssign] = useState([]);
   const [localExpenses, setLocalExpenses] = useState([]);
-  const [subcontractors, setSubcontractors] = useState([]);
 
   const attendanceRaw = attendanceCalendar.find(a => a.work_date === selectedDate)
+
   const attendance = useMemo(() => {
     if (!attendanceRaw) return null;
     return {
@@ -74,39 +73,50 @@ function CalendarDetail() {
     };
 
     fetchSiteAssignment();
-    }, [employee]);
+  }, [employee]);
 
-    const fetchSegments = useCallback(async () => {
-      const attendanceId = attendance?.attendance_id;
+  const subcontractors = useMemo(() => {
+    if (!attendance) return [];
 
-      if (!attendanceId) {
-        setSegments([]);
-        return;
-      }
+    const raw = attendance.attendance_subcontractor_segments || [];
 
-      try {
-        const res = await segmentApi.getAll({
-          attendance_id: attendanceId,
-        });
+    const unique = Array.from(
+      new Map(raw.map(item => [item.company_name, item])).values()
+    );
 
-        setSegments(res?.data?.data || []);
-      } catch (err) {
-        console.error("Failed to fetch segments:", err);
-      }
-    }, [attendance?.attendance_id, setSegments]);
+    return unique;
+  }, [attendance]);
 
-    useEffect(() => {
-      if (attendance) {
-        fetchSegments();
-      }
-    }, [attendance, fetchSegments])
+  const fetchSegments = useCallback(async () => {
+    const attendanceId = attendance?.attendance_id;
+
+    if (!attendanceId) {
+      setSegments([]);
+      return;
+    }
+
+    try {
+      const res = await segmentApi.getAll({
+        attendance_id: attendanceId,
+      });
+
+      setSegments(res?.data?.data || []);
+    } catch (err) {
+      console.error("Failed to fetch segments:", err);
+    }
+  }, [attendance?.attendance_id, setSegments]);
+
+  useEffect(() => {
+    if (attendance) {
+      fetchSegments();
+    }
+  }, [attendance, fetchSegments])
 
   const fetchTransportExpenses = async () => {
     if (!attendance) {
       setLocalExpenses([]);
       return;
     }
-
     try {
       const res = await transportationExpensesApi.getAll({
         attendance_id: attendance.attendance_id,
@@ -120,25 +130,6 @@ function CalendarDetail() {
   useEffect(() => {
     fetchTransportExpenses();
   }, [attendance, location.key]);
-
-  const fetchSubcontractors = async () => {
-    if (!attendance?.attendance_id) {
-      setSubcontractors([]);
-      return;
-    }
-    try {
-      const res = await getAttendanceSubcontractor.getAll({
-        attendance_id: attendance.attendance_id,
-      });
-      setSubcontractors(res?.data?.data || []);
-    } catch (err) {
-      console.error("Failed to fetch subcontractors:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchSubcontractors();
-  }, [attendance]);
 
   const totalTransportAmount = useMemo(() => {
     return localExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -281,9 +272,9 @@ function CalendarDetail() {
                 <span>Subcontractors</span>
                 {subcontractors.length > 0 ? (
                   subcontractors.map((item) => (
-                    <p key={item.id} className="text-sm mt-1">
-                      {item.subcontractor?.company_name || "Unknown"} —{" "}
-                      {item.worker?.name || "Worker"}{" "}
+                    <p key={item.uuid} className="text-sm mt-1">
+                      {item.subcontractor?.company_name || item.company_name || "Unknown"} —{" "}
+                      {" "}
                       {item.start_time?.slice(11, 16)}–{item.end_time?.slice(11, 16)}
                     </p>
                   ))
@@ -317,12 +308,12 @@ function CalendarDetail() {
               }
             />
 
-              <Button
-                buttonStyle="primary"
-                text="Edit Subcontractor"
-                customButton="bg-lime-500"
-                onClick={() => navigate("/subcontractor", { state: { from: "subcontractor" } })}
-              />
+            <Button
+              buttonStyle="primary"
+              text="Edit Subcontractor"
+              customButton="bg-lime-500"
+              onClick={() => navigate("/subcontractor", { state: { from: "subcontractor" } })}
+            />
           </>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button";
 import { toast } from "react-toastify";
+import ConfirmationModal from "../components/Modals/ConfirmationModal";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -12,7 +13,12 @@ function TransportationExpenseScreen({ onDone }) {
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [segmentSites, setSegmentSites] = useState([]);
-
+  const [confirmData, setConfirmData] = useState({
+    open: false,
+    index: null,
+    loading: false,
+  });
+  const [deletedIds, setDeletedIds] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "default";
@@ -39,11 +45,11 @@ function TransportationExpenseScreen({ onDone }) {
 
           return {
             ...exp,
+            id: exp.id ?? exp.expense_id,
             isExisting: true,
             site_name: exp.site_name || matchedSite?.name || "-",
           };
         });
-
       } catch (err) {
         console.error("Failed to fetch transport expenses:", err);
       }
@@ -59,6 +65,7 @@ function TransportationExpenseScreen({ onDone }) {
         const res = await attendanceApi.getAll();
         const attendanceList = res.data.data || [];
         const segments = attendanceList.flatMap((a) => a.segments || []);
+        // only sites that have a name
         const uniqueSites = Array.from(
           new Map(
             segments
@@ -83,77 +90,106 @@ function TransportationExpenseScreen({ onDone }) {
   };
 
   const handleAdd = () => {
-  if (!amount || !site) {
-    toast.error("Amount and Site are required");
-    return;
-  }
-
-  if (!attendance?.attendance_id || !attendance?.employee_id) {
-    toast.error("System error: attendance not ready");
-    return;
-  }
-
-  const selectedSiteId = Number(site);
-  console.log("Selected site ID:", selectedSiteId);
-  console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
-
-  const selectedSite = segmentSites.find((s) => String(s.id) === site);
-  if (!selectedSite) {
-    toast.error("Selected site is invalid. Please select a site from the dropdown.");
-    return;
-  }
-
-  const newExpense = {
-    employee: attendance.employee_id,
-    attendance_id: attendance.attendance_id,
-    amount: Number(amount),
-    route: route || null,
-    site_id: selectedSite.id,
-    site_name: selectedSite.name,
-  };
-
-  console.log("📦 Payload being added:", newExpense);
-
-  setExpenses((prev) => [...prev, newExpense]);
-  setAmount("");
-  setRoute("");
-  setSite("");
-};
-
-  const handleDone = async () => {
-    if (!attendance?.attendance_id) {
-      console.error("❌ attendance_id missing on submit");
+    if (!amount || !site) {
+      toast.error("Amount and Site are required");
       return;
     }
+
+    if (!attendance?.attendance_id || !attendance?.employee_id) {
+      toast.error("System error: attendance not ready");
+      return;
+    }
+
+    const selectedSiteId = Number(site);
+    console.log("Selected site ID:", selectedSiteId);
+    console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
+
+    const selectedSite = segmentSites.find((s) => String(s.id) === site);
+    if (!selectedSite) {
+      toast.error("Selected site is invalid. Please select a site from the dropdown.");
+      return;
+    }
+
+    const newExpense = {
+      employee: attendance.employee_id,
+      attendance_id: attendance.attendance_id,
+      amount: Number(amount),
+      route: route || null,
+      site_id: selectedSite.id,
+      site_name: selectedSite.name,
+    };
+
+    console.log("📦 Payload being added:", newExpense);
+
+    setExpenses((prev) => [...prev, newExpense]);
+    setAmount("");
+    setRoute("");
+    setSite("");
+  };
+
+  const handleDone = async () => {
+    if (!attendance?.attendance_id) return;
 
     const newExpenses = expenses.filter(exp => !exp.isExisting);
 
-    if (newExpenses.length === 0) {
-      onDone && onDone(expenses);
-      handleRedirect();
-      return;
-    }
-
     setIsLoading(true);
-    try {
-      const payload = newExpenses.map((exp) => ({
-        employee_id: attendance.employee_id,
-        attendance_id: attendance.attendance_id,
-        amount: exp.amount,
-        route: exp.route,
-        site_id: exp.site_id,
-      }));
 
-      await transportationExpensesApi.create(payload);
-      toast.success('Saved Successfully!')
+    try {
+      // ✅ CREATE new
+      if (newExpenses.length > 0) {
+        const payload = newExpenses.map((exp) => ({
+          employee_id: attendance.employee_id,
+          attendance_id: attendance.attendance_id,
+          amount: exp.amount,
+          route: exp.route,
+          site_id: exp.site_id,
+        }));
+
+        console.log("📦 CREATE PAYLOAD:", payload);
+
+        await transportationExpensesApi.create(payload);
+      }
+
+      // ✅ DELETE collected
+      if (deletedIds.length > 0) {
+        console.log("🗑️ DELETE IDS:", deletedIds);
+
+        await transportationExpensesApi.delete({
+          ids: deletedIds,
+        });
+      }
+
+      toast.success("Saved Successfully!");
       onDone && onDone(expenses);
       handleRedirect();
+
     } catch (err) {
-      console.error("❌ Failed to save expenses:", err);
-      toast.error("Failed to save expenses");
+      console.error("❌ Failed:", err);
+      toast.error("Failed to save changes");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmDelete = () => {
+    const exp = expenses[confirmData.index];
+    if (!exp) return;
+
+    if (exp.isExisting && exp.id) {
+      setDeletedIds((prev) => [...prev, exp.id]);
+    }
+
+    setExpenses((prev) =>
+      prev.filter((_, i) => i !== confirmData.index)
+    );
+
+    setConfirmData({ open: false, index: null, loading: false });
+
+    toast.success("Removed");
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmData({ open: false, index: null });
   };
 
   return (
@@ -165,7 +201,9 @@ function TransportationExpenseScreen({ onDone }) {
         <p>※ Enter ad-hoc transport costs (train/bus) only</p>
       </div>
 
+      {/* Inputs */}
       <div className="space-y-3">
+        {/* Amount */}
         <div>
           <label className="text-sm text-gray-500">Amount</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
@@ -192,6 +230,7 @@ function TransportationExpenseScreen({ onDone }) {
           />
         </div>
 
+        {/* Site */}
         <div>
           <label className="block text-sm text-gray-700 mb-1">Site</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
@@ -211,6 +250,7 @@ function TransportationExpenseScreen({ onDone }) {
           </div>
         </div>
 
+        {/* Add Button */}
         <button
           onClick={handleAdd}
           className="w-full bg-blue-500 text-white py-2 rounded-lg"
@@ -219,6 +259,7 @@ function TransportationExpenseScreen({ onDone }) {
         </button>
       </div>
 
+      {/* List */}
       <div className="space-y-2 mt-4">
         {expenses.map((exp, index) => (
           <div
@@ -231,11 +272,13 @@ function TransportationExpenseScreen({ onDone }) {
               <span className="text-gray-500">{exp.site_name}</span>
             </div>
             <div className="flex gap-2">
+              {/* Edit Icon */}
               <button
                 onClick={() => {
                   setAmount(exp.amount);
                   setRoute(exp.route || "");
                   setSite(String(exp.site_id));
+                  // Remove the item temporarily so adding will overwrite
                   setExpenses(prev => prev.filter((_, i) => i !== index));
                 }}
                 className="text-blue-500 hover:text-blue-700"
@@ -246,9 +289,11 @@ function TransportationExpenseScreen({ onDone }) {
 
               <button
                 onClick={() => {
-                  if (window.confirm("Are you sure you want to delete this expense?")) {
-                    setExpenses(prev => prev.filter((_, i) => i !== index));
-                  }
+                  setConfirmData({
+                    open: true,
+                    index,
+                    loading: false,
+                  });
                 }}
                 className="text-red-500 hover:text-red-700"
                 title="Delete"
@@ -278,6 +323,16 @@ function TransportationExpenseScreen({ onDone }) {
           onClick={handleRedirect}
         />
       </div>
+      <ConfirmationModal
+        message={
+          confirmData.open
+            ? `Delete expense ¥${expenses[confirmData.index]?.amount}?`
+            : null
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmData({ open: false, index: null, loading: false })}
+        loading={confirmData.loading}
+      />
     </div>
   );
 }

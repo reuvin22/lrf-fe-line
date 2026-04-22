@@ -48,7 +48,7 @@ const Loading = () => {
               animation: showLetters ? `letter-bounce 0.6s ease-in-out infinite` : "none",
               animationDelay: `${i * 0.15}s`,
               textShadow: "2px 3px 0px rgba(0,0,0,0.1)",
-              fontFamily: "'Comic Sans MS', 'Chalkboard SE', cursive",
+              fontFamily: "'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', system-ui, sans-serif",
             }}
           >
             {letter.char}
