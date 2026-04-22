@@ -76,12 +76,7 @@ function ManualTimeModal() {
       setOpenTimeModal(false);
     }
   };
-<<<<<<< HEAD
   
-=======
-
-  // **Render nothing if modal is closed**
->>>>>>> 0399291fbf912bfc46c8b5be9b1d71658213b13a
   if (!openTimeModal) return null;
 
   return (
