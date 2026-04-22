@@ -31,8 +31,6 @@ function SubContractor({ onRefetch }) {
   const location = useLocation();
   const { attendance, employee } = useAttendanceContext();
   const { sites: assignedSites } = useLocationContext();
-  const { fetchAttendanceCalendar } = useAttendanceContext()
-  // ✅ INIT
   useEffect(() => {
     const init = async () => {
       try {
@@ -87,8 +85,7 @@ function SubContractor({ onRefetch }) {
 
         if (!grouped[key]) {
           const matchedSub = subsList.find(
-            (s) =>
-              Number(s.subcontractor_id) === Number(subcontractorId)
+            (s) => Number(s.subcontractor_id) === Number(subcontractorId)
           );
 
           grouped[key] = {
@@ -156,7 +153,6 @@ function SubContractor({ onRefetch }) {
     }
   };
 
-  // ✅ ADD COMPANY
   const addCompany = () => {
     if (assignedSites.length === 0 && constructionSites.length === 0) {
       toast.error("No available construction sites");
@@ -179,64 +175,57 @@ function SubContractor({ onRefetch }) {
     ]);
   };
 
-  // ✅ WORKERS
-  const addWorker = (cIndex) => {
-    const updated = [...companies];
-    updated[cIndex].workers.push({
-      name: "",
-      worker_id: null,
-      start: "09:00",
-      end: "17:30",
-    });
-    setCompanies(updated);
-  };
-
-  const deleteWorker = (cIndex, wIndex) => {
-    const worker = companies[cIndex].workers[wIndex];
-
-    console.log("🗑️ Deleting worker UUID:", worker.uuid);
-
-    if (worker.uuid) {
-      setDeletedWorkers((prev) => [...prev, worker.uuid]);
-    }
-
+  const addWorker = (company) => {
     setCompanies((prev) =>
-      prev.map((c, i) =>
-        i === cIndex
-          ? { ...c, workers: c.workers.filter((_, idx) => idx !== wIndex) }
+      prev.map((c) =>
+        c === company
+          ? {
+              ...c,
+              workers: [
+                ...c.workers,
+                { name: "", worker_id: null, start: "09:00", end: "17:30" },
+              ],
+            }
           : c
       )
     );
   };
 
-  const bulkSet = (cIndex, start, end) => {
-    setCompanies((prev) => {
-      const updated = [...prev];
-      updated[cIndex].workers = updated[cIndex].workers.map((w) => ({
-        ...w,
-        start,
-        end,
-      }));
-      return updated;
-    });
+  const deleteWorker = (company, worker) => {
+    if (worker.uuid) {
+      setDeletedWorkers((prev) => [...prev, worker.uuid]);
+    }
+
+    setCompanies((prev) =>
+      prev.map((c) =>
+        c === company
+          ? { ...c, workers: c.workers.filter((w) => w !== worker) }
+          : c
+      )
+    );
   };
 
-  const deleteCompanyApi = async (index) => {
-    const company = companies[index];
+  const bulkSet = (company, start, end) => {
+    setCompanies((prev) =>
+      prev.map((c) =>
+        c === company
+          ? { ...c, workers: c.workers.map((w) => ({ ...w, start, end })) }
+          : c
+      )
+    );
+  };
 
-    const uuids = company.workers
-      .map((w) => w.uuid)
-      .filter(Boolean);
+  const deleteCompanyApi = (company) => {
+    const uuids = company.workers.map((w) => w.uuid).filter(Boolean);
 
-    console.log("🗑️ Deleting company:", {
-      site: company.site_name,
-      company: company.company,
-      workerUUIDs: uuids,
-    });
+    console.log("🗑️ Deleting site/company:", company.site_name, "|", company.company);
+    console.log("🗑️ Worker UUIDs to delete:", uuids);
 
-    setDeletedWorkers((prev) => [...prev, ...uuids]);
+    if (uuids.length > 0) {
+      setDeletedWorkers((prev) => [...prev, ...uuids]);
+    }
 
-    setCompanies((prev) => prev.filter((_, i) => i !== index));
+    setCompanies((prev) => prev.filter((c) => c !== company));
   };
 
   const ensureWorkerExists = async (worker, company) => {
@@ -262,12 +251,11 @@ function SubContractor({ onRefetch }) {
       });
 
       const workerId = workerRes.data.data.worker_id;
-      console.log(workerId)
+      console.log(workerId);
       return {
         worker_id: workerId,
         employee_id: employeeId,
       };
-
     } catch (err) {
       console.error("❌ Failed to create worker:", err);
       throw err;
@@ -287,7 +275,7 @@ function SubContractor({ onRefetch }) {
 
           finalWorkerId = ids.worker_id;
           finalEmployeeId = ids.employee_id;
-          console.log(finalWorkerId, finalEmployeeId)
+          console.log(finalWorkerId, finalEmployeeId);
 
           worker.worker_id = finalWorkerId;
           worker.employee_id = finalEmployeeId;
@@ -298,7 +286,6 @@ function SubContractor({ onRefetch }) {
           company_id: company.subcontractor_id,
           company_name: company.company,
 
-          // ✅ IMPORTANT
           employee_id: finalEmployeeId,
           worker_id: finalWorkerId,
 
@@ -336,6 +323,7 @@ function SubContractor({ onRefetch }) {
         await saveCompany(company);
       }
 
+      setDeletedWorkers([]);
       toast.success("Saved successfully!");
 
       onRefetch?.();
@@ -352,6 +340,125 @@ function SubContractor({ onRefetch }) {
     }
   };
 
+  const handleCompanyChange = (company, newValue) => {
+    const selectedSub = allSubcontractors.find(
+      (s) =>
+        s.company_name ===
+        (typeof newValue === "string"
+          ? newValue
+          : newValue?.company_name)
+    );
+
+    setCompanies((prev) =>
+      prev.map((c) => {
+        if (c !== company) return c;
+
+        if (selectedSub) {
+          return {
+            ...c,
+            company: selectedSub.company_name,
+            subcontractor_id: selectedSub.subcontractor_id,
+            availableWorkers: selectedSub.workers || [],
+            workers: [
+              {
+                name: "",
+                worker_id: null,
+                start: "09:00",
+                end: "17:30",
+              },
+            ],
+          };
+        }
+
+        return {
+          ...c,
+          company:
+            typeof newValue === "string"
+              ? newValue
+              : newValue?.company_name || "",
+          subcontractor_id: null,
+          availableWorkers: [],
+          workers: [
+            {
+              name: "",
+              worker_id: null,
+              start: "09:00",
+              end: "17:30",
+            },
+          ],
+        };
+      })
+    );
+  };
+
+  const handleWorkerChange = (company, worker, newValue) => {
+    setCompanies((prev) =>
+      prev.map((c) => {
+        if (c !== company) return c;
+
+        return {
+          ...c,
+          workers: c.workers.map((w) => {
+            if (w !== worker) return w;
+
+            if (typeof newValue === "string") {
+              return {
+                ...w,
+                name: newValue,
+                worker_id: null,
+              };
+            }
+
+            if (newValue) {
+              return {
+                ...w,
+                name: newValue.name,
+                worker_id: newValue.worker_id,
+              };
+            }
+
+            return w;
+          }),
+        };
+      })
+    );
+  };
+
+  const getCompanyValue = (company) => {
+    return (
+      allSubcontractors.find(
+        (s) => s.company_name === company.company
+      ) ||
+      company.company ||
+      ""
+    );
+  };
+
+  const getWorkerValue = (company, worker) => {
+    return (
+      company.availableWorkers?.find(
+        (w) => w.worker_id === worker.worker_id
+      ) ||
+      worker.name ||
+      ""
+    );
+  };
+
+  const handleWorkerTimeChange = (company, worker, field, value) => {
+    setCompanies((prev) =>
+      prev.map((c) => {
+        if (c !== company) return c;
+
+        return {
+          ...c,
+          workers: c.workers.map((w) =>
+            w !== worker ? w : { ...w, [field]: value }
+          ),
+        };
+      })
+    );
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
       <div className="w-full p-6 space-y-6 flex flex-col">
@@ -363,25 +470,26 @@ function SubContractor({ onRefetch }) {
           {companies
             .filter((company) => {
               if (location.state?.from === "subcontractor") return true;
-              return constructionSites.some((site) => site.site_id === company.site_id);
-            })
-            .map((company, cIndex) => {
-              const currentSite = constructionSites.find(
+              return constructionSites.some(
                 (site) => site.site_id === company.site_id
               );
-
-              const companyOptions = allSubcontractors.map((sub) => sub.company_name);
+            })
+            .map((company, cIndex) => {
+              const companyOptions = allSubcontractors.map(
+                (sub) => sub.company_name
+              );
 
               return (
                 <div key={cIndex} className="border rounded-xl p-4 space-y-4">
                   <p className="text-sm text-gray-600 mb-4">
-                    Site: <span className="font-medium">{company.site_name}</span>
+                    Site:{" "}
+                    <span className="font-medium">{company.site_name}</span>
                   </p>
 
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-sm text-gray-600">Company</label>
                     <button
-                      onClick={() => deleteCompanyApi(cIndex)}
+                      onClick={() => deleteCompanyApi(company)}
                       className="text-red-500 hover:text-red-700"
                     >
                       <X size={20} />
@@ -391,56 +499,24 @@ function SubContractor({ onRefetch }) {
                   <Autocomplete
                     freeSolo
                     options={companyOptions}
-                    isOptionEqualToValue={(option, value) => option === value}
-                    getOptionLabel={(option) =>
-                      typeof option === "string" ? option : option.company_name || ""
+                    value={getCompanyValue(company)}
+                    onChange={(e, newValue) =>
+                      handleCompanyChange(company, newValue)
                     }
-                    value={
-                      allSubcontractors.find(
-                        (s) => s.company_name === company.company
-                      ) || company.company || ""
-                    }
-                    onChange={(e, newValue) => {
-                      const updated = [...companies];
-
-                      const selectedSub = allSubcontractors.find(
-                        (s) =>
-                          s.company_name ===
-                          (typeof newValue === "string"
-                            ? newValue
-                            : newValue?.company_name)
-                      );
-
-                      if (selectedSub) {
-                        updated[cIndex].company = selectedSub.company_name;
-                        updated[cIndex].subcontractor_id = selectedSub.subcontractor_id;
-
-                        // ✅ attach workers for dropdown
-                        updated[cIndex].availableWorkers = selectedSub.workers || [];
-                      } else {
-                        updated[cIndex].company =
-                          typeof newValue === "string"
-                            ? newValue
-                            : newValue?.company_name || "";
-
-                        updated[cIndex].subcontractor_id = null;
-                        updated[cIndex].availableWorkers = [];
-                      }
-
-                      // ✅ reset workers when company changes
-                      updated[cIndex].workers = [
-                        { name: "", worker_id: null, start: "09:00", end: "17:30" },
-                      ];
-
-                      setCompanies(updated);
-                    }}
                     renderInput={(params) => (
-                      <TextField {...params} placeholder="Select or type Company" size="small" fullWidth />
+                      <TextField
+                        {...params}
+                        placeholder="Select or type Company"
+                        size="small"
+                        fullWidth
+                      />
                     )}
                   />
 
                   <div className="mt-2">
-                    <label className="text-sm text-gray-600">Contract Type</label>
+                    <label className="text-sm text-gray-600">
+                      Contract Type
+                    </label>
                     <p className="text-sm">{company.contract}</p>
                   </div>
 
@@ -457,16 +533,21 @@ function SubContractor({ onRefetch }) {
                         company.availableWorkers?.filter((option) => {
                           return !selectedWorkers.some(
                             (w) =>
-                              (w.worker_id && w.worker_id === option.worker_id) ||
+                              (w.worker_id &&
+                                w.worker_id === option.worker_id) ||
                               (!w.worker_id && w.name === option.name)
                           );
                         }) || [];
+
                       return (
-                        <div key={wIndex} className="relative border rounded-lg p-2">
+                        <div
+                          key={wIndex}
+                          className="relative border rounded-lg p-2"
+                        >
                           <div className="flex flex-col gap-1">
                             {company.workers.length > 1 && (
                               <button
-                                onClick={() => deleteWorker(cIndex, wIndex)}
+                                onClick={() => deleteWorker(company, worker)}
                                 className="text-red-500 hover:text-red-700 place-self-end"
                               >
                                 <X size={18} />
@@ -476,43 +557,13 @@ function SubContractor({ onRefetch }) {
                             <Autocomplete
                               freeSolo
                               options={workerOptions}
-                              getOptionLabel={(option) =>
-                                typeof option === "string" ? option : option.name || ""
+                              value={getWorkerValue(company, worker)}
+                              onChange={(e, newValue) =>
+                                handleWorkerChange(company, worker, newValue)
                               }
-                              value={
-                                company.availableWorkers?.find(
-                                  (w) => w.worker_id === worker.worker_id
-                                ) || worker.name || ""
+                              onInputChange={(e, newInputValue) =>
+                                handleWorkerInputChange(company, worker, newInputValue)
                               }
-                              onChange={(e, newValue) => {
-                                const updated = [...companies];
-
-                                if (typeof newValue === "string") {
-                                  updated[cIndex].workers[wIndex] = {
-                                    ...updated[cIndex].workers[wIndex],
-                                    name: newValue,
-                                    worker_id: null,
-                                  };
-                                } else if (newValue) {
-                                  updated[cIndex].workers[wIndex] = {
-                                    ...updated[cIndex].workers[wIndex],
-                                    name: newValue.name,
-                                    worker_id: newValue.worker_id,
-                                  };
-                                }
-
-                                setCompanies(updated);
-                              }}
-                              onInputChange={(e, newInputValue) => {
-                                const updated = [...companies];
-
-                                updated[cIndex].workers[wIndex] = {
-                                  ...updated[cIndex].workers[wIndex],
-                                  name: newInputValue || "",
-                                };
-
-                                setCompanies(updated);
-                              }}
                               renderInput={(params) => (
                                 <TextField
                                   {...params}
@@ -530,27 +581,22 @@ function SubContractor({ onRefetch }) {
                               <input
                                 type="time"
                                 value={worker.start}
-                                onChange={(e) => {
-                                  const updated = [...companies];
-                                  updated[cIndex].workers[wIndex].start = e.target.value;
-                                  setCompanies(updated);
-                                }}
-                                className="w-full outline-none text-sm min-w-0"
+                                onChange={(e) =>
+                                  handleWorkerTimeChange(company, worker, "start", e.target.value)
+                                }
                               />
                             </div>
 
                             <div className="flex items-center border rounded-lg px-2 py-1 flex-1 min-w-0">
                               <Clock size={16} className="mr-1 text-gray-400" />
                               <input
-                                type="time"
-                                value={worker.end}
-                                onChange={(e) => {
-                                  const updated = [...companies];
-                                  updated[cIndex].workers[wIndex].end = e.target.value;
-                                  setCompanies(updated);
-                                }}
-                                className="w-full outline-none text-sm min-w-0"
-                              />
+                                  type="time"
+                                  value={worker.end}
+                                  onChange={(e) =>
+                                    handleWorkerTimeChange(company, worker, "end", e.target.value)
+                                  }
+                                  className="w-full outline-none text-sm min-w-0"
+                                />
                             </div>
                           </div>
                         </div>
@@ -560,14 +606,14 @@ function SubContractor({ onRefetch }) {
 
                   <div className="flex flex-col gap-2 mt-2">
                     <button
-                      onClick={() => addWorker(cIndex)}
+                      onClick={() => addWorker(company)}
                       className="text-green-600 text-sm flex items-center gap-1"
                     >
                       <Plus size={16} /> Add Worker
                     </button>
 
                     <button
-                      onClick={() => bulkSet(cIndex, "09:00", "18:00")}
+                      onClick={() => bulkSet(company, "09:00", "18:00")}
                       className="text-blue-600 text-sm"
                     >
                       Bulk Set: Same time for all
@@ -588,13 +634,16 @@ function SubContractor({ onRefetch }) {
         <div className="mt-6 border-t pt-4 space-y-3">
           <p className="font-semibold text-sm">Entered</p>
 
-          {companies.filter((company) => {
-            if (location.state?.from === "subcontractor") return true;
-            return (
-              company.site_id &&
-              constructionSites.some((site) => site.site_id === company.site_id)
-            );
-          })
+          {companies
+            .filter((company) => {
+              if (location.state?.from === "subcontractor") return true;
+              return (
+                company.site_id &&
+                constructionSites.some(
+                  (site) => site.site_id === company.site_id
+                )
+              );
+            })
             .map((company, cIndex) => (
               <div key={cIndex}>
                 <p className="text-sm font-medium">

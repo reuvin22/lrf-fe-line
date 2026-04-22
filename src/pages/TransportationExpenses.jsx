@@ -65,7 +65,6 @@ function TransportationExpenseScreen({ onDone }) {
         const res = await attendanceApi.getAll();
         const attendanceList = res.data.data || [];
         const segments = attendanceList.flatMap((a) => a.segments || []);
-        // only sites that have a name
         const uniqueSites = Array.from(
           new Map(
             segments
@@ -135,7 +134,6 @@ function TransportationExpenseScreen({ onDone }) {
     setIsLoading(true);
 
     try {
-      // ✅ CREATE new
       if (newExpenses.length > 0) {
         const payload = newExpenses.map((exp) => ({
           employee_id: attendance.employee_id,
@@ -150,7 +148,6 @@ function TransportationExpenseScreen({ onDone }) {
         await transportationExpensesApi.create(payload);
       }
 
-      // ✅ DELETE collected
       if (deletedIds.length > 0) {
         console.log("🗑️ DELETE IDS:", deletedIds);
 
@@ -203,7 +200,6 @@ function TransportationExpenseScreen({ onDone }) {
 
       {/* Inputs */}
       <div className="space-y-3">
-        {/* Amount */}
         <div>
           <label className="text-sm text-gray-500">Amount</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
@@ -218,7 +214,6 @@ function TransportationExpenseScreen({ onDone }) {
           </div>
         </div>
 
-        {/* Route */}
         <div>
           <label className="text-sm text-gray-500">Route (optional)</label>
           <input
@@ -230,7 +225,6 @@ function TransportationExpenseScreen({ onDone }) {
           />
         </div>
 
-        {/* Site */}
         <div>
           <label className="block text-sm text-gray-700 mb-1">Site</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
@@ -250,7 +244,6 @@ function TransportationExpenseScreen({ onDone }) {
           </div>
         </div>
 
-        {/* Add Button */}
         <button
           onClick={handleAdd}
           className="w-full bg-blue-500 text-white py-2 rounded-lg"
@@ -259,7 +252,6 @@ function TransportationExpenseScreen({ onDone }) {
         </button>
       </div>
 
-      {/* List */}
       <div className="space-y-2 mt-4">
         {expenses.map((exp, index) => (
           <div
@@ -272,13 +264,11 @@ function TransportationExpenseScreen({ onDone }) {
               <span className="text-gray-500">{exp.site_name}</span>
             </div>
             <div className="flex gap-2">
-              {/* Edit Icon */}
               <button
                 onClick={() => {
                   setAmount(exp.amount);
                   setRoute(exp.route || "");
                   setSite(String(exp.site_id));
-                  // Remove the item temporarily so adding will overwrite
                   setExpenses(prev => prev.filter((_, i) => i !== index));
                 }}
                 className="text-blue-500 hover:text-blue-700"
