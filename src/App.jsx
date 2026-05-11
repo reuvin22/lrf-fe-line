@@ -10,13 +10,16 @@ import Dashboard from "./pages/Dashboard";
 import TransportationExpense from "./pages/TransportationExpenses";
 import SubContractor from "./pages/SubContractor";
 import { useAttendanceContext } from "./context/AttendanceContext";
+import { useLiff } from "./context/LiffContext";
 import Loading from "./components/Loading";
 import PendingApproval from "./pages/PendingApproval";
 import { ToastContainer } from "react-toastify";
 
 function App() {
   const { attendance, employee, attendanceLoading, isProfileIncomplete } = useAttendanceContext();
+  const { loading: liffLoading, loggedIn: liffLoggedIn } = useLiff();
 
+  if (liffLoading || !liffLoggedIn) return <Loading />;
   if (attendanceLoading) return <Loading />;
   if (isProfileIncomplete) return <PendingApproval />;
   if (!attendance || !employee) return <Loading />;

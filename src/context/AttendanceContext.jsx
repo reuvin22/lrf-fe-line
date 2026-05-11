@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { attendanceApi, employeeApi, attendanceEmployeeSegment, siteAssignmentApi } from "../api/Api";
-import liff from "@line/liff";
-import environment from "../environment";
+import { useLiff } from "./LiffContext";
 
 export const AttendanceContext = createContext();
 
@@ -15,6 +14,8 @@ export const AttendanceProvider = ({ children }) => {
   const [sites, setSites] = useState([]);
   const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
 
+  const { profile: lineProfile, loading: liffLoading, loggedIn: liffLoggedIn } = useLiff();
+
   const isEmployeeComplete = (emp) => {
     if (!emp) return false;
     if (String(emp.status).toUpperCase() === "PENDING") return false;
@@ -26,17 +27,13 @@ export const AttendanceProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    if (liffLoading) return;
+    if (!liffLoggedIn || !lineProfile) return;
+
     const initAttendance = async () => {
       try {
         setAttendanceLoading(true);
 
-        await liff.init({ liffId: environment.VITE_LIFF_KEY });
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
-
-        const lineProfile = await liff.getProfile();
         const lineUserId = lineProfile.userId;
         const displayName = lineProfile.displayName ?? "Unknown";
 
@@ -62,6 +59,17 @@ export const AttendanceProvider = ({ children }) => {
             status: "PENDING",
           });
           foundEmployee = createRes.data.data ?? createRes.data;
+        } else if (displayName && foundEmployee.name !== displayName) {
+          try {
+            const updateRes = await employeeApi.update(foundEmployee.employee_id, {
+              ...foundEmployee,
+              name: displayName,
+              line_user_id: lineUserId,
+            });
+            foundEmployee = updateRes.data.data ?? updateRes.data ?? { ...foundEmployee, name: displayName };
+          } catch (syncErr) {
+            console.error("Failed to sync LINE displayName to employee:", syncErr);
+          }
         }
 
         setEmployee(foundEmployee);
@@ -140,7 +148,7 @@ export const AttendanceProvider = ({ children }) => {
     };
 
     initAttendance();
-  }, []);
+  }, [liffLoading, liffLoggedIn, lineProfile?.userId]);
 
   return (
     <AttendanceContext.Provider

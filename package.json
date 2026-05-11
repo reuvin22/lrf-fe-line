@@ -12,7 +12,11 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+<<<<<<< HEAD
     "@line/liff": "^2.28.0",
+=======
+    "@line/liff": "^2.27.3",
+>>>>>>> e625a39c660817f17650ec74614882cc78ced7e1
     "@mui/material": "^7.3.9",
     "@tailwindcss/vite": "^4.2.1",
     "axios": "^1.13.6",
