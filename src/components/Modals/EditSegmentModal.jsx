@@ -1,0 +1,208 @@
+import React, { useState, useEffect } from "react";
+import Button from "../Button";
+
+function EditSegmentModal({
+  open,
+  onClose,
+  segmentData,
+  segments,
+  sites,
+  onSave
+}) {
+  const [segment, setSegment] = useState("");
+  const [site, setSite] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [type, setType] = useState("");
+  const [siteName, setSiteName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const formatTime = (datetime) => {
+    if (!datetime) return "";
+    const d = new Date(datetime);
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
+  useEffect(() => {
+    if (segmentData) {
+      setSegment(segmentData.segment_type || "");
+      setSite(segmentData.site_id != null ? String(segmentData.site_id) : "");
+      setStartTime(formatTime(segmentData.start_time));
+      setEndTime(formatTime(segmentData.end_time));
+      setType(segmentData.type || "");
+      setSiteName(segmentData.site_name || "");
+    }
+  }, [segmentData]);
+
+  if (!open) return null;
+  const isManual = segmentData?.type === "manual";
+
+  const handleSegmentChange = (value) => {
+    setSegment(value);
+
+    if (value === "OFFICE") {
+      setSite("");
+      setSiteName("");
+      return;
+    }
+
+    if (value === "TRAVEL" || value === "SITE") {
+      const defaultSite = sites?.[0];
+      if (defaultSite) {
+        setSite(defaultSite.site_id ?? defaultSite.id ?? "");
+        setSiteName(defaultSite.site_name ?? defaultSite.name ?? "");
+      } else {
+        setSite("");
+        setSiteName("");
+      }
+    }
+  };
+
+  const handleSiteChange = (value) => {
+    setSite(value);
+
+    const selectedSite = sites.find(
+      (s) => String(s.site_id || s.id) === String(value)
+    );
+
+    setSiteName(selectedSite?.name || selectedSite?.site_name || "");
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const payload = {
+      ...segmentData,
+      type,
+      segment_type: segment,
+      site_id: segment === "OFFICE" ? null : site,
+      site_name: segment === "OFFICE" ? null : siteName,
+    };
+
+    if (isManual) {
+      payload.start_time = `${today} ${startTime}:00`;
+      payload.end_time = `${today} ${endTime}:00`;
+    }
+
+    console.log("✅ FINAL PAYLOAD:", payload);
+
+    try {
+      await onSave(payload);
+      onClose();
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl w-[90%] max-w-md p-6 space-y-4 shadow-lg">
+
+        <h2 className="text-lg font-semibold">Edit Segment</h2>
+
+        <div>
+          <label className="text-sm text-gray-500">Segment</label>
+          <select
+            value={segment}
+            onChange={(e) => handleSegmentChange(e.target.value)}
+            className="w-full border rounded-lg p-2 mt-1"
+          >
+            {segments.map((seg, i) => (
+              <option key={i} value={seg}>
+                {seg}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {segment !== "OFFICE" && (() => {
+          const siteList = Array.isArray(sites) ? sites : [];
+          const currentId = segmentData?.site_id;
+          const hasCurrent =
+            currentId &&
+            siteList.some((s) => String(s.site_id ?? s.id) === String(currentId));
+          const mergedSites = hasCurrent || !currentId
+            ? siteList
+            : [
+                ...siteList,
+                {
+                  site_id: currentId,
+                  site_name: segmentData?.site_name || "Current Site",
+                },
+              ];
+
+          return (
+            <div>
+              <label className="text-sm text-gray-500">Site</label>
+              <select
+                value={site ?? ""}
+                onChange={(e) => handleSiteChange(e.target.value)}
+                className="w-full border rounded-lg p-2 mt-1"
+              >
+                <option value="">
+                  {segment === "TRAVEL" ? "No Selected Site" : "Select Site"}
+                </option>
+
+                {mergedSites.map((s, i) => (
+                  <option key={i} value={s.site_id ?? s.id}>
+                    {s.site_name ?? s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })()}
+
+        {isManual && (
+          <>
+            <div>
+              <label className="text-sm text-gray-500">Start Time</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full border rounded-lg p-2 mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-500">End Time</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full border rounded-lg p-2 mt-1"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            text="Cancel"
+            buttonStyle="secondary"
+            onClick={onClose}
+          />
+
+          <Button
+            onClick={handleSave}
+            buttonStyle="active"
+            text="Save"
+            loading={isLoading}
+          />
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default EditSegmentModal;
