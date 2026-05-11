@@ -18,12 +18,7 @@ export const AttendanceProvider = ({ children }) => {
 
   const isEmployeeComplete = (emp) => {
     if (!emp) return false;
-    if (String(emp.status).toUpperCase() === "PENDING") return false;
-    return Boolean(
-      emp.employment_type &&
-      emp.role &&
-      emp.joined_date
-    );
+    return String(emp.status).toUpperCase() === "ACTIVE";
   };
 
   useEffect(() => {

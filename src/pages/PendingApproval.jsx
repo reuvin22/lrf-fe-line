@@ -1,6 +1,5 @@
 import React from "react";
-import { Clock, UserCheck, Mail } from "lucide-react";
-import { useAttendanceContext } from "../context/AttendanceContext";
+import { Clock } from "lucide-react";
 
 const LETTERS = [
   { char: "L", color: "hsl(155, 55%, 35%)" },
@@ -9,8 +8,6 @@ const LETTERS = [
 ];
 
 function PendingApproval() {
-  const { employee } = useAttendanceContext();
-
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-gradient-to-b from-[hsl(140,60%,95%)] via-[hsl(140,50%,90%)] to-[hsl(80,50%,88%)] px-4 py-8 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -72,41 +69,7 @@ function PendingApproval() {
             your information before you can start using the app.
           </p>
 
-          <div className="w-full bg-[hsl(140,60%,97%)] border border-[hsl(140,40%,85%)] rounded-xl p-4 space-y-3 text-left">
-            <div className="flex items-start gap-3">
-              <UserCheck
-                size={18}
-                className="mt-0.5 flex-shrink-0"
-                style={{ color: "hsl(155, 55%, 40%)" }}
-              />
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-wider text-gray-500">
-                  Name
-                </p>
-                <p className="text-sm font-semibold text-gray-800 break-words">
-                  {employee?.name || "—"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Mail
-                size={18}
-                className="mt-0.5 flex-shrink-0"
-                style={{ color: "hsl(90, 50%, 40%)" }}
-              />
-              <div className="min-w-0 w-full">
-                <p className="text-[11px] uppercase tracking-wider text-gray-500">
-                  LINE User ID
-                </p>
-                <p className="text-xs font-mono text-gray-700 break-all">
-                  {employee?.line_user_id || "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
             <span className="relative flex h-2 w-2">
               <span
                 className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
