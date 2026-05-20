@@ -330,7 +330,7 @@ function Attendance({ employee }) {
       </div>
 
       <div className="p-4 space-y-4">
-        {segments.map((seg) => (
+        {segments.filter(Boolean).map((seg) => (
           <div
             key={seg.segment_id}
             className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 ${isEnded ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-gray-100"

@@ -63,9 +63,10 @@ function ManualTimeModal() {
 
     try {
       const realSegment = await segmentApi.create(segmentToSave);
+      const segmentData = realSegment.data?.data ?? realSegment.data;
 
       setSegments(prev =>
-        prev.map(s => (s.segment_id === tempId ? realSegment : s))
+        prev.map(s => (s.segment_id === tempId ? (segmentData ?? s) : s))
       );
     } catch (err) {
       console.error("Create segment failed:", err);

@@ -90,11 +90,11 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
       });
 
       const realSegment = await segmentApi.create(payload);
-      const segmentData = realSegment.data.data;
+      const segmentData = realSegment.data?.data ?? realSegment.data;
 
       setSegments(prev =>
         prev.map(s =>
-          s.segment_id === tempId ? segmentData : s
+          s.segment_id === tempId ? (segmentData ?? s) : s
         )
       );
 
@@ -160,11 +160,11 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
       });
 
       const realSegment = await segmentApi.create(payload);
-      const segmentData = realSegment.data.data;
+      const segmentData = realSegment.data?.data ?? realSegment.data;
 
       setSegments(prev =>
         prev.map(s =>
-          s.segment_id === tempId ? segmentData : s
+          s.segment_id === tempId ? (segmentData ?? s) : s
         )
       );
 

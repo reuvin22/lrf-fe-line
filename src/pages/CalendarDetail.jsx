@@ -237,7 +237,7 @@ function CalendarDetail() {
         ) : (
           <>
             <div className="flex flex-col gap-4">
-              {segments.map((seg) => {
+              {segments.filter(Boolean).map((seg) => {
                 const start = formattedTime(seg.start_time);
                 const end = formattedTime(seg.end_time);
                 return (
