@@ -29,3 +29,4 @@ export const ocrUploadApi= createApi('ocr-uploads');
 export const ocrCategoriesApi = createApi('ocr-categories');
 export const getAttendanceSubcontractor = createApi('get-attendance-subcontractor');
 export const dashboardApi = createApi('dashboard')
+export const systemSettingsApi = createApi('settings')
