@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Clock, X } from "lucide-react";
 import { systemSettingsApi } from "../api/Api";
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const REMINDER_WINDOW_MS = 48 * ONE_HOUR_MS;
+
+const REMINDER_ROUTES = ["/", "/calendar", "/ocr", "/dashboard"];
+
+const dismissKey = () => `closingReminderDismissed:${new Date().toDateString()}`;
 
 function ClosingDeadlineReminder() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [closingDay, setClosingDay] = useState(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem(dismissKey()) === "1"
+  );
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -48,45 +56,51 @@ function ClosingDeadlineReminder() {
 
   const inWindow = useMemo(() => {
     if (!deadline) return false;
-    const diff = deadline.getTime() - now.getTime();
-    const result = diff > 0 && diff <= ONE_DAY_MS;
-    console.log("[ClosingDeadlineReminder]", {
-      closingDay,
-      deadline: deadline.toString(),
-      now: now.toString(),
-      hoursRemaining: (diff / 1000 / 60 / 60).toFixed(2),
-      inWindow: result,
-    });
-    return result;
-  }, [deadline, now, closingDay]);
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0, 0, 0, 0
+    );
+    const diffFromStart = deadline.getTime() - startOfToday.getTime();
+    return diffFromStart > 0 && diffFromStart <= REMINDER_WINDOW_MS;
+  }, [deadline, now]);
+
+  const countdown = useMemo(() => {
+    if (!deadline) return null;
+    const diff = Math.max(0, deadline.getTime() - now.getTime());
+    const hours = Math.floor(diff / ONE_HOUR_MS);
+    const minutes = Math.floor((diff % ONE_HOUR_MS) / (60 * 1000));
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }, [deadline, now]);
 
   const targetMonthName = useMemo(() => {
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return prevMonth.toLocaleString("en-US", { month: "long" });
-  }, [now]);
-
-  useEffect(() => {
-    if (!inWindow) return;
-    const key = `closingReminderDismissed:${new Date().toDateString()}`;
-    if (sessionStorage.getItem(key) === "1") {
-      setDismissed(true);
-    }
-  }, [inWindow]);
+    if (!deadline) return "";
+    return deadline.toLocaleString("en-US", { month: "long" });
+  }, [deadline]);
 
   const handleDismiss = () => {
-    const key = `closingReminderDismissed:${new Date().toDateString()}`;
-    sessionStorage.setItem(key, "1");
+    sessionStorage.setItem(dismissKey(), "1");
     setDismissed(true);
+    navigate(location.pathname + location.search, { replace: true });
   };
 
-  if (!inWindow || dismissed) return null;
+  const handleGoToCalendar = () => {
+    sessionStorage.setItem(dismissKey(), "1");
+    setDismissed(true);
+    navigate("/calendar");
+  };
+
+  const onAllowedRoute = REMINDER_ROUTES.includes(location.pathname);
+
+  if (!onAllowedRoute || !inWindow || dismissed) return null;
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-3">
-      <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 bg-orange-50">
-          <div className="flex items-center gap-2 text-orange-700 font-semibold text-sm">
-            <Clock className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 bg-orange-50 border-b border-orange-100">
+          <div className="flex items-center gap-2 text-orange-700 font-semibold">
+            <Clock className="w-5 h-5" />
             <span>Closing Deadline Approaching</span>
           </div>
           <button
@@ -95,26 +109,43 @@ function ClosingDeadlineReminder() {
             className="text-gray-400 hover:text-gray-600 cursor-pointer"
             aria-label="Dismiss"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-4 py-3 space-y-2 text-sm text-gray-700">
-          <p>
-            Edit deadline for <span className="font-semibold">{targetMonthName}</span>:{" "}
-            <span className="font-semibold">{closingDay} 23:59</span>
+        <div className="px-5 py-6 space-y-4 text-gray-700">
+          <div className="text-center">
+            <p className="text-sm text-gray-500">Edit deadline for</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {targetMonthName}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {closingDay} · 23:59
+            </p>
+          </div>
+
+          <div className="bg-orange-50 rounded-xl py-4 text-center">
+            <p className="text-xs uppercase tracking-wide text-orange-600 font-semibold">
+              Time remaining
+            </p>
+            <p className="text-3xl font-bold text-orange-700 mt-1">
+              {countdown}
+            </p>
+          </div>
+
+          <p className="text-sm text-center">
+            Please check for any missing entries.
           </p>
-          <p>Please check for any missing entries.</p>
-          <p className="text-xs text-gray-500">
-            ※ If corrections are complete, please ignore this message.
+          <p className="text-xs text-gray-500 text-center">
+            ※ If corrections are complete, you can dismiss this message.
           </p>
         </div>
 
-        <div className="px-4 pb-3">
+        <div className="px-5 pb-5">
           <button
             type="button"
-            onClick={() => navigate("/calendar")}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-xl cursor-pointer"
+            onClick={handleGoToCalendar}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl cursor-pointer"
           >
             Check Input/Edit →
           </button>
