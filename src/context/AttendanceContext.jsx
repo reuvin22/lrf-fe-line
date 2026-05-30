@@ -69,11 +69,11 @@ export const AttendanceProvider = ({ children }) => {
 
         setEmployee(foundEmployee);
 
-        if (!isEmployeeComplete(foundEmployee)) {
-          setIsProfileIncomplete(true);
-          setAttendanceLoading(false);
-          return;
-        }
+        // if (!isEmployeeComplete(foundEmployee)) {
+        //   setIsProfileIncomplete(true);
+        //   setAttendanceLoading(false);
+        //   return;
+        // }
 
         const today = new Date().toLocaleDateString("en-CA");
         const attendanceRes = await attendanceApi.getAttendance({

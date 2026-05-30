@@ -46,7 +46,9 @@ function CalendarDetail() {
     };
   }, [attendanceRaw]);
 
-  const hasData = !!attendance;
+  const hasData =
+    !!attendance &&
+    (segments.length > 0 || localExpenses.length > 0 || subcontractors.length > 0);
 
   useEffect(() => {
     if (!employee?.employee_id) return;
@@ -226,114 +228,114 @@ function CalendarDetail() {
           </h2>
           <div className="flex items-center gap-2">
             <span>Status:</span>
-            <span className={`text-sm ${!hasData ? "text-red-600" : "text-green-600"}`}>
-              {!hasData ? "Missing" : "Entered"}
+            <span className={`text-sm ${!hasData ? "text-orange-500" : "text-green-600"}`}>
+              {!hasData ? "Empty" : "Entered"}
             </span>
           </div>
         </div>
 
-        {!hasData ? (
-          <div className="text-center text-gray-500 py-10">No Data Available</div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-4">
-              {segments.filter(Boolean).map((seg) => {
-                const start = formattedTime(seg.start_time);
-                const end = formattedTime(seg.end_time);
-                return (
-                  <div
-                    key={seg.segment_id}
-                    onClick={() => handleEditSegment(seg)}
-                    className="bg-white rounded-2xl shadow-sm p-4 flex justify-between items-start cursor-pointer hover:bg-gray-50"
-                  >
-                    <div>
-                      <h3 className="font-semibold">
-                        {start && end ? `${start}-${end}` : start} {seg.segment_type}
-                      </h3>
-                      <p className="text-gray-500 text-sm">
-                        {seg.segment_type === "TRAVEL"
-                          ? `→ ${seg.site_name || seg.site_id || "(unspecified)"}`
-                          : seg.site_name || seg.site_id || "—"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="flex flex-col gap-4">
+          {!hasData ? (
+            <div className="bg-white rounded-2xl shadow-sm p-6 text-center text-gray-500">
+              No Data Available
             </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
-              <div className="flex justify-between">
-                <span>Actual</span>
-                <span className="font-semibold">{totalHours}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Overtime</span>
-                <span className="font-semibold">0h</span>
-              </div>
-              <hr />
-              <div className="flex justify-between">
-                <span>Transport</span>
-                <span className="font-semibold">
-                  ¥{totalTransportAmount.toLocaleString()}
-                </span>
-              </div>
-              <hr />
-
-              <div className="space-y-1">
-                <span>Subcontractors</span>
-                {subcontractors.length > 0 ? (
-                  subcontractors.map((item) => (
-                    <p key={item.uuid} className="text-sm mt-1">
-                      {item.subcontractor?.company_name || item.company_name || "Unknown"} —{" "}
-                      {" "}
-                      {item.start_time?.slice(11, 16)}–{item.end_time?.slice(11, 16)}
+          ) : (
+            segments.filter(Boolean).map((seg) => {
+              const start = formattedTime(seg.start_time);
+              const end = formattedTime(seg.end_time);
+              return (
+                <div
+                  key={seg.segment_id}
+                  onClick={() => handleEditSegment(seg)}
+                  className="bg-white rounded-2xl shadow-sm p-4 flex justify-between items-start cursor-pointer hover:bg-gray-50"
+                >
+                  <div>
+                    <h3 className="font-semibold">
+                      {start && end ? `${start}-${end}` : start} {seg.segment_type}
+                    </h3>
+                    <p className="text-gray-500 text-sm">
+                      {seg.segment_type === "TRAVEL"
+                        ? `→ ${seg.site_name || seg.site_id || "(unspecified)"}`
+                        : seg.site_name || seg.site_id || "—"}
                     </p>
-                  ))
-                ) : (
-                  <p className="text-sm mt-1 text-gray-500">No subcontractors assigned</p>
-                )}
-              </div>
-            </div>
-
-            <Button
-              buttonStyle="primary"
-              text={
-                <div className="flex justify-center items-center gap-2">
-                  <Plus size={18} />
-                  Add Segment
+                  </div>
                 </div>
-              }
-              onClick={() => {
-                setRecordType("default");
-                setSegmentType("");
-                setOpenSegmentModal(true);
-              }}
-            />
+              );
+            })
+          )}
+        </div>
 
-            <Button
-              buttonStyle="primary"
-              text="Edit Transport"
-              customButton="bg-lime-500"
-              onClick={() =>
-                navigate("/transportation-expenses", { state: { from: "calendar-detail" } })
-              }
-            />
+        <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+          <div className="flex justify-between">
+            <span>Actual</span>
+            <span className="font-semibold">{totalHours}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Overtime</span>
+            <span className="font-semibold">0h</span>
+          </div>
+          <hr />
+          <div className="flex justify-between">
+            <span>Transport</span>
+            <span className="font-semibold">
+              ¥{totalTransportAmount.toLocaleString()}
+            </span>
+          </div>
+          <hr />
 
-            <Button
-              buttonStyle="primary"
-              text="Edit Subcontractor"
-              customButton="bg-lime-500"
-              onClick={() =>
-                navigate("/subcontractor", {
-                  state: {
-                    from: "subcontractor",
-                    attendance_id: attendance?.attendance_id,
-                  },
-                })
-              }
-            />
-          </>
-        )}
+          <div className="space-y-1">
+            <span>Subcontractors</span>
+            {subcontractors.length > 0 ? (
+              subcontractors.map((item) => (
+                <p key={item.uuid} className="text-sm mt-1">
+                  {item.subcontractor?.company_name || item.company_name || "Unknown"} —{" "}
+                  {" "}
+                  {item.start_time?.slice(11, 16)}–{item.end_time?.slice(11, 16)}
+                </p>
+              ))
+            ) : (
+              <p className="text-sm mt-1 text-gray-500">No subcontractors assigned</p>
+            )}
+          </div>
+        </div>
+
+        <Button
+          buttonStyle="primary"
+          text={
+            <div className="flex justify-center items-center gap-2">
+              <Plus size={18} />
+              Add Segment
+            </div>
+          }
+          onClick={() => {
+            setRecordType("default");
+            setSegmentType("");
+            setOpenSegmentModal(true);
+          }}
+        />
+
+        <Button
+          buttonStyle="primary"
+          text="Edit Transport"
+          customButton="bg-lime-500"
+          onClick={() =>
+            navigate("/transportation-expenses", { state: { from: "calendar-detail" } })
+          }
+        />
+
+        <Button
+          buttonStyle="primary"
+          text="Edit Subcontractor"
+          customButton="bg-lime-500"
+          onClick={() =>
+            navigate("/subcontractor", {
+              state: {
+                from: "subcontractor",
+                attendance_id: attendance?.attendance_id,
+              },
+            })
+          }
+        />
       </div>
 
       <SegmentModal onSave={handleAddSegment} />

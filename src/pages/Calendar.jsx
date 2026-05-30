@@ -8,7 +8,7 @@ import { useTransportationExpensesContext } from "../context/TransportationExpen
 const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function Calendar() {
-  const { setAttendance, setAttendanceCalendar, setSelectedDate } = useAttendanceContext();
+  const { setAttendance, setAttendanceCalendar, setSelectedDate, employee } = useAttendanceContext();
 
   const navigate = useNavigate();
   const { setTransportationExpenses } = useTransportationExpensesContext();
@@ -63,8 +63,13 @@ function Calendar() {
       try {
         const res = await systemSettingsApi.getAll();
         const inner = res.data?.data;
-        const settings = Array.isArray(inner) ? inner[0] : inner?.data ?? inner;
-        const day = Number(settings?.closing_day);
+        const settings = Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data)
+            ? inner.data
+            : [];
+        const closingEntry = settings.find((s) => s?.key === "closing_day");
+        const day = Number(closingEntry?.value);
         setClosingDay(Number.isFinite(day) && day >= 1 && day <= 31 ? day : null);
       } catch (error) {
         console.error("Error fetching system settings:", error);
@@ -82,10 +87,35 @@ function Calendar() {
     const formatted = formatDate(year, month, day);
     setSelectedDate(formatted);
 
-    const selectedAttendance = calendar.find(
+    let selectedAttendance = calendar.find(
       (item) => item.work_date === formatted
     );
-    setAttendance(selectedAttendance || null);
+
+    if (!selectedAttendance && employee?.employee_id) {
+      try {
+        const createRes = await attendanceApi.create({
+          employee_id: employee.employee_id,
+          work_date: formatted,
+          status: "NOT_STARTED",
+        });
+        const created = createRes.data?.data || createRes.data;
+        if (created) {
+          const normalized = {
+            ...created,
+            work_date: (created.work_date || formatted).split("T")[0],
+          };
+          selectedAttendance = normalized;
+          setCalendar((prev) => [...prev, normalized]);
+          setAttendanceCalendar((prev) => [...prev, normalized]);
+        }
+      } catch (err) {
+        console.error("Failed to create attendance for selected date:", err);
+      }
+    }
+
+    if (selectedAttendance) {
+      setAttendance(selectedAttendance);
+    }
     try {
       const allExpensesResponses = await Promise.all(
         [selectedAttendance].filter(Boolean).map((att) =>
@@ -200,7 +230,9 @@ function Calendar() {
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-orange-400 rounded-full"></span> Missing
           </div>
-          <div className="flex items-center gap-1">🔒 Locked</div>
+          <div className="flex items-center gap-1">
+            <Lock className="w-3 h-3 text-gray-600" /> Locked
+          </div>
         </div>
       </div>
     </div>
