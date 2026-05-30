@@ -39,14 +39,26 @@ function ClosingDeadlineReminder() {
 
   const deadline = useMemo(() => {
     if (!closingDay) return null;
-    return new Date(now.getFullYear(), now.getMonth(), closingDay, 23, 59, 0, 0);
+    let candidate = new Date(now.getFullYear(), now.getMonth(), closingDay, 23, 59, 0, 0);
+    if (candidate.getTime() <= now.getTime()) {
+      candidate = new Date(now.getFullYear(), now.getMonth() + 1, closingDay, 23, 59, 0, 0);
+    }
+    return candidate;
   }, [closingDay, now]);
 
   const inWindow = useMemo(() => {
     if (!deadline) return false;
     const diff = deadline.getTime() - now.getTime();
-    return diff > 0 && diff <= ONE_DAY_MS;
-  }, [deadline, now]);
+    const result = diff > 0 && diff <= ONE_DAY_MS;
+    console.log("[ClosingDeadlineReminder]", {
+      closingDay,
+      deadline: deadline.toString(),
+      now: now.toString(),
+      hoursRemaining: (diff / 1000 / 60 / 60).toFixed(2),
+      inWindow: result,
+    });
+    return result;
+  }, [deadline, now, closingDay]);
 
   const targetMonthName = useMemo(() => {
     const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
