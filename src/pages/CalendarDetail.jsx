@@ -148,22 +148,34 @@ function CalendarDetail() {
     return localExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }, [localExpenses]);
 
-  const totalHours = useMemo(() => {
-    if (!segments.length) return "0h 0m 0s";
-    let totalMs = 0;
-    segments.forEach((seg) => {
-      if (seg.start_time && seg.end_time) {
-        const start = new Date(seg.start_time);
-        const end = new Date(seg.end_time);
-        if (end > start) totalMs += end - start;
-      }
-    });
-    const totalSeconds = Math.floor(totalMs / 1000);
+  const STANDARD_WORK_MS = 8 * 60 * 60 * 1000;
+
+  const formatHms = (ms) => {
+    const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  const totalWorkedMs = useMemo(() => {
+    if (!segments.length) return 0;
+    let totalMs = 0;
+    segments.forEach((seg) => {
+      if (!seg.start_time) return;
+      const start = new Date(seg.start_time);
+      const end = seg.end_time ? new Date(seg.end_time) : new Date();
+      if (end > start) totalMs += end - start;
+    });
+    return totalMs;
   }, [segments]);
+
+  const totalHours = useMemo(() => formatHms(totalWorkedMs), [totalWorkedMs]);
+
+  const overtimeHours = useMemo(
+    () => formatHms(Math.max(0, totalWorkedMs - STANDARD_WORK_MS)),
+    [totalWorkedMs]
+  );
 
   const handleEditSegment = (seg) => {
     setEditingSegment(seg);
@@ -272,7 +284,7 @@ function CalendarDetail() {
           </div>
           <div className="flex justify-between">
             <span>Overtime</span>
-            <span className="font-semibold">0h</span>
+            <span className="font-semibold">{overtimeHours}</span>
           </div>
           <hr />
           <div className="flex justify-between">

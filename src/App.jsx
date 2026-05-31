@@ -21,7 +21,7 @@ function App() {
 
   if (liffLoading || !liffLoggedIn) return <Loading />;
   if (attendanceLoading) return <Loading />;
-  // if (isProfileIncomplete) return <PendingApproval />;
+  if (isProfileIncomplete) return <PendingApproval />;
   if (!attendance || !employee) return <Loading />;
   return (
     <Router>
