@@ -28,91 +28,6 @@ function OcrUpload() {
   const [previousImagePath, setPreviousImagePath] = useState(null);
   const [subcontractorId, setSubcontractorId] = useState(null);
   const [subcontractorName, setSubcontractorName] = useState(null);
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await ocrCategoriesApi.getAll();
-        const inner = res.data?.data;
-        setCategories(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
-      } catch (err) {
-        console.error("Error fetching OCR categories:", err);
-      }
-    };
-    load();
-  }, []);
-
-  useEffect(() => {
-    const employeeId = employee?.employee_id ?? attendance?.employee_id;
-    if (!employeeId) return;
-
-    const load = async () => {
-      try {
-        const assignRes = await siteAssignmentApi.getAll();
-        const assignInner = assignRes.data?.data;
-        const allAssignments = Array.isArray(assignInner)
-          ? assignInner
-          : Array.isArray(assignInner?.data)
-            ? assignInner.data
-            : [];
-
-        console.log("[OcrUpload] employeeId used for filter:", employeeId);
-        console.log("[OcrUpload] sample worker_ids:", allAssignments.slice(0, 3).map(v => v?.worker_id));
-
-        const matchedSites = allAssignments
-          .filter((v) => {
-            if (!v) return false;
-            const wid = String(v.worker_id ?? "");
-            return (
-              wid === String(employee?.employee_id ?? "") ||
-              wid === String(attendance?.employee_id ?? "")
-            );
-          })
-          .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
-          .filter((s) => s.site_id != null);
-
-        console.log("[OcrUpload] matched sites:", matchedSites);
-        setSites(matchedSites);
-        setAllSites(matchedSites);
-      } catch (err) {
-        console.error("Error fetching site assignments:", err);
-      }
-    };
-
-    load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee?.employee_id, attendance?.employee_id]);
-
-  useEffect(() => {
-    const employeeName = employee?.name;
-    if (!employeeName) return;
-
-    const load = async () => {
-      try {
-        const res = await subContractorWorkerApi.getAll();
-        const inner = res.data?.data;
-        const workers = Array.isArray(inner)
-          ? inner
-          : Array.isArray(inner?.data)
-            ? inner.data
-            : [];
-
-        const matched = workers.find(
-          (w) => w.name?.trim().toLowerCase() === employeeName.trim().toLowerCase()
-        );
-        console.log('THIS IS INNER: ', workers)
-        console.log('THIS IS NAME: ', employeeName)
-        console.log("[OcrUpload] subcontractor worker match:", matched);
-        setSubcontractorId(matched?.subcontractor_id ?? null);
-        setSubcontractorName(matched?.subcontractor_name ?? null);
-      } catch (err) {
-        console.error("Error fetching subcontractor workers:", err);
-      }
-    };
-
-    load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee?.name]);
-
   const fetchUploads = async () => {
     try {
       const res = await ocrUploadApi.getAll();
@@ -123,12 +38,66 @@ function OcrUpload() {
   };
 
   useEffect(() => {
-    const load = async () => {
-      await fetchUploads();
+    const employeeId = employee?.employee_id ?? attendance?.employee_id;
+    const employeeName = employee?.name;
+    if (!employeeId || !employeeName) return;
+
+    const loadAll = async () => {
+      try {
+        const [categoriesRes, assignRes, workersRes, uploadsRes] = await Promise.all([
+          ocrCategoriesApi.getAll(),
+          siteAssignmentApi.getAll(),
+          subContractorWorkerApi.getAll(),
+          ocrUploadApi.getAll(),
+        ]);
+
+        // Categories
+        const catInner = categoriesRes.data?.data;
+        setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
+
+        // Assigned sites — match worker_id to employeeId
+        const assignInner = assignRes.data?.data;
+        const allAssignments = Array.isArray(assignInner)
+          ? assignInner
+          : Array.isArray(assignInner?.data) ? assignInner.data : [];
+
+        const matchedSites = allAssignments
+          .filter((v) => {
+            if (!v) return false;
+            const wid = String(v.worker_id ?? "");
+            return wid === String(employeeId);
+          })
+          .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
+          .filter((s) => s.site_id != null);
+
+        console.log("[OcrUpload] employeeId:", employeeId);
+        console.log("[OcrUpload] matched sites:", matchedSites);
+        setSites(matchedSites);
+        setAllSites(matchedSites);
+
+        // Subcontractor worker match by name
+        const workerInner = workersRes.data?.data;
+        const workers = Array.isArray(workerInner)
+          ? workerInner
+          : Array.isArray(workerInner?.data) ? workerInner.data : [];
+
+        const matched = workers.find(
+          (w) => w.name?.trim().toLowerCase() === employeeName.trim().toLowerCase()
+        );
+        console.log("[OcrUpload] subcontractor worker match:", matched);
+        setSubcontractorId(matched?.subcontractor_id ?? null);
+        setSubcontractorName(matched?.subcontractor_name ?? null);
+
+        // Uploaded items
+        setUploadedItems(uploadsRes.data?.data || []);
+      } catch (err) {
+        console.error("[OcrUpload] Failed to load data:", err);
+      }
     };
 
-    load();
-  }, []);
+    loadAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.employee_id, employee?.name]);
 
   const handleImage = (e) => {
     const file = e.target.files[0];
