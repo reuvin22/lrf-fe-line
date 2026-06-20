@@ -53,8 +53,18 @@ function OcrUpload() {
             ? assignInner.data
             : [];
 
+        console.log("[OcrUpload] employeeId used for filter:", employeeId);
+        console.log("[OcrUpload] sample worker_ids:", allAssignments.slice(0, 3).map(v => v?.worker_id));
+
         const matchedSites = allAssignments
-          .filter((v) => v != null && String(v.worker_id ?? "") === String(employeeId))
+          .filter((v) => {
+            if (!v) return false;
+            const wid = String(v.worker_id ?? "");
+            return (
+              wid === String(employee?.employee_id ?? "") ||
+              wid === String(attendance?.employee_id ?? "")
+            );
+          })
           .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
           .filter((s) => s.site_id != null);
 
@@ -406,23 +416,25 @@ function OcrUpload() {
                     })
                     : ""}
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    className="text-blue-600 text-xs"
-                    onClick={() => handleEdit(item)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="text-red-600 text-xs"
-                    onClick={() => {
-                      setDeleteId(item.upload_id);
-                      setShowConfirm(true);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+                {item.status !== "COMPLETED" && (
+                  <div className="flex gap-2">
+                    <button
+                      className="text-blue-600 text-xs"
+                      onClick={() => handleEdit(item)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-red-600 text-xs"
+                      onClick={() => {
+                        setDeleteId(item.upload_id);
+                        setShowConfirm(true);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
               {item.note && <p className="text-sm text-gray-500">{item.note}</p>}
               <p
