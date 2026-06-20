@@ -63,25 +63,22 @@ function Dashboard() {
           siteMap.set(site.site_id, {
             id: site.site_id,
             name: site.site_name,
+            contract_type: site.contract_type ?? null,
             employees: [],
             employeeMap: {},
-            subcontractors: {
-              quasi: {},
-              fixed: {},
-            },
           });
         }
       });
 
-      const ensureSite = (siteId, siteName) => {
+      const ensureSite = (siteId, siteName, contractType) => {
         if (!siteId) return null;
         if (!siteMap.has(siteId)) {
           siteMap.set(siteId, {
             id: siteId,
             name: siteName || `Site ${siteId}`,
+            contract_type: contractType ?? null,
             employees: [],
             employeeMap: {},
-            subcontractors: { quasi: {}, fixed: {} },
           });
         }
         return siteMap.get(siteId);
@@ -91,13 +88,15 @@ function Dashboard() {
         (attendance.segments || []).forEach((seg) => {
           ensureSite(
             seg.site?.site_id ?? seg.site_id,
-            seg.site?.site_name ?? seg.site_name
+            seg.site?.site_name ?? seg.site_name,
+            seg.site?.contract_type ?? null
           );
         });
         (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
           ensureSite(
             sub.site?.site_id ?? sub.site_id,
-            sub.site?.site_name ?? sub.site_name
+            sub.site?.site_name ?? sub.site_name,
+            sub.site?.contract_type ?? null
           );
         });
       });
@@ -135,91 +134,68 @@ function Dashboard() {
 
         (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
           const siteId = sub.site?.site_id ?? sub.site_id;
-          const site = ensureSite(siteId, sub.site?.site_name ?? sub.site_name);
+          const site = ensureSite(siteId, sub.site?.site_name ?? sub.site_name, sub.site?.contract_type ?? null);
           if (!site) return;
-
-          const empRecord = ensureEmployeeOnSite(site);
-          if (sub.contract_type) empRecord.contract_type = sub.contract_type;
-
-          const company = sub.subcontractor?.company_name || sub.company_name || "Unknown";
-
-          if (sub.contract_type === "QUASI_DELEGATION") {
-            if (!site.subcontractors.quasi[company]) {
-              site.subcontractors.quasi[company] = new Set();
-            }
-            site.subcontractors.quasi[company].add(resolvedId);
-          } else if (sub.contract_type === "FIXED_PRICE") {
-            if (!site.subcontractors.fixed[company]) {
-              site.subcontractors.fixed[company] = new Set();
-            }
-            site.subcontractors.fixed[company].add(resolvedId);
-          }
+          ensureEmployeeOnSite(site).activities.push(sub);
         });
       });
 
       groupedSites.forEach((site) => {
         let siteHasActive = false;
 
-        site.employees = Object.values(site.employeeMap).map((emp) => {
+        const buildRecord = (emp) => {
           const nowMs = new Date().getTime();
           const hasActivities = emp.activities.length > 0;
-
           const hasActive = emp.activities.some((act) => {
             const start = act.start_time ? new Date(act.start_time).getTime() : null;
             const end = act.end_time ? new Date(act.end_time).getTime() : null;
             return start !== null && start <= nowMs && (end === null || nowMs < end);
           });
-
           const allEnded = hasActivities && emp.activities.every((act) => {
             const end = act.end_time ? new Date(act.end_time).getTime() : null;
             return end !== null && end <= nowMs;
           });
 
-          let segmentLabel;
-          if (!hasActivities) {
-            segmentLabel = "Not Started";
-          } else if (hasActive) {
-            segmentLabel = "In Progress";
-            siteHasActive = true;
-          } else if (allEnded) {
-            segmentLabel = "Completed";
-          } else {
-            segmentLabel = "Not Started";
-          }
+          let segment;
+          if (!hasActivities) segment = "Not Started";
+          else if (hasActive) { segment = "In Progress"; siteHasActive = true; }
+          else if (allEnded) segment = "Completed";
+          else segment = "Not Started";
 
-          return {
-            id: emp.id,
-            name: emp.name,
-            status: emp.status,
-            segment: segmentLabel,
-            contract_type: emp.contract_type ?? null,
-          };
+          return { id: emp.id, name: emp.name, status: emp.status, segment };
+        };
+
+        const quasiEmployees = [];
+        const fixedEmployees = [];
+        site.employees = [];
+
+        Object.values(site.employeeMap).forEach((emp) => {
+          const record = buildRecord(emp);
+          if (site.contract_type === "QUASI_DELEGATION") {
+            quasiEmployees.push(record);
+          } else if (site.contract_type === "FIXED_PRICE") {
+            fixedEmployees.push(record);
+          } else {
+            site.employees.push(record);
+          }
         });
 
-        site.subcontractors.quasi = Object.entries(site.subcontractors.quasi).map(
-          ([company_name, workers]) => ({
-            company_name,
-            count: workers.size,
-          })
-        );
+        site.subcontractors = {
+          quasi: quasiEmployees,
+          fixed: fixedEmployees,
+        };
 
-        site.subcontractors.fixed = Object.entries(site.subcontractors.fixed).map(
-          ([company_name, workers]) => ({
-            company_name,
-            count: workers.size,
-          })
-        );
+        const totalWorkers = site.employees.length + quasiEmployees.length + fixedEmployees.length;
 
-        if (site.employees.length === 0) {
+        if (totalWorkers === 0) {
           site.status = "Not Started";
           site.statusStyle = "bg-gray-400 text-white";
         } else {
           site.status = siteHasActive ? "In Progress" : "Completed";
-          site.statusStyle = siteHasActive
-            ? "bg-yellow-500 text-white"
-            : "bg-green-500 text-white";
+          site.statusStyle = siteHasActive ? "bg-yellow-500 text-white" : "bg-green-500 text-white";
         }
 
+        site.totalWorkers = totalWorkers;
         delete site.employeeMap;
       });
 
@@ -233,6 +209,8 @@ function Dashboard() {
   };
 
   useEffect(() => {
+    // fetchDashboard is async — setState calls happen after awaits, not synchronously
+    // eslint-disable-next-line
     fetchDashboard();
 
     const interval = setInterval(() => {
@@ -286,7 +264,7 @@ function Dashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 flex items-center gap-1">
                   <Users size={13} />
-                  {site.employees.length} ppl
+                  {site.totalWorkers} ppl
                 </span>
                 <span
                   className={`text-xs px-3 py-1 rounded-full ${site.statusStyle}`}
@@ -312,29 +290,17 @@ function Dashboard() {
                         >
                           <span>{emp.name}</span>
 
-                          <div className="flex items-center gap-1">
-                            {emp.contract_type === "QUASI_DELEGATION" && (
-                              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
-                                Quasi
-                              </span>
-                            )}
-                            {emp.contract_type === "FIXED_PRICE" && (
-                              <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">
-                                Fixed
-                              </span>
-                            )}
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                emp.segment === "In Progress"
-                                  ? "bg-yellow-500 text-white"
-                                  : emp.segment === "Completed"
-                                    ? "bg-green-500 text-white"
-                                    : "bg-gray-400 text-white"
-                              }`}
-                            >
-                              {emp.segment}
-                            </span>
-                          </div>
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              emp.segment === "In Progress"
+                                ? "bg-yellow-500 text-white"
+                                : emp.segment === "Completed"
+                                  ? "bg-green-500 text-white"
+                                  : "bg-gray-400 text-white"
+                            }`}
+                          >
+                            {emp.segment}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -347,36 +313,58 @@ function Dashboard() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">QUASI DELEGATION</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    QUASI DELEGATION
+                    {site.subcontractors.quasi.length > 0 && (
+                      <span className="ml-1 text-gray-400">({site.subcontractors.quasi.length} ppl)</span>
+                    )}
+                  </p>
 
                   {site.subcontractors.quasi.length > 0 ? (
-                    site.subcontractors.quasi.map((sub, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>{sub.company_name}</span>
-                        <span>{sub.count} ppl</span>
-                      </div>
-                    ))
+                    <div className="space-y-2">
+                      {site.subcontractors.quasi.map((emp) => (
+                        <div key={emp.id} className="flex justify-between items-center text-sm">
+                          <span>{emp.name}</span>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            emp.segment === "In Progress" ? "bg-yellow-500 text-white"
+                            : emp.segment === "Completed" ? "bg-green-500 text-white"
+                            : "bg-gray-400 text-white"
+                          }`}>{emp.segment}</span>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="flex justify-between text-sm">
-                      <span>No subcontractor yet</span>
+                      <span>No quasi delegation yet</span>
                       <span className="text-gray-400">0 ppl</span>
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">FIXED PRICE</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    FIXED PRICE
+                    {site.subcontractors.fixed.length > 0 && (
+                      <span className="ml-1 text-gray-400">({site.subcontractors.fixed.length} ppl)</span>
+                    )}
+                  </p>
 
                   {site.subcontractors.fixed.length > 0 ? (
-                    site.subcontractors.fixed.map((sub, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>{sub.company_name}</span>
-                        <span>{sub.count} ppl</span>
-                      </div>
-                    ))
+                    <div className="space-y-2">
+                      {site.subcontractors.fixed.map((emp) => (
+                        <div key={emp.id} className="flex justify-between items-center text-sm">
+                          <span>{emp.name}</span>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            emp.segment === "In Progress" ? "bg-yellow-500 text-white"
+                            : emp.segment === "Completed" ? "bg-green-500 text-white"
+                            : "bg-gray-400 text-white"
+                          }`}>{emp.segment}</span>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="flex justify-between text-sm">
-                      <span>No subcontractor yet</span>
+                      <span>No fixed price yet</span>
                       <span className="text-gray-400">0 ppl</span>
                     </div>
                   )}
