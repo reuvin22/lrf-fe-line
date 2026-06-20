@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
 import { dashboardApi, employeeApi, siteAssignmentApi } from "../api/Api";
 
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const isFetchingRef = useRef(false);
 
   const fetchDashboard = async () => {
+    // Skip this tick if the previous fetch hasn't finished yet
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     const now = new Date();
     const utc8 = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     const date = utc8.toISOString().split("T")[0];
@@ -186,6 +192,7 @@ function Dashboard() {
             name: emp.name,
             status: emp.status,
             segment: segmentLabel,
+            contract_type: emp.contract_type ?? null,
           };
         });
 
@@ -217,8 +224,11 @@ function Dashboard() {
       });
 
       setAssignedSites(groupedSites);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Error fetching dashboard:", err);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -247,10 +257,9 @@ function Dashboard() {
         {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">
           ⏱ Last updated:{" "}
-          {new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {lastUpdated
+            ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "—"}
         </div>
 
         {/* Sites */}
@@ -274,11 +283,17 @@ function Dashboard() {
                 <span className="font-semibold">{site.name}</span>
               </div>
 
-              <span
-                className={`text-xs px-3 py-1 rounded-full ${site.statusStyle}`}
-              >
-                {site.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Users size={13} />
+                  {site.employees.length} ppl
+                </span>
+                <span
+                  className={`text-xs px-3 py-1 rounded-full ${site.statusStyle}`}
+                >
+                  {site.status}
+                </span>
+              </div>
             </div>
 
             {/* Content */}
@@ -297,17 +312,29 @@ function Dashboard() {
                         >
                           <span>{emp.name}</span>
 
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              emp.segment === "In Progress"
-                                ? "bg-yellow-500 text-white"
-                                : emp.segment === "Completed"
-                                  ? "bg-green-500 text-white"
-                                  : "bg-gray-400 text-white"
-                            }`}
-                          >
-                            {emp.segment}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {emp.contract_type === "QUASI_DELEGATION" && (
+                              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                                Quasi
+                              </span>
+                            )}
+                            {emp.contract_type === "FIXED_PRICE" && (
+                              <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">
+                                Fixed
+                              </span>
+                            )}
+                            <span
+                              className={`text-xs px-2 py-1 rounded ${
+                                emp.segment === "In Progress"
+                                  ? "bg-yellow-500 text-white"
+                                  : emp.segment === "Completed"
+                                    ? "bg-green-500 text-white"
+                                    : "bg-gray-400 text-white"
+                              }`}
+                            >
+                              {emp.segment}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
