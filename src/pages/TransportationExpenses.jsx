@@ -63,9 +63,9 @@ function TransportationExpenseScreen({ onDone }) {
   useEffect(() => {
     if (!employee?.employee_id) return;
 
-    const fetchSegmentSites = async () => {
+    const fetchAssignedSites = async () => {
       try {
-        const res = await siteAssignmentApi.getAll();
+        const res = await siteAssignmentApi.getAll({ employee_id: employee.employee_id });
         const inner = res.data?.data;
         const list = Array.isArray(inner)
           ? inner
@@ -73,20 +73,21 @@ function TransportationExpenseScreen({ onDone }) {
             ? inner.data
             : [];
 
-        const sites = list
-          .filter(v => v != null && String(v.employee_id) === String(employee.employee_id))
+        const mapped = list
+          .filter(v => v != null)
           .map(v => {
-            const site = v.site ?? v;
-            return { id: site.site_id, name: site.site_name };
+            const s = v.site ?? v;
+            return { id: s.site_id, name: s.site_name };
           })
           .filter(s => s.id != null);
 
-        setSegmentSites(sites);
+        setSegmentSites(mapped);
       } catch (err) {
-        console.error("Failed to fetch segment sites:", err);
+        console.error("Failed to fetch assigned sites:", err);
       }
     };
-    fetchSegmentSites();
+
+    fetchAssignedSites();
   }, [employee]);
 
   const handleRedirect = () => {

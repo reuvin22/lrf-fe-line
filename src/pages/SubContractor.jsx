@@ -7,7 +7,6 @@ import {
   attendanceApi,
   attendanceSubcontractorSegmentApi,
   constructionSiteApi,
-  employeeApi,
   siteAssignmentApi,
   siteSubContractorApi,
   subContractorApi,
@@ -36,58 +35,6 @@ function SubContractor({ onRefetch }) {
     attendance?.attendance_id ||
     attendance?.id;
 
-  useEffect(() => {
-    if (location.state?.from === "subcontractor" && !effectiveAttendanceId) return;
-
-    const init = async () => {
-      try {
-        setLoading(true);
-
-        const [subsRes, siteSubsRes, attendanceRes, siteAssignRes] = await Promise.all([
-          subContractorApi.getAll(),
-          siteSubContractorApi.getAll(),
-          attendanceApi.getAll(),
-          siteAssignmentApi.getAll(),
-        ]);
-
-        const rawSites = siteAssignRes.data.data ?? siteAssignRes.data;
-        const siteList = Array.isArray(rawSites) ? rawSites : [];
-        const mapped = siteList
-          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name }; })
-          .filter(s => s.site_id != null);
-        console.log("[SubContractor] assigned sites", mapped);
-        setAssignedSites(mapped);
-
-        const subsInner = subsRes.data?.data;
-        const subs = Array.isArray(subsInner) ? subsInner : Array.isArray(subsInner?.data) ? subsInner.data : [];
-
-        const siteSubsInner = siteSubsRes.data?.data;
-        const siteSubs = Array.isArray(siteSubsInner) ? siteSubsInner : Array.isArray(siteSubsInner?.data) ? siteSubsInner.data : [];
-
-        const attInner = attendanceRes.data?.data;
-        const attendanceList = Array.isArray(attInner) ? attInner : Array.isArray(attInner?.data) ? attInner.data : [];
-
-        const segments = attendanceList.flatMap((a) => a.segments || []);
-
-        setAllSubcontractors(subs);
-        setSiteSubcontractors(siteSubs);
-        setAllSegments(segments);
-
-        if (location.state?.from === "subcontractor") {
-          await fetchAttendanceSubcontractor(subs);
-        } else {
-          await buildConstructionSites(subs, siteSubs, segments);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [effectiveAttendanceId, employee?.employee_id, location.state?.from]);
-
   const parseSegmentTime = (value) => {
     if (!value) return "00:00";
     // ISO datetime: "2026-05-09T09:00:00" or "2026-05-09 9:00:00" (with or without padding)
@@ -110,7 +57,7 @@ function SubContractor({ onRefetch }) {
     return "00:00";
   };
 
-  const fetchAttendanceSubcontractor = async (subsList = []) => {
+  async function fetchAttendanceSubcontractor(subsList = []) {
     try {
       const attendanceId =
         location.state?.attendance_id ||
@@ -166,9 +113,12 @@ function SubContractor({ onRefetch }) {
         grouped[key].workers.push({
           uuid: item.uuid ?? null,
           name: item.worker_name || "",
+          name_kana: item.name_kana || "",
+          status: item.status || "ACTIVE",
           worker_id: item.worker_id || null,
           start: parseSegmentTime(item.start_time),
           end: parseSegmentTime(item.end_time),
+          inputMode: "dropdown",
         });
       });
 
@@ -242,6 +192,65 @@ function SubContractor({ onRefetch }) {
     }
   };
 
+  useEffect(() => {
+    if (location.state?.from === "subcontractor" && !effectiveAttendanceId) return;
+
+    const init = async () => {
+      try {
+        setLoading(true);
+
+        const [subsRes, siteSubsRes, attendanceRes, siteAssignRes] = await Promise.all([
+          subContractorApi.getAll(),
+          siteSubContractorApi.getAll(),
+          attendanceApi.getAll(),
+          siteAssignmentApi.getAll(),
+        ]);
+
+        const attInner2 = attendanceRes.data?.data;
+        const attendanceList2 = Array.isArray(attInner2) ? attInner2 : Array.isArray(attInner2?.data) ? attInner2.data : [];
+        const currentAttendance = attendanceList2.find(a => String(a.employee_id) === String(employee?.employee_id));
+        const attendanceEmployeeId = currentAttendance?.employee_id ?? employee?.employee_id;
+        console.log("[SubContractor] attendanceEmployeeId for site filter:", attendanceEmployeeId);
+
+        const rawSites = siteAssignRes.data.data ?? siteAssignRes.data;
+        const siteList = Array.isArray(rawSites) ? rawSites : [];
+        const mapped = siteList
+          .filter(v => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
+          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name }; })
+          .filter(s => s.site_id != null);
+        console.log("[SubContractor] assigned sites", mapped);
+        setAssignedSites(mapped);
+
+        const subsInner = subsRes.data?.data;
+        const subs = Array.isArray(subsInner) ? subsInner : Array.isArray(subsInner?.data) ? subsInner.data : [];
+
+        const siteSubsInner = siteSubsRes.data?.data;
+        const siteSubs = Array.isArray(siteSubsInner) ? siteSubsInner : Array.isArray(siteSubsInner?.data) ? siteSubsInner.data : [];
+
+        const attInner = attendanceRes.data?.data;
+        const attendanceList = Array.isArray(attInner) ? attInner : Array.isArray(attInner?.data) ? attInner.data : [];
+        const segments = attendanceList.flatMap((a) => a.segments || []);
+
+        setAllSubcontractors(subs);
+        setSiteSubcontractors(siteSubs);
+        setAllSegments(segments);
+
+        if (location.state?.from === "subcontractor") {
+          await fetchAttendanceSubcontractor(subs);
+        } else {
+          await buildConstructionSites(subs, siteSubs, segments);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveAttendanceId, employee?.employee_id, location.state?.from]);
+
   const addCompany = () => {
     if (assignedSites.length === 0 && constructionSites.length === 0) {
       toast.error("No available construction sites");
@@ -259,7 +268,7 @@ function SubContractor({ onRefetch }) {
         company: "",
         subcontractor_id: null,
         contract: "QUASI_DELEGATION",
-        workers: [{ name: "", worker_id: null, start: "09:00", end: "17:30" }],
+        workers: [{ name: "", name_kana: "", status: "ACTIVE", worker_id: null, start: "09:00", end: "17:30", inputMode: "dropdown" }],
       },
     ]);
   };
@@ -272,11 +281,41 @@ function SubContractor({ onRefetch }) {
               ...c,
               workers: [
                 ...c.workers,
-                { name: "", worker_id: null, start: "09:00", end: "17:30" },
+                { name: "", name_kana: "", status: "ACTIVE", worker_id: null, start: "09:00", end: "17:30", inputMode: "dropdown" },
               ],
             }
           : c
       )
+    );
+  };
+
+  const handleWorkerInputMode = (company, worker, mode) => {
+    setCompanies((prev) =>
+      prev.map((c) => {
+        if (c !== company) return c;
+        return {
+          ...c,
+          workers: c.workers.map((w) =>
+            w !== worker
+              ? w
+              : { ...w, inputMode: mode, name: "", name_kana: "", status: "ACTIVE", worker_id: null }
+          ),
+        };
+      })
+    );
+  };
+
+  const handleWorkerFieldChange = (company, worker, field, value) => {
+    setCompanies((prev) =>
+      prev.map((c) => {
+        if (c !== company) return c;
+        return {
+          ...c,
+          workers: c.workers.map((w) =>
+            w !== worker ? w : { ...w, [field]: value }
+          ),
+        };
+      })
     );
   };
 
@@ -320,31 +359,18 @@ function SubContractor({ onRefetch }) {
   const ensureWorkerExists = async (worker, company) => {
     try {
       if (worker.worker_id && !worker.worker_id.startsWith("temp-")) {
-        return {
-          worker_id: worker.worker_id,
-          employee_id: worker.employee_id || null,
-        };
+        return { worker_id: worker.worker_id };
       }
-
-      const empRes = await employeeApi.create({
-        name: worker.name,
-      });
-
-      const employeeId = empRes.data.data.employee_id;
 
       const workerRes = await subContractorWorkerApi.create({
         subcontractor_id: company.subcontractor_id,
         name: worker.name,
-        name_kana: "ダミー",
-        status: "ACTIVE",
+        name_kana: worker.name_kana || "",
+        status: worker.status || "ACTIVE",
       });
 
       const workerId = workerRes.data.data.worker_id;
-      console.log(workerId);
-      return {
-        worker_id: workerId,
-        employee_id: employeeId,
-      };
+      return { worker_id: workerId };
     } catch (err) {
       console.error("❌ Failed to create worker:", err);
       throw err;
@@ -357,23 +383,19 @@ function SubContractor({ onRefetch }) {
 
       for (const worker of company.workers) {
         let finalWorkerId = worker.worker_id;
-        let finalEmployeeId = employee?.employee_id;
+        const finalEmployeeId = employee?.employee_id;
 
         if (!worker.worker_id) {
           const ids = await ensureWorkerExists(worker, company);
-
           finalWorkerId = ids.worker_id;
-          finalEmployeeId = ids.employee_id;
-          console.log(finalWorkerId, finalEmployeeId);
-
           worker.worker_id = finalWorkerId;
-          worker.employee_id = finalEmployeeId;
         }
 
         const payload = {
           attendance_id: effectiveAttendanceId,
           company_id: company.subcontractor_id,
           company_name: company.company,
+          subcontractor_id: company.subcontractor_id,
 
           employee_id: finalEmployeeId,
           worker_id: finalWorkerId,
@@ -385,6 +407,7 @@ function SubContractor({ onRefetch }) {
           start_time: `${today}T${worker.start}:00`,
           end_time: `${today}T${worker.end}:00`,
         };
+        console.log("[saveCompany] payload:", payload);
 
         if (worker.uuid) {
           await attendanceSubcontractorSegmentApi.update(worker.uuid, payload);
@@ -498,8 +521,8 @@ function SubContractor({ onRefetch }) {
           workers: c.workers.map((w) => {
             if (w !== worker) return w;
             return newValue
-              ? { ...w, name: newValue.name, worker_id: newValue.worker_id }
-              : { ...w, name: "", worker_id: null };
+              ? { ...w, name: newValue.name, worker_id: newValue.worker_id, subcontractor_id: newValue.subcontractor_id ?? null }
+              : { ...w, name: "", worker_id: null, subcontractor_id: null };
           }),
         };
       })
@@ -621,49 +644,92 @@ function SubContractor({ onRefetch }) {
                           key={wIndex}
                           className="relative border rounded-lg p-2"
                         >
-                          <div className="flex flex-col gap-1">
-                            {company.workers.length > 1 && (
-                              <button
-                                onClick={() => deleteWorker(company, worker)}
-                                className="text-red-500 hover:text-red-700 place-self-end"
-                              >
-                                <X size={18} />
-                              </button>
-                            )}
-
-                            <Autocomplete
-                              options={workerOptions}
-                              value={getWorkerValue(company, worker)}
-                              getOptionLabel={(option) => option?.name ?? ""}
-                              isOptionEqualToValue={(option, value) =>
-                                String(option?.worker_id) === String(value?.worker_id)
-                              }
-                              loading={company.workersLoading ?? false}
-                              loadingText="Loading workers..."
-                              noOptionsText={company.workersLoading ? "Loading..." : "No workers found"}
-                              onChange={(e, newValue) =>
-                                handleWorkerChange(company, worker, newValue)
-                              }
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  placeholder="Select worker"
-                                  size="small"
-                                  fullWidth
-                                  InputProps={{
-                                    ...params.InputProps,
-                                    endAdornment: (
-                                      <>
-                                        {company.workersLoading && (
-                                          <CircularProgress size={16} />
-                                        )}
-                                        {params.InputProps.endAdornment}
-                                      </>
-                                    ),
-                                  }}
-                                />
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleWorkerInputMode(company, worker, "dropdown")}
+                                  className={`text-xs px-2 py-1 rounded ${worker.inputMode !== "manual" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}
+                                >
+                                  Select
+                                </button>
+                                <button
+                                  onClick={() => handleWorkerInputMode(company, worker, "manual")}
+                                  className={`text-xs px-2 py-1 rounded ${worker.inputMode === "manual" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}
+                                >
+                                  Manual
+                                </button>
+                              </div>
+                              {company.workers.length > 1 && (
+                                <button
+                                  onClick={() => deleteWorker(company, worker)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <X size={18} />
+                                </button>
                               )}
-                            />
+                            </div>
+
+                            {worker.inputMode === "manual" ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  placeholder="Name"
+                                  value={worker.name}
+                                  onChange={(e) => handleWorkerFieldChange(company, worker, "name", e.target.value)}
+                                  className="w-full border rounded-lg p-2 text-sm"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Name (Kana)"
+                                  value={worker.name_kana || ""}
+                                  onChange={(e) => handleWorkerFieldChange(company, worker, "name_kana", e.target.value)}
+                                  className="w-full border rounded-lg p-2 text-sm"
+                                />
+                                <select
+                                  value={worker.status || "ACTIVE"}
+                                  onChange={(e) => handleWorkerFieldChange(company, worker, "status", e.target.value)}
+                                  className="w-full border rounded-lg p-2 text-sm"
+                                >
+                                  <option value="ACTIVE">ACTIVE</option>
+                                  <option value="INACTIVE">INACTIVE</option>
+                                </select>
+                              </div>
+                            ) : (
+                              <Autocomplete
+                                options={workerOptions}
+                                value={getWorkerValue(company, worker)}
+                                getOptionLabel={(option) => option?.name ?? ""}
+                                isOptionEqualToValue={(option, value) =>
+                                  String(option?.worker_id) === String(value?.worker_id)
+                                }
+                                loading={company.workersLoading ?? false}
+                                loadingText="Loading workers..."
+                                noOptionsText={company.workersLoading ? "Loading..." : "No workers found"}
+                                onChange={(e, newValue) =>
+                                  handleWorkerChange(company, worker, newValue)
+                                }
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    placeholder="Select worker"
+                                    size="small"
+                                    fullWidth
+                                    InputProps={{
+                                      ...params.InputProps,
+                                      endAdornment: (
+                                        <>
+                                          {company.workersLoading && (
+                                            <CircularProgress size={16} />
+                                          )}
+                                          {params.InputProps.endAdornment}
+                                        </>
+                                      ),
+                                    }}
+                                  />
+                                )}
+                              />
+                            )}
                           </div>
 
                           <div className="flex gap-2 mt-2">

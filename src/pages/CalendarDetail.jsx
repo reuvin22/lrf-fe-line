@@ -46,6 +46,18 @@ function CalendarDetail() {
     };
   }, [attendanceRaw]);
 
+  const subcontractors = useMemo(() => {
+    if (!attendance) return [];
+
+    const raw = attendance.attendance_subcontractor_segments || [];
+
+    const unique = Array.from(
+      new Map(raw.map(item => [item.company_name, item])).values()
+    );
+
+    return unique;
+  }, [attendance]);
+
   const hasData =
     !!attendance &&
     (segments.length > 0 || localExpenses.length > 0 || subcontractors.length > 0);
@@ -85,18 +97,6 @@ function CalendarDetail() {
 
     fetchSiteAssignment();
   }, [employee]);
-
-  const subcontractors = useMemo(() => {
-    if (!attendance) return [];
-
-    const raw = attendance.attendance_subcontractor_segments || [];
-
-    const unique = Array.from(
-      new Map(raw.map(item => [item.company_name, item])).values()
-    );
-
-    return unique;
-  }, [attendance]);
 
   const fetchSegments = useCallback(async () => {
     const attendanceId = attendance?.attendance_id;

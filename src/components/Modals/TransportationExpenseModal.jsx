@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { X, Plus, MapPin } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import Button from "../Button";
-import { transportationExpensesApi } from "../../api/Api";
-
-const SITE_OPTIONS = [
-  { id: 1, name: "Site A - Shinjuku Tower", icon: MapPin },
-  { id: 2, name: "Site B - Shibuya Office", icon: MapPin },
-  { id: 3, name: "Site C - Roppongi Hills", icon: MapPin },
-];
+import { transportationExpensesApi, siteAssignmentApi } from "../../api/Api";
 
 function TransportationExpenseModal({
   open,
   setOpen,
-  sites = SITE_OPTIONS,
   expenses: initialExpenses = [],
   attendanceId,
   employeeId,
@@ -22,6 +15,7 @@ function TransportationExpenseModal({
   const [expenses, setExpenses] = useState([]);
   const [deletedIds, setDeletedIds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sites, setSites] = useState([]);
 
   useEffect(() => {
     if (open) {
@@ -34,6 +28,36 @@ function TransportationExpenseModal({
       setDeletedIds([]);
     }
   }, [open, initialExpenses, employeeId]);
+
+  useEffect(() => {
+    if (!open || !employeeId) return;
+
+    const fetchAssignedSites = async () => {
+      try {
+        const res = await siteAssignmentApi.getAll({ employee_id: employeeId });
+        const inner = res.data?.data;
+        const list = Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data)
+            ? inner.data
+            : [];
+
+        const mapped = list
+          .filter(v => v != null)
+          .map(v => {
+            const s = v.site ?? v;
+            return { id: s.site_id, name: s.site_name };
+          })
+          .filter(s => s.id != null);
+
+        setSites(mapped);
+      } catch (err) {
+        console.error("Failed to fetch assigned sites:", err);
+      }
+    };
+
+    fetchAssignedSites();
+  }, [open, employeeId]);
 
   const addExpense = () => {
     setExpenses(prev => [

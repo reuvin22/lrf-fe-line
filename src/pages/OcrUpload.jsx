@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import { attendanceApi, constructionSiteApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
+import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
@@ -45,10 +45,7 @@ function OcrUpload() {
       const employeeId = employee?.employee_id ?? attendance?.employee_id;
       if (!employeeId) return;
 
-      const [assignRes, sitesRes] = await Promise.all([
-        siteAssignmentApi.getAll(),
-        constructionSiteApi.getAll(),
-      ]);
+      const assignRes = await siteAssignmentApi.getAll({ employee_id: employeeId });
 
       const assignInner = assignRes.data?.data;
       const allAssignments = Array.isArray(assignInner)
@@ -57,33 +54,18 @@ function OcrUpload() {
           ? assignInner.data
           : [];
 
-      const sitesInner = sitesRes.data?.data;
-      const allSites = Array.isArray(sitesInner)
-        ? sitesInner
-        : Array.isArray(sitesInner?.data)
-          ? sitesInner.data
-          : [];
+      const matchedSites = allAssignments
+        .filter((v) => v != null)
+        .map((v) => {
+          const s = v.site ?? v;
+          return { site_id: s.site_id, site_name: s.site_name };
+        })
+        .filter((s) => s.site_id != null);
 
-      const assignedSiteIds = allAssignments
-        .filter(
-          (v) =>
-            v != null &&
-            String(
-              v.employee_id ?? v.employee?.employee_id ?? v.employee?.id
-            ) === String(employeeId),
-        )
-        .map((v) => v.site_id ?? v.site?.site_id)
-        .filter((id) => id != null);
+      console.log("[OcrUpload] matched sites:", matchedSites);
 
-      const matchedSites = allSites.filter((s) =>
-        assignedSiteIds.some((id) => String(id) === String(s.site_id))
-      );
-
-      console.log("[OcrUpload] assigned site_ids", assignedSiteIds);
-      console.log("[OcrUpload] matched construction sites", matchedSites);
-
-      setAllSites(allSites);
       setSites(matchedSites);
+      setAllSites(matchedSites);
     } catch (err) {
       console.error("Error fetching site assignments:", err);
     }
