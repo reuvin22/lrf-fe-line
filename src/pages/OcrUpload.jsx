@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import { attendanceApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
+import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
@@ -26,73 +26,48 @@ function OcrUpload() {
   const { attendance, employee } = useAttendanceContext()
   const [removeImage, setRemoveImage] = useState(false);
   const [previousImagePath, setPreviousImagePath] = useState(null);
-  const fetchCategories = async () => {
-    try {
-      const res = await ocrCategoriesApi.getAll();
-      const data = res.data.data;
-      setCategories(data);
-    } catch (err) {
-      console.error("Error fetching OCR categories:", err);
-    }
-  };
-
   useEffect(() => {
-    fetchCategories();
+    const load = async () => {
+      try {
+        const res = await ocrCategoriesApi.getAll();
+        setCategories(res.data.data);
+      } catch (err) {
+        console.error("Error fetching OCR categories:", err);
+      }
+    };
+    load();
   }, []);
 
-  const fetchSites = async () => {
-    try {
-      const employeeId = employee?.employee_id ?? attendance?.employee_id;
-      if (!employeeId) return;
-
-      const [attendanceRes, assignRes] = await Promise.all([
-        attendanceApi.getAll(),
-        siteAssignmentApi.getAll(),
-      ]);
-
-      const attInner = attendanceRes.data?.data;
-      const attendanceList = Array.isArray(attInner)
-        ? attInner
-        : Array.isArray(attInner?.data)
-          ? attInner.data
-          : [];
-
-      const currentAttendance = attendanceList.find(
-        (a) => String(a.employee_id) === String(employeeId)
-      );
-      const attendanceEmployeeId = currentAttendance?.employee_id ?? employeeId;
-      console.log("[OcrUpload] attendanceEmployeeId:", attendanceEmployeeId);
-
-      const assignInner = assignRes.data?.data;
-      const allAssignments = Array.isArray(assignInner)
-        ? assignInner
-        : Array.isArray(assignInner?.data)
-          ? assignInner.data
-          : [];
-
-      const matchedSites = allAssignments
-        .filter((v) => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
-        .map((v) => {
-          const s = v.site ?? v;
-          return { site_id: s.site_id, site_name: s.site_name };
-        })
-        .filter((s) => s.site_id != null);
-
-      console.log("[OcrUpload] matched sites:", matchedSites);
-
-      setSites(matchedSites);
-      setAllSites(matchedSites);
-    } catch (err) {
-      console.error("Error fetching site assignments:", err);
-    }
-  };
-
   useEffect(() => {
-    if (employee?.employee_id) {
-      fetchSites();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee?.employee_id]);
+    const employeeId = employee?.employee_id ?? attendance?.employee_id;
+    if (!employeeId) return;
+
+    const load = async () => {
+      try {
+        const assignRes = await siteAssignmentApi.getAll();
+        const assignInner = assignRes.data?.data;
+        const allAssignments = Array.isArray(assignInner)
+          ? assignInner
+          : Array.isArray(assignInner?.data)
+            ? assignInner.data
+            : [];
+
+        const matchedSites = allAssignments
+          .filter((v) => v != null && String(v.worker_id ?? "") === String(employeeId))
+          .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
+          .filter((s) => s.site_id != null);
+
+        console.log("[OcrUpload] matched sites:", matchedSites);
+        setSites(matchedSites);
+        setAllSites(matchedSites);
+      } catch (err) {
+        console.error("Error fetching site assignments:", err);
+      }
+    };
+
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.employee_id, attendance?.employee_id]);
 
   const fetchUploads = async () => {
     try {
