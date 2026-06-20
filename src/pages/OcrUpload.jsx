@@ -99,7 +99,8 @@ function OcrUpload() {
         const matched = workers.find(
           (w) => w.name?.trim().toLowerCase() === employeeName.trim().toLowerCase()
         );
-
+        console.log('THIS IS INNER: ', workers)
+        console.log('THIS IS NAME: ', employeeName)
         console.log("[OcrUpload] subcontractor worker match:", matched);
         setSubcontractorId(matched?.subcontractor_id ?? null);
         setSubcontractorName(matched?.subcontractor_name ?? null);
@@ -176,7 +177,7 @@ function OcrUpload() {
         uploaded_by: attendance.employee_id,
         category_id: selectedCategory?.category_id ?? null,
         site_id: selectedSite?.site_id ?? null,
-        site_name: selectedSite?.company_name ?? null,
+        site_name: selectedSite?.site_name ?? null,
         subcontractor_id: subcontractorId,
         subcontractor_name: subcontractorName,
         attendance_id: attendance.attendance_id,
