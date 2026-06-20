@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
+import { attendanceApi, ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
@@ -45,7 +45,23 @@ function OcrUpload() {
       const employeeId = employee?.employee_id ?? attendance?.employee_id;
       if (!employeeId) return;
 
-      const assignRes = await siteAssignmentApi.getAll({ employee_id: employeeId });
+      const [attendanceRes, assignRes] = await Promise.all([
+        attendanceApi.getAll(),
+        siteAssignmentApi.getAll(),
+      ]);
+
+      const attInner = attendanceRes.data?.data;
+      const attendanceList = Array.isArray(attInner)
+        ? attInner
+        : Array.isArray(attInner?.data)
+          ? attInner.data
+          : [];
+
+      const currentAttendance = attendanceList.find(
+        (a) => String(a.employee_id) === String(employeeId)
+      );
+      const attendanceEmployeeId = currentAttendance?.employee_id ?? employeeId;
+      console.log("[OcrUpload] attendanceEmployeeId:", attendanceEmployeeId);
 
       const assignInner = assignRes.data?.data;
       const allAssignments = Array.isArray(assignInner)
@@ -55,7 +71,7 @@ function OcrUpload() {
           : [];
 
       const matchedSites = allAssignments
-        .filter((v) => v != null)
+        .filter((v) => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
         .map((v) => {
           const s = v.site ?? v;
           return { site_id: s.site_id, site_name: s.site_name };
@@ -75,6 +91,7 @@ function OcrUpload() {
     if (employee?.employee_id) {
       fetchSites();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id]);
 
   const fetchUploads = async () => {
