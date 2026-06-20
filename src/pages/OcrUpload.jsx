@@ -37,77 +37,76 @@ function OcrUpload() {
     }
   };
 
+  // Load categories and uploads immediately on mount — no employee needed
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [catRes, uploadsRes] = await Promise.all([
+          ocrCategoriesApi.getAll(),
+          ocrUploadApi.getAll(),
+        ]);
+        const catInner = catRes.data?.data;
+        setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
+        setUploadedItems(uploadsRes.data?.data || []);
+      } catch (err) {
+        console.error("[OcrUpload] Failed to load categories/uploads:", err);
+      }
+    };
+    load();
+  }, []);
+
+  // Load sites and subcontractor once employee is available
   useEffect(() => {
     const employeeId = employee?.employee_id ?? attendance?.employee_id;
     const employeeName = employee?.name;
     if (!employeeId || !employeeName) return;
 
-    const loadAll = async () => {
+    const load = async () => {
       try {
-        const [categoriesRes, assignRes, workersRes, uploadsRes] = await Promise.all([
-          ocrCategoriesApi.getAll(),
+        const [assignRes, workersRes] = await Promise.all([
           siteAssignmentApi.getAll(),
           subContractorWorkerApi.getAll(),
-          ocrUploadApi.getAll(),
         ]);
 
-        // Categories
-        const catInner = categoriesRes.data?.data;
-        setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
-
-        // Assigned sites — match worker_id to employeeId
+        // Sites — match worker_id to employeeId
         const assignInner = assignRes.data?.data;
         const allAssignments = Array.isArray(assignInner)
           ? assignInner
           : Array.isArray(assignInner?.data) ? assignInner.data : [];
 
         const matchedSites = allAssignments
-          .filter((v) => {
-            if (!v) return false;
-            const wid = String(v.worker_id ?? "");
-            return wid === String(employeeId);
-          })
+          .filter((v) => v != null && String(v.worker_id ?? "") === String(employeeId))
           .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
           .filter((s) => s.site_id != null);
 
-        console.log("[OcrUpload] employeeId:", employeeId);
-        console.log("[OcrUpload] matched sites:", matchedSites);
+        console.log("[OcrUpload] employeeId:", employeeId, "matched sites:", matchedSites);
         setSites(matchedSites);
         setAllSites(matchedSites);
 
-        // Subcontractor worker match by name
+        // Subcontractor worker — match by name with fallbacks
         const workerInner = workersRes.data?.data;
         const workers = Array.isArray(workerInner)
           ? workerInner
           : Array.isArray(workerInner?.data) ? workerInner.data : [];
 
-        // Strip common prefixes like "[Employee]" before comparing
         const normalize = (str) =>
           (str ?? "").replace(/\[.*?\]\s*/g, "").trim().toLowerCase();
 
-        const normalizedEmployeeName = normalize(employeeName);
-
+        const norm = normalize(employeeName);
         const matched =
-          // 1. Exact match after normalization
-          workers.find((w) => normalize(w.name) === normalizedEmployeeName) ??
-          // 2. Worker name contains the employee name
-          workers.find((w) => normalize(w.name).includes(normalizedEmployeeName)) ??
-          // 3. Employee name contains the worker name
-          workers.find((w) => normalizedEmployeeName.includes(normalize(w.name)));
+          workers.find((w) => normalize(w.name) === norm) ??
+          workers.find((w) => normalize(w.name).includes(norm)) ??
+          workers.find((w) => norm.includes(normalize(w.name)));
 
-        console.log("[OcrUpload] employeeName:", employeeName, "→ normalized:", normalizedEmployeeName);
-        console.log("[OcrUpload] subcontractor worker match:", matched);
+        console.log("[OcrUpload] employeeName:", employeeName, "matched worker:", matched);
         setSubcontractorId(matched?.subcontractor_id ?? null);
         setSubcontractorName(matched?.subcontractor_name ?? null);
-
-        // Uploaded items
-        setUploadedItems(uploadsRes.data?.data || []);
       } catch (err) {
-        console.error("[OcrUpload] Failed to load data:", err);
+        console.error("[OcrUpload] Failed to load sites/subcontractor:", err);
       }
     };
 
-    loadAll();
+    load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id, employee?.name]);
 
