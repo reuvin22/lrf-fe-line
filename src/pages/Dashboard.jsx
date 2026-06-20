@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi } from "../api/Api";
 
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
@@ -18,19 +18,21 @@ function Dashboard() {
     const date = utc8.toISOString().split("T")[0];
 
     try {
-      const [dashboardRes, siteRes, employeeRes] = await Promise.all([
+      const [dashboardRes, siteAssignRes, employeeRes, siteRes, siteSubContractorRes] = await Promise.all([
         dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
+        sitesApi.getAll(),
+        siteSubContractorApi.getAll()
       ]);
-      const site = sitesApi.data.data || [];
-      console.log(site)
+      const site = siteRes.data.data || [];
       const attendanceList = dashboardRes.data.data || [];
-
+      const siteSubList = siteSubContractorRes.data.data || [];
+      console.log(siteSubList)
       console.log("[Dashboard] dashboardApi raw response:", dashboardRes.data);
       console.log("[Dashboard] attendanceList:", attendanceList);
 
-      const siteInner = siteRes.data?.data;
+      const siteInner = siteAssignRes.data?.data;
       const assignments = Array.isArray(siteInner)
         ? siteInner
         : Array.isArray(siteInner?.data)
@@ -54,10 +56,30 @@ function Dashboard() {
       console.log("[Dashboard] attendanceList sample:", attendanceList.slice(0, 2));
       console.log("[Dashboard] employees loaded:", employeeList.length);
 
+      assignments.forEach((assignment) => {
+        const empId = String(
+          assignment.employee_id ??
+          assignment.employee?.employee_id ??
+          assignment.employee?.id ??
+          ""
+        );
+        if (!empId) return;
+        const emp = employeeById.get(empId);
+        if (!emp) return;
+        const assignedSiteId = assignment.site_id ?? assignment.site?.site_id;
+        const matchedSite = site.find(
+          (s) => String(s.id ?? s.site_id) === String(assignedSiteId)
+        );
+        console.log(
+          `[Dashboard] Employee: ${emp.name} → Site: ${matchedSite?.name ?? matchedSite?.site_name ?? "Unknown"} (site_id: ${assignedSiteId})`
+        );
+      });
+
       const siteMap = new Map();
 
       assignments.forEach((assignment) => {
         const site = assignment.site ?? assignment;
+        console.log(assignment)
         if (!site || !site.site_id) return;
 
         if (!siteMap.has(site.site_id)) {
@@ -104,7 +126,6 @@ function Dashboard() {
 
       const groupedSites = Array.from(siteMap.values());
       console.log("[Dashboard] groupedSites:", groupedSites);
-
       attendanceList.forEach((attendance) => {
         const emp = attendance.employee;
         if (!emp) return;
@@ -112,15 +133,17 @@ function Dashboard() {
         const resolvedId = emp.employee_id ?? emp.id ?? attendance.employee_id;
         if (!resolvedId) return;
 
-        const ensureEmployeeOnSite = (site) => {
+        const ensureEmployeeOnSite = (site, contractType = null) => {
           if (!site.employeeMap[resolvedId]) {
             site.employeeMap[resolvedId] = {
               id: resolvedId,
               name: emp.name,
               status: emp.status,
               activities: [],
-              contract_type: null,
+              contract_type: contractType,
             };
+          } else if (contractType && !site.employeeMap[resolvedId].contract_type) {
+            site.employeeMap[resolvedId].contract_type = contractType;
           }
           return site.employeeMap[resolvedId];
         };
@@ -130,20 +153,21 @@ function Dashboard() {
           const site = ensureSite(siteId, segment.site?.site_name ?? segment.site_name);
           if (!site) return;
 
-          ensureEmployeeOnSite(site).activities.push(segment);
+          ensureEmployeeOnSite(site, null).activities.push(segment);
         });
 
         (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
           const siteId = sub.site?.site_id ?? sub.site_id;
-          const site = ensureSite(siteId, sub.site?.site_name ?? sub.site_name, sub.site?.contract_type ?? null);
+          const contractType = sub.site?.contract_type ?? sub.contract_type ?? null;
+          const site = ensureSite(siteId, sub.site?.site_name ?? sub.site_name, contractType);
           if (!site) return;
-          ensureEmployeeOnSite(site).activities.push(sub);
+          ensureEmployeeOnSite(site, contractType).activities.push(sub);
         });
       });
 
       groupedSites.forEach((site) => {
         let siteHasActive = false;
-
+        console.log('THIS IS FUCKING SITE: ', site)
         const buildRecord = (emp) => {
           const nowMs = new Date().getTime();
           const hasActivities = emp.activities.length > 0;
@@ -172,9 +196,9 @@ function Dashboard() {
 
         Object.values(site.employeeMap).forEach((emp) => {
           const record = buildRecord(emp);
-          if (site.contract_type === "QUASI_DELEGATION") {
+          if (emp.contract_type === "QUASI_DELEGATION") {
             quasiEmployees.push(record);
-          } else if (site.contract_type === "FIXED_PRICE") {
+          } else if (emp.contract_type === "FIXED_PRICE") {
             fixedEmployees.push(record);
           } else {
             site.employees.push(record);
@@ -263,10 +287,6 @@ function Dashboard() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 flex items-center gap-1">
-                  <Users size={13} />
-                  {site.totalWorkers} ppl
-                </span>
                 <span
                   className={`text-xs px-3 py-1 rounded-full ${site.statusStyle}`}
                 >
@@ -280,7 +300,12 @@ function Dashboard() {
               <div className="border-t px-4 py-4 space-y-4">
                 {/* EMPLOYEES */}
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">EMPLOYEES</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    EMPLOYEES
+                    {site.employees.length > 0 && (
+                      <span className="ml-1 text-gray-400">({site.employees.length} ppl)</span>
+                    )}
+                  </p>
 
                   {site.employees.length > 0 ? (
                     <div className="space-y-2">
