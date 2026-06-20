@@ -34,6 +34,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
   const handleSelectSite = async (site) => {
     if (onSelectSite) {
       onSelectSite(site);
+      console.log(site)
       handleClose();
       return;
     }
