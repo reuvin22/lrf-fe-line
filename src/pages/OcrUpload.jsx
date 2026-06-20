@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Image, Upload } from "lucide-react";
 import Button from "../components/Button";
-import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi } from "../api/Api";
+import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi, subContractorWorkerApi } from "../api/Api";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
@@ -26,6 +26,8 @@ function OcrUpload() {
   const { attendance, employee } = useAttendanceContext()
   const [removeImage, setRemoveImage] = useState(false);
   const [previousImagePath, setPreviousImagePath] = useState(null);
+  const [subcontractorId, setSubcontractorId] = useState(null);
+  const [subcontractorName, setSubcontractorName] = useState(null);
   useEffect(() => {
     const load = async () => {
       try {
@@ -79,6 +81,36 @@ function OcrUpload() {
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id, attendance?.employee_id]);
+
+  useEffect(() => {
+    const employeeName = employee?.name;
+    if (!employeeName) return;
+
+    const load = async () => {
+      try {
+        const res = await subContractorWorkerApi.getAll();
+        const inner = res.data?.data;
+        const workers = Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data)
+            ? inner.data
+            : [];
+
+        const matched = workers.find(
+          (w) => w.name?.trim().toLowerCase() === employeeName.trim().toLowerCase()
+        );
+
+        console.log("[OcrUpload] subcontractor worker match:", matched);
+        setSubcontractorId(matched?.subcontractor_id ?? null);
+        setSubcontractorName(matched?.subcontractor_name ?? null);
+      } catch (err) {
+        console.error("Error fetching subcontractor workers:", err);
+      }
+    };
+
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.name]);
 
   const fetchUploads = async () => {
     try {
@@ -144,7 +176,9 @@ function OcrUpload() {
         uploaded_by: attendance.employee_id,
         category_id: selectedCategory?.category_id ?? null,
         site_id: selectedSite?.site_id ?? null,
-        subcontractor_id: null,
+        site_name: selectedSite?.company_name ?? null,
+        subcontractor_id: subcontractorId,
+        subcontractor_name: subcontractorName,
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
