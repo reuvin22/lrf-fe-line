@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi } from "../api/Api";
 
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
@@ -23,7 +23,8 @@ function Dashboard() {
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
       ]);
-
+      const site = sitesApi.data.data || [];
+      console.log(site)
       const attendanceList = dashboardRes.data.data || [];
 
       console.log("[Dashboard] dashboardApi raw response:", dashboardRes.data);
