@@ -30,7 +30,8 @@ function OcrUpload() {
     const load = async () => {
       try {
         const res = await ocrCategoriesApi.getAll();
-        setCategories(res.data.data);
+        const inner = res.data?.data;
+        setCategories(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
       } catch (err) {
         console.error("Error fetching OCR categories:", err);
       }
