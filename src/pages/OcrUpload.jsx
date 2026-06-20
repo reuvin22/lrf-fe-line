@@ -81,9 +81,21 @@ function OcrUpload() {
           ? workerInner
           : Array.isArray(workerInner?.data) ? workerInner.data : [];
 
-        const matched = workers.find(
-          (w) => w.name?.trim().toLowerCase() === employeeName.trim().toLowerCase()
-        );
+        // Strip common prefixes like "[Employee]" before comparing
+        const normalize = (str) =>
+          (str ?? "").replace(/\[.*?\]\s*/g, "").trim().toLowerCase();
+
+        const normalizedEmployeeName = normalize(employeeName);
+
+        const matched =
+          // 1. Exact match after normalization
+          workers.find((w) => normalize(w.name) === normalizedEmployeeName) ??
+          // 2. Worker name contains the employee name
+          workers.find((w) => normalize(w.name).includes(normalizedEmployeeName)) ??
+          // 3. Employee name contains the worker name
+          workers.find((w) => normalizedEmployeeName.includes(normalize(w.name)));
+
+        console.log("[OcrUpload] employeeName:", employeeName, "→ normalized:", normalizedEmployeeName);
         console.log("[OcrUpload] subcontractor worker match:", matched);
         setSubcontractorId(matched?.subcontractor_id ?? null);
         setSubcontractorName(matched?.subcontractor_name ?? null);
