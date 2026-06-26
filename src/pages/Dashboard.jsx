@@ -194,6 +194,9 @@ function Dashboard() {
           return start !== null && start <= nowMs && (end === null || nowMs < end);
         };
 
+        const quasiMap = {};
+        const fixedMap = {};
+
         const buildRecord = (emp) => {
           const hasActivities = emp.activities.length > 0;
           const hasActive = emp.activities.some(isActive);
@@ -208,25 +211,29 @@ function Dashboard() {
           else if (allEnded) segment = "Completed";
           else segment = "Not Started";
 
-          // Subcontractors this employee reported, with currently-working counts
-          const subcontractors = Object.values(emp.subcontractorMap).map((s) => {
-            const workerSegments = Object.values(s.workers);
-            const total = workerSegments.length;
-            const working = workerSegments.filter((segs) => segs.some(isActive)).length;
-            if (working > 0) siteHasActive = true;
-            return { name: s.name, contract_type: s.contract_type, total, working };
+          // Aggregate this employee's subcontractors into site-level groups.
+          // Count every worker regardless of status (completed still counts as 1).
+          Object.values(emp.subcontractorMap).forEach((s) => {
+            const total = Object.keys(s.workers).length;
+            if (total === 0) return;
+            const bucket = s.contract_type === "FIXED_PRICE" ? fixedMap : quasiMap;
+            bucket[s.name] = (bucket[s.name] || 0) + total;
+            const anyActive = Object.values(s.workers).some((segs) => segs.some(isActive));
+            if (anyActive) siteHasActive = true;
           });
 
-          return { id: emp.id, name: emp.name, status: emp.status, segment, subcontractors };
+          return { id: emp.id, name: emp.name, status: emp.status, segment };
         };
 
         site.employees = Object.values(site.employeeMap).map(buildRecord);
 
-        const totalSubWorkers = site.employees.reduce(
-          (sum, e) => sum + e.subcontractors.reduce((s, sc) => s + sc.total, 0),
-          0
-        );
-        const totalWorkers = site.employees.length + totalSubWorkers;
+        const quasiGroups = Object.entries(quasiMap).map(([name, count]) => ({ name, count }));
+        const fixedGroups = Object.entries(fixedMap).map(([name, count]) => ({ name, count }));
+        site.subcontractors = { quasi: quasiGroups, fixed: fixedGroups };
+
+        const totalQuasi = quasiGroups.reduce((sum, g) => sum + g.count, 0);
+        const totalFixed = fixedGroups.reduce((sum, g) => sum + g.count, 0);
+        const totalWorkers = site.employees.length + totalQuasi + totalFixed;
 
         if (totalWorkers === 0) {
           site.status = "Not Started";
@@ -327,7 +334,7 @@ function Dashboard() {
                     </p>
 
                     {site?.employees?.length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {site.employees.map((emp) => {
                           const status =
                             emp.segment === "In Progress"
@@ -337,42 +344,15 @@ function Dashboard() {
                               : "bg-gray-400 text-white";
 
                           return (
-                            <div key={emp.id} className="space-y-1">
-                              {/* Employee name + status */}
-                              <div className="flex justify-between items-center text-sm">
-                                <span className="font-medium">{emp.name || "Unknown"}</span>
-                                <span className={`text-xs px-2 py-1 rounded ${status}`}>
-                                  {emp.segment || "Not Started"}
-                                </span>
-                              </div>
+                            <div
+                              key={emp.id}
+                              className="flex justify-between items-center text-sm"
+                            >
+                              <span className="font-medium">{emp.name || "Unknown"}</span>
 
-                              {/* Subcontractors reported by this employee */}
-                              {emp.subcontractors?.length > 0 && (
-                                <div className="ml-3 pl-3 border-l border-gray-200 space-y-1">
-                                  {emp.subcontractors.map((sub) => (
-                                    <div
-                                      key={sub.name}
-                                      className="flex justify-between items-center text-xs text-gray-600"
-                                    >
-                                      <span>
-                                        {sub.name}
-                                        {sub.contract_type && (
-                                          <span className="ml-1 text-gray-400">
-                                            ({sub.contract_type === "QUASI_DELEGATION"
-                                              ? "Quasi"
-                                              : sub.contract_type === "FIXED_PRICE"
-                                              ? "Fixed"
-                                              : sub.contract_type})
-                                          </span>
-                                        )}
-                                      </span>
-                                      <span className="text-gray-500">
-                                        {sub.working} working
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                              <span className={`text-xs px-2 py-1 rounded ${status}`}>
+                                {emp.segment || "Not Started"}
+                              </span>
                             </div>
                           );
                         })}
@@ -384,6 +364,60 @@ function Dashboard() {
                       </div>
                     )}
                   </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    QUASI DELEGATION
+                    {site.subcontractors.quasi.length > 0 && (
+                      <span className="ml-1 text-gray-400">
+                        ({site.subcontractors.quasi.reduce((sum, g) => sum + g.count, 0)} ppl)
+                      </span>
+                    )}
+                  </p>
+
+                  {site.subcontractors.quasi.length > 0 ? (
+                    <div className="space-y-2">
+                      {site.subcontractors.quasi.map((group) => (
+                        <div key={group.name} className="flex justify-between items-center text-sm">
+                          <span>{group.name}</span>
+                          <span className="text-gray-500">{group.count} ppl</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span>No quasi delegation yet</span>
+                      <span className="text-gray-400">0 ppl</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    FIXED PRICE
+                    {site.subcontractors.fixed.length > 0 && (
+                      <span className="ml-1 text-gray-400">
+                        ({site.subcontractors.fixed.reduce((sum, g) => sum + g.count, 0)} ppl)
+                      </span>
+                    )}
+                  </p>
+
+                  {site.subcontractors.fixed.length > 0 ? (
+                    <div className="space-y-2">
+                      {site.subcontractors.fixed.map((group) => (
+                        <div key={group.name} className="flex justify-between items-center text-sm">
+                          <span>{group.name}</span>
+                          <span className="text-gray-500">{group.count} ppl</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span>No fixed price yet</span>
+                      <span className="text-gray-400">0 ppl</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
