@@ -49,6 +49,21 @@ function Dashboard() {
           ? empInner.data
           : [];
 
+      // Guard: skip this refetch if any response came back incomplete.
+      // Committing partial data overwrites a good snapshot and makes the
+      // whole dashboard flicker / show inconsistent values.
+      const snapshotComplete =
+        Array.isArray(allSites) && allSites.length > 0 &&
+        Array.isArray(attendanceList) &&
+        Array.isArray(subContractorList) &&
+        Array.isArray(assignments) &&
+        Array.isArray(employeeList);
+
+      if (!snapshotComplete) {
+        console.warn("[Dashboard] Incomplete data — skipping update to avoid inconsistency");
+        return;
+      }
+
       const employeeById = new Map();
       employeeList.forEach((emp) => {
         if (emp.employee_id != null) employeeById.set(String(emp.employee_id), emp);
