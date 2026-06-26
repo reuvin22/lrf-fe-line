@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MapPin } from 'lucide-react';
 import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
 import { useManualTimeContext } from '../../context/ManualTimeContext';
-import { attendanceApi, segmentApi } from '../../api/Api';
+import { attendanceApi, segmentApi, siteAssignmentApi } from '../../api/Api';
 import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
@@ -18,13 +18,39 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
   } = useSegmentContext();
 
   const { setOpenTimeModal } = useManualTimeContext();
-  const { attendance, sites } = useAttendanceContext();
+  const { attendance, employee } = useAttendanceContext();
+  const [sites, setSites] = useState([]);
 
   const isOpen = openProp !== undefined ? openProp : openLocationModal;
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    const employeeId = employee?.employee_id ?? attendance?.employee_id;
+    if (!isOpen || !employeeId) return;
 
-  console.log("[LocationModal] sites received:", sites);
+    const fetchAssignedSites = async () => {
+      try {
+        const res = await siteAssignmentApi.getAll();
+        const inner = res.data?.data;
+        const allAssignments = Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data) ? inner.data : [];
+
+        const matchedSites = allAssignments
+          .filter((v) => v != null && String(v.worker_id ?? "") === String(employeeId))
+          .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
+          .filter((s) => s.site_id != null);
+
+        console.log("[LocationModal] assigned sites:", matchedSites);
+        setSites(matchedSites);
+      } catch (err) {
+        console.error("[LocationModal] Failed to fetch assigned sites:", err);
+      }
+    };
+
+    fetchAssignedSites();
+  }, [isOpen, employee?.employee_id, attendance?.employee_id]);
+
+  if (!isOpen) return null;
 
   const handleClose = () => {
     if (onCloseProp) onCloseProp();

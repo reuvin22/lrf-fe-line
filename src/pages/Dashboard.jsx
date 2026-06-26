@@ -254,6 +254,7 @@ function Dashboard() {
           if (!emp.contract_type) site.employees.push(record);
         });
 
+        console.log(site)
         const siteAssignments = siteSubContractorMap.get(site.id) || [];
         const quasiGroups = siteAssignments
           .filter((a) => a.contract_type === "QUASI_DELEGATION")
@@ -270,7 +271,7 @@ function Dashboard() {
         const totalQuasi = quasiGroups.reduce((sum, g) => sum + g.count, 0);
         const totalFixed = fixedGroups.reduce((sum, g) => sum + g.count, 0);
         const totalWorkers = site.employees.length + totalQuasi + totalFixed;
-
+        
         if (totalWorkers === 0) {
           site.status = "Not Started";
           site.statusStyle = "bg-gray-400 text-white";
@@ -308,6 +309,7 @@ function Dashboard() {
     setOpenSite(openSite === siteId ? null : siteId);
   };
 
+  console.log()
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       {/* Header */}
@@ -358,47 +360,47 @@ function Dashboard() {
             {openSite === site.id && (
               <div className="border-t px-4 py-4 space-y-4">
                 {/* EMPLOYEES */}
-<div>
-  <p className="text-xs text-gray-500 mb-2">
-    EMPLOYEES
-    {site?.employees?.length > 0 && (
-      <span className="ml-1 text-gray-400">
-        ({site.employees.length} ppl)
-      </span>
-    )}
-  </p>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">
+                      EMPLOYEES
+                      {site?.employees?.length > 0 && (
+                        <span className="ml-1 text-gray-400">
+                          ({site.employees.length} ppl)
+                        </span>
+                      )}
+                    </p>
 
-  {site?.employees?.length > 0 ? (
-    <div className="space-y-2">
-      {site.employees.map((emp) => {
-        const status =
-          emp.segment === "In Progress"
-            ? "bg-yellow-500 text-white"
-            : emp.segment === "Completed"
-            ? "bg-green-500 text-white"
-            : "bg-gray-400 text-white";
+                    {site?.employees?.length > 0 ? (
+                      <div className="space-y-2">
+                        {site.employees.map((emp) => {
+                          const status =
+                            emp.segment === "In Progress"
+                              ? "bg-yellow-500 text-white"
+                              : emp.segment === "Completed"
+                              ? "bg-green-500 text-white"
+                              : "bg-gray-400 text-white";
 
-        return (
-          <div
-            key={emp.id}
-            className="flex justify-between items-center text-sm"
-          >
-            <span className="font-medium">{emp.name || "Unknown"}</span>
+                          return (
+                            <div
+                              key={emp.id}
+                              className="flex justify-between items-center text-sm"
+                            >
+                              <span className="font-medium">{emp.name || "Unknown"}</span>
 
-            <span className={`text-xs px-2 py-1 rounded ${status}`}>
-              {emp.segment || "Not Started"}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  ) : (
-    <div className="flex justify-between text-sm">
-      <span className="text-gray-400">No employee assigned</span>
-      <span className="text-gray-400">0 ppl</span>
-    </div>
-  )}
-</div>
+                              <span className={`text-xs px-2 py-1 rounded ${status}`}>
+                                {emp.segment || "Not Started"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">No employee assigned</span>
+                        <span className="text-gray-400">0 ppl</span>
+                      </div>
+                    )}
+                  </div>
 
                 <div>
                   <p className="text-xs text-gray-500 mb-2">
