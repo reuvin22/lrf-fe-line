@@ -15,6 +15,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { toast } from "react-toastify";
+import * as wanakana from "wanakana";
 
 function SubContractor({ onRefetch }) {
   const [companies, setCompanies] = useState([]);
@@ -362,10 +363,13 @@ function SubContractor({ onRefetch }) {
         return { worker_id: worker.worker_id };
       }
 
+      // Auto-convert the name to Japanese katakana for name_kana
+      const nameKana = worker.name ? wanakana.toKatakana(worker.name) : "";
+
       const workerRes = await subContractorWorkerApi.create({
         subcontractor_id: company.subcontractor_id,
         name: worker.name,
-        name_kana: worker.name_kana || "",
+        name_kana: nameKana,
         status: worker.status || "ACTIVE",
       });
 

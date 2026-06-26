@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { attendanceApi, employeeApi, attendanceEmployeeSegment, siteAssignmentApi } from "../api/Api";
 import { useLiff } from "./LiffContext";
+import * as wanakana from "wanakana";
 
 export const AttendanceContext = createContext();
 
@@ -51,6 +52,7 @@ export const AttendanceProvider = ({ children }) => {
             employee_id: crypto.randomUUID(),
             line_user_id: lineUserId,
             name: displayName,
+            name_kana: displayName ? wanakana.toKatakana(displayName) : "",
             status: "PENDING",
           });
           foundEmployee = createRes.data.data ?? createRes.data;
