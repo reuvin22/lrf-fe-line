@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, subContractorApi, subContractorWorkerApi } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi } from "../api/Api";
 
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
@@ -18,25 +18,41 @@ function Dashboard() {
     const date = utc8.toISOString().split("T")[0];
 
     try {
-      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes] = await Promise.all([
+      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes, siteSubcontractorRes] = await Promise.all([
         dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
         sitesApi.getAll(),
         subContractorApi.getAll(),
         subContractorWorkerApi.getAll(),
+        siteSubContractorApi.getAll()
       ]);
       const allSites = siteRes.data.data || [];
       const attendanceList = dashboardRes.data.data || [];
       const subContractorList = subContractorRes.data.data || [];
       const subContractorWorkerList = subContractorWorkerRes.data.data || [];
-
+      const siteSubcontractorList = siteSubcontractorRes.data?.data || []
+      console.log('THIS IS Subcontractor: ', siteSubcontractorList)
+      console.log('THIS IS WORKERS: ', subContractorWorkerList)
       const subContractorById = new Map();
       subContractorList.forEach((sub) => {
         const id = sub.subcontractor_id ?? sub.id;
         if (id != null) subContractorById.set(String(id), sub);
       });
 
+
+      const siteSubMap = new Map();
+
+      siteSubcontractorList.forEach((item) => {
+          const siteId = String(item.site_id);
+          const subId = String(item.subcontractor_id);
+
+          if (!siteSubMap.has(siteId)) {
+              siteSubMap.set(siteId, new Set());
+          }
+
+          siteSubMap.get(siteId).add(subId);
+      });
       // Match a worker name → its subcontractor (from subcontractor-workers table)
       const normalizeName = (str) =>
         (str ?? "").replace(/\[.*?\]\s*/g, "").trim().toLowerCase();
@@ -84,10 +100,6 @@ function Dashboard() {
         if (emp.employee_id != null) employeeById.set(String(emp.employee_id), emp);
         if (emp.id != null) employeeById.set(String(emp.id), emp);
       });
-
-      console.log("[Dashboard] assignments sample:", assignments.slice(0, 2));
-      console.log("[Dashboard] attendanceList sample:", attendanceList.slice(0, 2));
-      console.log("[Dashboard] employees loaded:", employeeList.length);
 
       assignments.forEach((assignment) => {
         const empId = String(
@@ -252,23 +264,46 @@ function Dashboard() {
             if (anyActive) siteHasActive = true;
           });
 
-          // Classify this employee by matching their name in subcontractor-workers,
-          // then resolving the subcontractor's contract_type (quasi / fixed).
-          const matchedSubId = subContractorByWorkerName.get(normalizeName(emp.name));
+          const matchedSubId =
+              subContractorByWorkerName.get(normalizeName(emp.name));
+
           if (matchedSubId) {
-            const sub = subContractorById.get(String(matchedSubId));
-            const contractType = sub?.contract_type;
-            const companyName = sub?.company_name ?? sub?.name ?? "Unknown";
-            if (contractType === "FIXED_PRICE") {
-              fixedMap[companyName] = (fixedMap[companyName] || 0) + 1;
-            } else if (contractType === "QUASI_DELEGATION") {
-              quasiMap[companyName] = (quasiMap[companyName] || 0) + 1;
-            }
+
+              const allowedSubs =
+                  siteSubMap.get(String(site.id));
+
+              if (allowedSubs?.has(String(matchedSubId))) {
+
+                  const sub = subContractorById.get(String(matchedSubId));
+
+                  if (sub) {
+
+                      const bucket =
+                          sub.contract_type === "FIXED_PRICE"
+                              ? fixedMap
+                              : quasiMap;
+
+                      const company =
+                          sub.company_name ??
+                          sub.name;
+
+                      bucket[company] =
+                          (bucket[company] || 0) + 1;
+                  }
+              }
           }
 
           return { id: emp.id, name: emp.name, status: emp.status, segment };
         };
 
+        const workerByEmployeeId = new Map();
+
+subContractorWorkerList.forEach(worker => {
+    workerByEmployeeId.set(
+        String(worker.employee_id),
+        worker.subcontractor_id
+    );
+});
         site.employees = Object.values(site.employeeMap).map(buildRecord);
 
         const quasiGroups = Object.entries(quasiMap).map(([name, count]) => ({ name, count }));
@@ -291,7 +326,7 @@ function Dashboard() {
         delete site.employeeMap;
       });
 
-      setAssignedSites(groupedSites);
+      setAssignedSites(groupedSites.filter((site) => site.totalWorkers > 0));
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Error fetching dashboard:", err);
