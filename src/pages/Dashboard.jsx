@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, subContractorApi } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, subContractorApi, subContractorWorkerApi } from "../api/Api";
 
 function Dashboard() {
   const [openSite, setOpenSite] = useState(null);
@@ -18,21 +18,35 @@ function Dashboard() {
     const date = utc8.toISOString().split("T")[0];
 
     try {
-      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes] = await Promise.all([
+      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes] = await Promise.all([
         dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
         sitesApi.getAll(),
         subContractorApi.getAll(),
+        subContractorWorkerApi.getAll(),
       ]);
       const allSites = siteRes.data.data || [];
       const attendanceList = dashboardRes.data.data || [];
       const subContractorList = subContractorRes.data.data || [];
+      const subContractorWorkerList = subContractorWorkerRes.data.data || [];
 
       const subContractorById = new Map();
       subContractorList.forEach((sub) => {
         const id = sub.subcontractor_id ?? sub.id;
         if (id != null) subContractorById.set(String(id), sub);
+      });
+
+      // Match a worker name → its subcontractor (from subcontractor-workers table)
+      const normalizeName = (str) =>
+        (str ?? "").replace(/\[.*?\]\s*/g, "").trim().toLowerCase();
+      const subContractorByWorkerName = new Map();
+      subContractorWorkerList.forEach((worker) => {
+        const key = normalizeName(worker.name);
+        if (!key) return;
+        const subId = String(worker.subcontractor_id ?? worker.sub_contractor_id ?? worker.subcontractor?.id ?? "");
+        if (!subId) return;
+        subContractorByWorkerName.set(key, subId);
       });
 
       const siteInner = siteAssignRes.data?.data;
@@ -56,6 +70,7 @@ function Dashboard() {
         Array.isArray(allSites) && allSites.length > 0 &&
         Array.isArray(attendanceList) &&
         Array.isArray(subContractorList) &&
+        Array.isArray(subContractorWorkerList) &&
         Array.isArray(assignments) &&
         Array.isArray(employeeList);
 
@@ -236,6 +251,20 @@ function Dashboard() {
             const anyActive = Object.values(s.workers).some((segs) => segs.some(isActive));
             if (anyActive) siteHasActive = true;
           });
+
+          // Classify this employee by matching their name in subcontractor-workers,
+          // then resolving the subcontractor's contract_type (quasi / fixed).
+          const matchedSubId = subContractorByWorkerName.get(normalizeName(emp.name));
+          if (matchedSubId) {
+            const sub = subContractorById.get(String(matchedSubId));
+            const contractType = sub?.contract_type;
+            const companyName = sub?.company_name ?? sub?.name ?? "Unknown";
+            if (contractType === "FIXED_PRICE") {
+              fixedMap[companyName] = (fixedMap[companyName] || 0) + 1;
+            } else if (contractType === "QUASI_DELEGATION") {
+              quasiMap[companyName] = (quasiMap[companyName] || 0) + 1;
+            }
+          }
 
           return { id: emp.id, name: emp.name, status: emp.status, segment };
         };
