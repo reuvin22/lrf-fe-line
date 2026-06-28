@@ -33,9 +33,12 @@ export const AttendanceProvider = ({ children }) => {
         const lineUserId = lineProfile.userId;
         const displayName = lineProfile.displayName ?? "Unknown";
 
-        const employeeRes = await employeeApi.getAll();
+        // Fetch employees and site assignments in parallel — neither depends on the other
+        const [employeeRes, siteRes] = await Promise.all([
+          employeeApi.getAll(),
+          siteAssignmentApi.getAll(),
+        ]);
 
-        // Handle both flat array and paginated { data: { data: [] } } responses
         const inner = employeeRes.data?.data;
         const rawEmployees = Array.isArray(inner)
           ? inner
@@ -43,9 +46,7 @@ export const AttendanceProvider = ({ children }) => {
             ? inner.data
             : [];
 
-        console.log("[DEBUG] rawEmployees", rawEmployees);
         let foundEmployee = rawEmployees.find(emp => emp.line_user_id === String(lineUserId));
-        console.log("[DEBUG] foundEmployee", foundEmployee);
 
         if (!foundEmployee) {
           const createRes = await employeeApi.create({
@@ -89,7 +90,6 @@ export const AttendanceProvider = ({ children }) => {
             ? attInner.data
             : [];
 
-        console.log("[DEBUG] attendances found", attendances);
         let currentAttendance;
         let isNewAttendance = false;
 
@@ -107,7 +107,7 @@ export const AttendanceProvider = ({ children }) => {
 
         setAttendance(currentAttendance);
 
-        const siteRes = await siteAssignmentApi.getAll();
+        // Process sites from the already-completed parallel fetch — no extra wait
         const siteInner = siteRes.data?.data;
         const rawSites = Array.isArray(siteInner)
           ? siteInner

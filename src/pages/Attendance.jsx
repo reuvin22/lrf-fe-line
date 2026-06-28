@@ -26,7 +26,6 @@ function Attendance({ employee }) {
   const [editingSegment, setEditingSegment] = useState(null);
   const [status, setStatus] = useState("Not Started");
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [isLeader, setIsLeader] = useState(false)
   const { sites, setSites } = useLocationContext()
   const {
     setOpenSegmentModal,
@@ -38,7 +37,7 @@ function Attendance({ employee }) {
   } = useSegmentContext();
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
-  const { attendance, setAttendance } = useAttendanceContext()
+  const { attendance, setAttendance, sites: attendanceSites } = useAttendanceContext()
   const today = new Date().toDateString();
   const fetchSegments = async () => {
     const attendanceId = attendance?.attendance_id;
@@ -77,36 +76,10 @@ function Attendance({ employee }) {
       console.error("Error fetching attendance:", error);
     }
   };
-  const fetchSiteAssignment = async () => {
-    try {
-      const res = await siteAssignmentApi.getAll();
-      const inner = res.data?.data;
-      const rawAssignments = Array.isArray(inner)
-        ? inner
-        : Array.isArray(inner?.data)
-          ? inner.data
-          : [];
-
-      const employeeSites = rawAssignments
-        .filter(v => v != null && v.site != null)
-        .map(v => ({
-          site_id: v.site.site_id,
-          site_name: v.site.site_name,
-          address: v.site.address,
-          client_name: v.site.client_name,
-          is_leader: v.is_leader,
-        }));
-
-      if (employeeSites.some(v => v.is_leader === true || v.is_leader === 1 || String(v.is_leader).toUpperCase() === "YES")) setIsLeader(true);
-
-      setSites(employeeSites);
-    } catch (error) {
-      console.error("Error fetching sites:", error);
-    }
-  };
+  // Sync sites from AttendanceContext (already fetched during init — no duplicate call needed)
   useEffect(() => {
-    fetchSiteAssignment()
-  }, [])
+    if (attendanceSites?.length > 0) setSites(attendanceSites);
+  }, [attendanceSites]);
 
   useEffect(() => {
     if (!employee?.id) return;
