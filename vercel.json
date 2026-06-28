@@ -1,12 +1,8 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://lrf-project-backend.duckdns.org/api/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
+  {
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/index.html"
+      }
+    ]
+  }
