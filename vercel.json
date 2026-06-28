@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/lrf-be/:path*",
-      "destination": "https://miraboes.com/lrf-be/:path*"
+      "source": "/:path*",
+      "destination": "https://lrf-project-backend.duckdns.org/:path*"
     },
     {
       "source": "/(.*)",
