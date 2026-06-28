@@ -243,7 +243,7 @@ function Attendance({ employee }) {
             : [];
 
         const employeeAssignments = allAssignments.filter(
-          v => v != null && String(v.employee_id) === String(attendance.employee_id)
+          v => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employee.employee_id)
         );
 
         console.log("[END OF DAY] employee assignments:", employeeAssignments);
