@@ -326,7 +326,7 @@ subContractorWorkerList.forEach(worker => {
         delete site.employeeMap;
       });
 
-      setAssignedSites(groupedSites.filter((site) => site.totalWorkers > 0));
+      setAssignedSites(groupedSites);
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Error fetching dashboard:", err);
