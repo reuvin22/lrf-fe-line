@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Main from "./layout/Main";
 import Manual from "./pages/Manual";
 import Calendar from "./pages/Calendar";
@@ -24,6 +25,7 @@ function App() {
   if (isProfileIncomplete) return <PendingApproval />;
   if (!attendance || !employee) return <Loading />;
   return (
+    <ErrorBoundary>
     <Router>
       <Routes>
         <Route element={<AppLayout />}>
@@ -53,6 +55,7 @@ function App() {
         draggable
       />
     </Router>
+    </ErrorBoundary>
   );
 }
 
