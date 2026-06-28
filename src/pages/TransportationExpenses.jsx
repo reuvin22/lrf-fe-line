@@ -74,11 +74,11 @@ function TransportationExpenseScreen({ onDone }) {
             : [];
 
         const mapped = list
-          .filter(v => v != null)
-          .map(v => {
-            const s = v.site ?? v;
-            return { id: s.site_id, name: s.site_name };
-          })
+          .filter(v => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employee.employee_id))
+          .map(v => ({
+            id: v.site_id ?? v.site?.site_id,
+            name: v.site_name ?? v.site?.site_name,
+          }))
           .filter(s => s.id != null);
 
         setSegmentSites(mapped);
