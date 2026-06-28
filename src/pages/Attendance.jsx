@@ -52,7 +52,7 @@ function Attendance({ employee }) {
       const raw = res.data?.data ?? res.data;
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
-      const matched = list.filter((seg) => seg.attendance_id === attendanceId);
+      const matched = list.filter((seg) => String(seg.attendance_id) === String(attendanceId));
       console.log("[Attendance] segments for attendance_id", attendanceId, matched);
       setSegments(matched);
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin } from 'lucide-react';
 import ActionCard from '../ActionCard';
 import { useSegmentContext } from '../../context/SegmentContext';
@@ -20,6 +20,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
   const { setOpenTimeModal } = useManualTimeContext();
   const { attendance, employee } = useAttendanceContext();
   const [sites, setSites] = useState([]);
+  const tempIdRef = useRef(0);
 
   const isOpen = openProp !== undefined ? openProp : openLocationModal;
 
@@ -36,8 +37,11 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
           : Array.isArray(inner?.data) ? inner.data : [];
 
         const matchedSites = allAssignments
-          .filter((v) => v != null && String(v.worker_id ?? "") === String(employeeId))
-          .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
+          .filter((v) => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employeeId))
+          .map((v) => ({
+            site_id: v.site_id ?? v.site?.site_id,
+            site_name: v.site_name ?? v.site?.site_name,
+          }))
           .filter((s) => s.site_id != null);
 
         console.log("[LocationModal] assigned sites:", matchedSites);
@@ -92,7 +96,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
         : null,
     };
 
-    const tempId = Date.now();
+    const tempId = ++tempIdRef.current;
     setSegments(prev => [
       { ...payload, segment_id: tempId, _temp: true },
       ...prev
@@ -162,7 +166,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
         : null,
     };
 
-    const tempId = Date.now();
+    const tempId = ++tempIdRef.current;
     setSegments(prev => [
       { ...payload, segment_id: tempId, _temp: true },
       ...prev

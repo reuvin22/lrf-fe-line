@@ -200,22 +200,18 @@ function SubContractor({ onRefetch }) {
       try {
         setLoading(true);
 
-        const [subsRes, siteSubsRes, attendanceRes, siteAssignRes] = await Promise.all([
+        const [subsRes, siteSubsRes, siteAssignRes] = await Promise.all([
           subContractorApi.getAll(),
           siteSubContractorApi.getAll(),
-          attendanceApi.getAll(),
           siteAssignmentApi.getAll(),
         ]);
 
-        const attInner2 = attendanceRes.data?.data;
-        const attendanceList2 = Array.isArray(attInner2) ? attInner2 : Array.isArray(attInner2?.data) ? attInner2.data : [];
-        const currentAttendance = attendanceList2.find(a => String(a.employee_id) === String(employee?.employee_id));
-        const attendanceEmployeeId = currentAttendance?.employee_id ?? employee?.employee_id;
+        const attendanceEmployeeId = employee?.employee_id;
         console.log("[SubContractor] attendanceEmployeeId for site filter:", attendanceEmployeeId);
 
-        const rawSites = siteAssignRes.data.data ?? siteAssignRes.data;
-        const siteList = Array.isArray(rawSites) ? rawSites : [];
-        const mapped = siteList
+        const siteAssignInner = siteAssignRes.data?.data;
+        const rawSites = Array.isArray(siteAssignInner) ? siteAssignInner : Array.isArray(siteAssignInner?.data) ? siteAssignInner.data : [];
+        const mapped = rawSites
           .filter(v => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
           .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name }; })
           .filter(s => s.site_id != null);
@@ -228,18 +224,13 @@ function SubContractor({ onRefetch }) {
         const siteSubsInner = siteSubsRes.data?.data;
         const siteSubs = Array.isArray(siteSubsInner) ? siteSubsInner : Array.isArray(siteSubsInner?.data) ? siteSubsInner.data : [];
 
-        const attInner = attendanceRes.data?.data;
-        const attendanceList = Array.isArray(attInner) ? attInner : Array.isArray(attInner?.data) ? attInner.data : [];
-        const segments = attendanceList.flatMap((a) => a.segments || []);
-
         setAllSubcontractors(subs);
         setSiteSubcontractors(siteSubs);
-        setAllSegments(segments);
 
         if (location.state?.from === "subcontractor") {
           await fetchAttendanceSubcontractor(subs);
         } else {
-          await buildConstructionSites(subs, siteSubs, segments);
+          await buildConstructionSites(subs, siteSubs, []);
         }
       } catch (err) {
         console.error(err);
@@ -482,8 +473,8 @@ function SubContractor({ onRefetch }) {
       let workers = [];
       try {
         const res = await subContractorWorkerApi.getAll();
-        const raw = res.data.data ?? res.data;
-        const all = Array.isArray(raw) ? raw : [];
+        const wInner = res.data?.data;
+        const all = Array.isArray(wInner) ? wInner : Array.isArray(wInner?.data) ? wInner.data : [];
         workers = all.filter(
           w => String(w.subcontractor_id) === String(subId)
         );
