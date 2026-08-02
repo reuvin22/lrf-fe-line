@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { ocrUploadApi, subContractorApi, sitesApi } from "../api/Api";
 import axiosApi from "../api/Axios";
 import { useAttendanceContext } from "../context/AttendanceContext";
+import { parseImagePaths } from "../utils/parseImagePaths";
 import Button from "../components/Button";
 
 const DOCUMENT_TYPES = [
@@ -44,11 +45,7 @@ function OcrReview() {
   const [documentTotal, setDocumentTotal] = useState("");
   const [lines, setLines] = useState([{ site_id: "", amount: "" }]);
 
-  const imagePaths = Array.isArray(item?.image_paths)
-    ? item.image_paths
-    : item?.image_path
-      ? [item.image_path]
-      : [];
+  const imagePaths = parseImagePaths(item?.image_paths ?? item?.image_path);
 
   useEffect(() => {
     const load = async () => {

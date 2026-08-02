@@ -8,6 +8,7 @@ import axiosApi from "../api/Axios";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
+import { parseImagePaths } from "../utils/parseImagePaths";
 import { toast } from "react-toastify";
 
 function OcrUpload() {
@@ -210,12 +211,7 @@ function OcrUpload() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    const paths = Array.isArray(item.image_paths)
-      ? item.image_paths
-      : item.image_path
-        ? [item.image_path]
-        : [];
-    setExistingImagePaths(paths.map((p) => p?.replace(/\\\//g, "/")).filter(Boolean));
+    setExistingImagePaths(parseImagePaths(item.image_paths ?? item.image_path));
     setImageFiles([]);
     setImagePreviews([]);
 
