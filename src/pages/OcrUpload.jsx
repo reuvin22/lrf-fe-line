@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Camera, Image, Upload } from "lucide-react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../components/Button";
+import FileThumbnail from "../components/FileThumbnail";
 import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi, subContractorWorkerApi } from "../api/Api";
 import axiosApi from "../api/Axios";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
@@ -301,7 +302,7 @@ function OcrUpload() {
               <div className="grid grid-cols-3 gap-2">
                 {existingImagePaths.map((path) => (
                   <div key={path} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
-                    <img src={path} alt="uploaded" className="w-full h-full object-cover" />
+                    <FileThumbnail src={path} name={path} />
                     <button
                       type="button"
                       onClick={() => removeExistingImage(path)}
@@ -313,7 +314,7 @@ function OcrUpload() {
                 ))}
                 {imagePreviews.map((url, idx) => (
                   <div key={url} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
-                    <img src={url} alt="preview" className="w-full h-full object-cover" />
+                    <FileThumbnail src={url} name={imageFiles[idx]?.name} mimeType={imageFiles[idx]?.type} />
                     <button
                       type="button"
                       onClick={() => removeNewImage(idx)}
@@ -354,7 +355,7 @@ function OcrUpload() {
                 text={
                   <span className="flex items-center gap-2 justify-center">
                     <Image size={18} />
-                    Upload Images
+                    Upload Files
                   </span>
                 }
               />
@@ -363,7 +364,7 @@ function OcrUpload() {
           <input
             ref={libraryInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             multiple
             onChange={handleImages}
             className="hidden"

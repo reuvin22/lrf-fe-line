@@ -6,7 +6,9 @@ import { ocrUploadApi, subContractorApi, sitesApi } from "../api/Api";
 import axiosApi from "../api/Axios";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { parseImagePaths } from "../utils/parseImagePaths";
+import { getFileKind } from "../utils/getFileKind";
 import Button from "../components/Button";
+import FileThumbnail from "../components/FileThumbnail";
 
 const DOCUMENT_TYPES = [
   { value: "INVOICE", label: "請求書" },
@@ -279,15 +281,28 @@ function OcrReview() {
                 onScroll={handleGalleryScroll}
                 className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
               >
-                {imagePaths.map((path, idx) => (
-                  <img
-                    key={path}
-                    ref={(el) => (imageRefs.current[idx] = el)}
-                    src={path}
-                    alt="document"
-                    className="h-40 sm:h-56 w-[80vw] sm:w-auto sm:max-w-xs rounded-2xl object-contain bg-gray-100 flex-shrink-0 snap-center"
-                  />
-                ))}
+                {imagePaths.map((path, idx) =>
+                  getFileKind(path) === "image" ? (
+                    <img
+                      key={path}
+                      ref={(el) => (imageRefs.current[idx] = el)}
+                      src={path}
+                      alt="document"
+                      className="h-40 sm:h-56 w-[80vw] sm:w-auto sm:max-w-xs rounded-2xl object-contain bg-gray-100 flex-shrink-0 snap-center"
+                    />
+                  ) : (
+                    <a
+                      key={path}
+                      ref={(el) => (imageRefs.current[idx] = el)}
+                      href={path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-40 sm:h-56 w-[80vw] sm:w-48 rounded-2xl bg-gray-100 flex-shrink-0 snap-center overflow-hidden block"
+                    >
+                      <FileThumbnail src={path} name={path} />
+                    </a>
+                  )
+                )}
               </div>
               {imagePaths.length > 1 && (
                 <div className="flex justify-center gap-1.5">
