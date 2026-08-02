@@ -11,6 +11,21 @@ import { useLocationContext } from "../context/LocationContext";
 import { parseImagePaths } from "../utils/parseImagePaths";
 import { toast } from "react-toastify";
 
+const STATUS_ORDER = ["PENDING", "PROCESSING", "COMPLETED", "CONFIRMED", "REJECTED", "ERROR"];
+
+const sortUploadedItems = (items) =>
+  [...items].sort((a, b) => {
+    const rankA = STATUS_ORDER.indexOf(a.status);
+    const rankB = STATUS_ORDER.indexOf(b.status);
+    const orderA = rankA === -1 ? STATUS_ORDER.length : rankA;
+    const orderB = rankB === -1 ? STATUS_ORDER.length : rankB;
+    if (orderA !== orderB) return orderA - orderB;
+
+    const dateA = a.status === "PENDING" ? (a.created_at ?? a.uploaded_at) : (a.updated_at ?? a.uploaded_at);
+    const dateB = b.status === "PENDING" ? (b.created_at ?? b.uploaded_at) : (b.updated_at ?? b.uploaded_at);
+    return new Date(dateB) - new Date(dateA);
+  });
+
 function OcrUpload() {
   const navigate = useNavigate();
   const [imageFiles, setImageFiles] = useState([]);
@@ -434,7 +449,7 @@ function OcrUpload() {
             <div className="text-sm text-gray-400">No documents uploaded yet</div>
           )}
 
-          {uploadedItems.map((item) => {
+          {sortUploadedItems(uploadedItems).map((item) => {
             const matchedCategory =
               item.category ??
               categories.find(

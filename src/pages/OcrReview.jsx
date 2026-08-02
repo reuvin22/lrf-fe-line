@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronDown } from "lucide-react";
@@ -46,6 +46,35 @@ function OcrReview() {
   const [lines, setLines] = useState([{ site_id: "", amount: "" }]);
 
   const imagePaths = parseImagePaths(item?.image_paths ?? item?.image_path);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const galleryRef = useRef(null);
+  const imageRefs = useRef([]);
+
+  const handleGalleryScroll = () => {
+    const container = galleryRef.current;
+    if (!container) return;
+    const center = container.scrollLeft + container.clientWidth / 2;
+    let closest = 0;
+    let closestDistance = Infinity;
+    imageRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const elCenter = el.offsetLeft + el.offsetWidth / 2;
+      const distance = Math.abs(elCenter - center);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = i;
+      }
+    });
+    setActiveImageIndex(closest);
+  };
+
+  const scrollToImage = (index) => {
+    imageRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -244,15 +273,37 @@ function OcrReview() {
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Original Document</p>
           {imagePaths.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto">
-              {imagePaths.map((path) => (
-                <img
-                  key={path}
-                  src={path}
-                  alt="document"
-                  className="h-40 sm:h-56 max-w-[80vw] sm:max-w-xs rounded-xl object-contain bg-gray-100 flex-shrink-0"
-                />
-              ))}
+            <div className="flex flex-col gap-3">
+              <div
+                ref={galleryRef}
+                onScroll={handleGalleryScroll}
+                className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {imagePaths.map((path, idx) => (
+                  <img
+                    key={path}
+                    ref={(el) => (imageRefs.current[idx] = el)}
+                    src={path}
+                    alt="document"
+                    className="h-40 sm:h-56 w-[80vw] sm:w-auto sm:max-w-xs rounded-2xl object-contain bg-gray-100 flex-shrink-0 snap-center"
+                  />
+                ))}
+              </div>
+              {imagePaths.length > 1 && (
+                <div className="flex justify-center gap-1.5">
+                  {imagePaths.map((path, idx) => (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => scrollToImage(idx)}
+                      aria-label={`Go to image ${idx + 1}`}
+                      className={`rounded-full transition-all cursor-pointer ${
+                        idx === activeImageIndex ? "w-5 h-2 bg-green-600" : "w-2 h-2 bg-gray-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-gray-400">No image available</p>
