@@ -1,15 +1,20 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Camera, Image, Upload } from "lucide-react";
+import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../components/Button";
 import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi, subContractorWorkerApi } from "../api/Api";
+import axiosApi from "../api/Axios";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext } from "../context/LocationContext";
 import { toast } from "react-toastify";
 
 function OcrUpload() {
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const navigate = useNavigate();
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImagePaths, setExistingImagePaths] = useState([]);
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState("");
   const [site, setSite] = useState("");
@@ -19,13 +24,12 @@ function OcrUpload() {
   const [uploadedItems, setUploadedItems] = useState([]);
   const [editItem, setEditItem] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const libraryInputRef = useRef(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const { attendance, employee } = useAttendanceContext()
-  const [removeImage, setRemoveImage] = useState(false);
-  const [previousImagePath, setPreviousImagePath] = useState(null);
   const [subcontractorId, setSubcontractorId] = useState(null);
   const [subcontractorName, setSubcontractorName] = useState(null);
   const fetchUploads = async () => {
@@ -40,6 +44,7 @@ function OcrUpload() {
   // Load categories and uploads immediately on mount — no employee needed
   useEffect(() => {
     const load = async () => {
+      setPageLoading(true);
       try {
         const [catRes, uploadsRes] = await Promise.all([
           ocrCategoriesApi.getAll(),
@@ -50,6 +55,9 @@ function OcrUpload() {
         setUploadedItems(uploadsRes.data?.data || []);
       } catch (err) {
         console.error("[OcrUpload] Failed to load categories/uploads:", err);
+        toast.error("Failed to load data");
+      } finally {
+        setPageLoading(false);
       }
     };
     load();
@@ -110,13 +118,21 @@ function OcrUpload() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id, employee?.name]);
 
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setRemoveImage(false);
-    }
+  const handleImages = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setImageFiles((prev) => [...prev, ...files]);
+    setImagePreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    e.target.value = "";
+  };
+
+  const removeExistingImage = (path) => {
+    setExistingImagePaths((prev) => prev.filter((p) => p !== path));
+  };
+
+  const removeNewImage = (index) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const convertToBase64 = (file) => {
@@ -137,19 +153,8 @@ function OcrUpload() {
     setLoading(true);
     console.log(categories)
     try {
-      let imageBase64Payload;
+      const imagesBase64Payload = await Promise.all(imageFiles.map(convertToBase64));
 
-      if (removeImage) {
-        imageBase64Payload = "";
-      } else if (imageFile) {
-        imageBase64Payload = await convertToBase64(imageFile);
-      } else {
-        imageBase64Payload = undefined;
-      }
-
-      const fileName = previousImagePath
-        ? previousImagePath.split('/').pop()
-        : null;
       const selectedCategory = categories.find(c => String(c.category_id) === String(category));
       const selectedSite = sites.find(s => String(s.site_id) === String(site));
 
@@ -163,7 +168,8 @@ function OcrUpload() {
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
-        image_path: imagePreview ? imagePreview : "",
+        images_base64: imagesBase64Payload,
+        previous_image_paths: existingImagePaths,
         ocr_result_amount: null,
         ocr_result_date: null,
         ocr_result_raw: null,
@@ -173,18 +179,12 @@ function OcrUpload() {
         note: note || null,
         uploaded_at: new Date().toISOString(),
         processed_at: null,
-        previous_image_path: fileName
       };
-
-      if (imageBase64Payload !== undefined) {
-        payload.image_base64 = imageBase64Payload;
-      }
 
       console.log(payload)
       if (editItem) {
         await ocrUploadApi.update(editItem.upload_id, payload);
         toast.success("Document updated successfully");
-        setPreviousImagePath(null);
       } else {
         await ocrUploadApi.create(payload);
         toast.success("Document uploaded successfully");
@@ -192,8 +192,9 @@ function OcrUpload() {
 
       await fetchUploads();
 
-      setImageFile(null);
-      setImagePreview(null);
+      setImageFiles([]);
+      setImagePreviews([]);
+      setExistingImagePaths([]);
       setSite("");
       setNote("");
       setCategory("");
@@ -209,12 +210,15 @@ function OcrUpload() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setRemoveImage(false);
-    console.log(item.image_path)
-    const fixedUrl = item.image_path?.replace(/\\\//g, "/");
-    setImagePreview(fixedUrl);
+    const paths = Array.isArray(item.image_paths)
+      ? item.image_paths
+      : item.image_path
+        ? [item.image_path]
+        : [];
+    setExistingImagePaths(paths.map((p) => p?.replace(/\\\//g, "/")).filter(Boolean));
+    setImageFiles([]);
+    setImagePreviews([]);
 
-    setPreviousImagePath(item.image_path);
     setCategory(
       item.category?.category_id != null
         ? String(item.category.category_id)
@@ -230,7 +234,6 @@ function OcrUpload() {
           : ""
     );
     setNote(item.note ?? "");
-    setImageFile(null);
   };
 
   const handleDelete = async () => {
@@ -247,13 +250,12 @@ function OcrUpload() {
 
       if (editItem?.upload_id === deleteId) {
         setEditItem(null);
-        setImageFile(null);
-        setImagePreview(null);
+        setImageFiles([]);
+        setImagePreviews([]);
+        setExistingImagePaths([]);
         setSite("");
         setNote("");
         setCategory("");
-        setRemoveImage(false);
-        setPreviousImagePath(null);
       }
 
       toast.success("Document deleted successfully");
@@ -275,27 +277,56 @@ function OcrUpload() {
         <span className="font-semibold text-lg">Document Upload</span>
       </div>
 
+      {pageLoading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24">
+          <CircularProgress size={32} sx={{ color: "#16a34a" }} />
+          <p className="text-sm text-gray-500">Loading data...</p>
+        </div>
+      ) : (
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-          {imagePreview ? (
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-full h-64 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-                <img
-                  src={imagePreview}
-                  alt="preview"
-                  onError={(e) => {
-                    e.target.src = "";
-                  }}
-                  className="max-h-full max-w-full object-contain"
-                />
+          {(existingImagePaths.length > 0 || imagePreviews.length > 0) ? (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-3 gap-2">
+                {existingImagePaths.map((path) => (
+                  <div key={path} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
+                    <img src={path} alt="uploaded" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(path)}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {imagePreviews.map((url, idx) => (
+                  <div key={url} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
+                    <img src={url} alt="preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(idx)}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => libraryInputRef.current.click()}
+                  className="w-full h-24 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 cursor-pointer transition-colors hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50"
+                >
+                  <Image size={22} />
+                </button>
               </div>
               <Button
                 buttonStyle="secondary"
-                text="Remove"
+                text="Remove All"
                 onClick={() => {
-                  setImageFile(null);
-                  setImagePreview(null);
-                  setRemoveImage(true);
+                  setImageFiles([]);
+                  setImagePreviews([]);
+                  setExistingImagePaths([]);
                 }}
                 customButton="w-full"
               />
@@ -312,7 +343,7 @@ function OcrUpload() {
                 text={
                   <span className="flex items-center gap-2 justify-center">
                     <Image size={18} />
-                    Upload Image
+                    Upload Images
                   </span>
                 }
               />
@@ -322,7 +353,8 @@ function OcrUpload() {
             ref={libraryInputRef}
             type="file"
             accept="image/*"
-            onChange={handleImage}
+            multiple
+            onChange={handleImages}
             className="hidden"
           />
         </div>
@@ -376,13 +408,12 @@ function OcrUpload() {
               text="Cancel Edit"
               onClick={() => {
                 setEditItem(null);
-                setImageFile(null);
-                setImagePreview(null);
+                setImageFiles([]);
+                setImagePreviews([]);
+                setExistingImagePaths([]);
                 setSite("");
                 setNote("");
                 setCategory("");
-                setRemoveImage(false);
-                setPreviousImagePath(null);
               }}
             />
           )}
@@ -421,8 +452,8 @@ function OcrUpload() {
 
             return (
             <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <p className="font-medium text-gray-700">
+              <div className="flex justify-between items-start gap-2 flex-wrap">
+                <p className="font-medium text-gray-700 min-w-0 break-words flex-1">
                   {matchedCategory?.category_name || "No Category"} - {matchedSite?.site_name || "No Site"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
@@ -431,30 +462,44 @@ function OcrUpload() {
                     })
                     : ""}
                 </p>
-                {item.status !== "COMPLETED" && (
-                  <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
+                  {item.status !== "CONFIRMED" && (
                     <button
-                      className="text-blue-600 text-xs"
-                      onClick={() => handleEdit(item)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 text-xs"
+                      className="text-green-600 text-xs font-medium cursor-pointer"
                       onClick={() => {
-                        setDeleteId(item.upload_id);
-                        setShowConfirm(true);
+                        const url = `${axiosApi.defaults.baseURL}ocr-uploads/${item.upload_id}/review`;
+                        console.log("[OcrUpload] Review will call:", url);
+                        navigate(`/ocr/${item.upload_id}/review`, { state: { item } });
                       }}
                     >
-                      Delete
+                      Review
                     </button>
-                  </div>
-                )}
+                  )}
+                  {item.status !== "COMPLETED" && (
+                    <>
+                      <button
+                        className="text-blue-600 text-xs cursor-pointer"
+                        onClick={() => handleEdit(item)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-red-600 text-xs cursor-pointer"
+                        onClick={() => {
+                          setDeleteId(item.upload_id);
+                          setShowConfirm(true);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {item.note && <p className="text-sm text-gray-500">{item.note}</p>}
               <p
                 className={`text-sm ${
-                  item.status === "COMPLETED"
+                  item.status === "COMPLETED" || item.status === "CONFIRMED"
                     ? "text-green-600"
                     : item.status === "REJECTED" || item.status === "ERROR"
                       ? "text-red-600"
@@ -470,6 +515,7 @@ function OcrUpload() {
           })}
         </div>
       </div>
+      )}
       {showConfirm && (
         <ConfirmationModal
           message="Are you sure you want to delete this document?"

@@ -4,8 +4,6 @@ const environment = {
   VITE_PUSHER_APP_CLUSTER: import.meta.env.VITE_PUSHER_APP_CLUSTER,
   VITE_LIFF_KEY: import.meta.env.VITE_LIFF_KEY,
   VITE_LIFF_ENABLED: "true",
-  VITE_LIFF_MOCK_USER_ID: "local-test-user",
-  VITE_LIFF_MOCK_DISPLAY_NAME: "Local Test",
 };
 
 export default environment;

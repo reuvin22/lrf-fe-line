@@ -5,6 +5,7 @@ import Main from "./layout/Main";
 import Manual from "./pages/Manual";
 import Calendar from "./pages/Calendar";
 import OcrUpload from "./pages/OcrUpload";
+import OcrReview from "./pages/OcrReview";
 import AppLayout from "./layout/AppLayout";
 import CalendarDetail from "./pages/CalendarDetail";
 import Dashboard from "./pages/Dashboard";
@@ -34,6 +35,8 @@ function App() {
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/calendar/detail" element={<CalendarDetail />} />
           <Route path="/ocr" element={<OcrUpload />} />
+          <Route path="/review" element={<OcrReview />} />
+          <Route path="/ocr/:id/review" element={<OcrReview />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route
             path="/transportation-expenses"

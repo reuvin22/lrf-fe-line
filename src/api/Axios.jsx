@@ -2,7 +2,8 @@ import axios from "axios";
 import environment from "../environment";
 
 const axiosApi = axios.create({
-  baseURL: environment.VITE_API_BASE_URL,
+  baseURL: `https://lrf-be.onrender.com${environment.VITE_API_BASE_URL}`,
+  timeout: 20000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
