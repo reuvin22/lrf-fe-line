@@ -479,9 +479,13 @@ function OcrUpload() {
                     <button
                       className="text-green-600 text-xs font-medium cursor-pointer"
                       onClick={() => {
-                        const url = `${axiosApi.defaults.baseURL}ocr-uploads/${item.upload_id}/review`;
+                        if (!item.invoice_document_id) {
+                          toast.error("This document isn't ready for review yet");
+                          return;
+                        }
+                        const url = `${axiosApi.defaults.baseURL}invoice-documents/${item.invoice_document_id}`;
                         console.log("[OcrUpload] Review will call:", url);
-                        navigate(`/ocr/${item.upload_id}/review`, { state: { item } });
+                        navigate(`/ocr/${item.invoice_document_id}/review`);
                       }}
                     >
                       Review

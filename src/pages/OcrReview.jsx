@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronDown } from "lucide-react";
-import { ocrUploadApi, subContractorApi, sitesApi } from "../api/Api";
+import { invoiceDocumentApi, confirmInvoiceDocument, subContractorApi, sitesApi } from "../api/Api";
 import axiosApi from "../api/Axios";
-import { useAttendanceContext } from "../context/AttendanceContext";
 import { parseImagePaths } from "../utils/parseImagePaths";
 import { getFileKind } from "../utils/getFileKind";
 import Button from "../components/Button";
@@ -27,11 +26,9 @@ function unwrapList(res) {
 function OcrReview() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { attendance } = useAttendanceContext();
 
-  const [item, setItem] = useState(location.state?.item ?? (id ? null : {}));
-  const [loading, setLoading] = useState(!location.state?.item && !!id);
+  const [item, setItem] = useState(id ? null : {});
+  const [loading, setLoading] = useState(!!id);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
@@ -47,7 +44,9 @@ function OcrReview() {
   const [documentTotal, setDocumentTotal] = useState("");
   const [lines, setLines] = useState([{ site_id: "", amount: "" }]);
 
-  const imagePaths = parseImagePaths(item?.image_paths ?? item?.image_path);
+  const imagePaths = parseImagePaths(
+    item?.image_paths ?? item?.image_path ?? item?.ocr_upload?.image_paths ?? item?.ocr_upload?.image_path
+  );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const galleryRef = useRef(null);
   const imageRefs = useRef([]);
@@ -99,9 +98,9 @@ function OcrReview() {
     const fetchItem = async () => {
       setLoading(true);
       try {
-        const url = `${axiosApi.defaults.baseURL}ocr-uploads/${id}/review`;
+        const url = `${axiosApi.defaults.baseURL}invoice-documents/${id}`;
         console.log("[OcrReview] Fetching:", url);
-        const res = await axiosApi.get(`ocr-uploads/${id}/review`);
+        const res = await invoiceDocumentApi.getById(id);
         setItem(res.data?.data ?? res.data ?? null);
       } catch (err) {
         console.error("[OcrReview] Failed to load document:", err);
@@ -202,17 +201,13 @@ function OcrReview() {
         };
       });
 
-      await ocrUploadApi.update(item.upload_id ?? id, {
+      await confirmInvoiceDocument(id, {
         vendor_id: isNewVendor ? null : vendorId || null,
         vendor_name: vendorName.trim(),
         billing_date: billingDate,
         document_type: documentType,
         document_total: documentTotalNumber,
         lines: payloadLines,
-        status: "CONFIRMED",
-        confirmed: true,
-        confirmed_by: attendance?.employee_id ?? null,
-        confirmed_at: new Date().toISOString(),
       });
 
       toast.success("Document approved");
@@ -228,11 +223,8 @@ function OcrReview() {
   const handleReject = async () => {
     setRejecting(true);
     try {
-      await ocrUploadApi.update(item.upload_id ?? id, {
+      await invoiceDocumentApi.update(id, {
         status: "REJECTED",
-        confirmed: false,
-        confirmed_by: attendance?.employee_id ?? null,
-        confirmed_at: new Date().toISOString(),
       });
 
       toast.success("Document rejected");

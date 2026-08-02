@@ -1,12 +1,36 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi } from "../api/Api";
+import { ChevronDown, ChevronRight, ChevronLeft, MapPin, Users, Receipt } from "lucide-react";
+import CircularProgress from "@mui/material/CircularProgress";
+import { toast } from "react-toastify";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceSummaryApi, getInvoiceSiteSummary } from "../api/Api";
+
+const formatMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const formatMonthLabel = (monthKey) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { year: "numeric", month: "long" });
+};
+
+const shiftMonthKey = (monthKey, delta) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  const shifted = new Date(year, month - 1 + delta, 1);
+  return formatMonthKey(shifted);
+};
+
+const formatYen = (amount) => `¥${Math.round(amount ?? 0).toLocaleString()}`;
 
 function Dashboard() {
+  const [activeTab, setActiveTab] = useState("attendance");
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const isFetchingRef = useRef(false);
+
+  const [invoiceMonth, setInvoiceMonth] = useState(() => formatMonthKey(new Date()));
+  const [invoiceSites, setInvoiceSites] = useState([]);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [openInvoiceSite, setOpenInvoiceSite] = useState(null);
+  const [invoiceSiteDetail, setInvoiceSiteDetail] = useState({});
 
   const fetchDashboard = async () => {
     // Skip this tick if the previous fetch hasn't finished yet
@@ -351,6 +375,48 @@ subContractorWorkerList.forEach(worker => {
     setOpenSite(openSite === siteId ? null : siteId);
   };
 
+  useEffect(() => {
+    if (activeTab !== "invoices") return;
+
+    const fetchInvoiceSummary = async () => {
+      setInvoiceLoading(true);
+      try {
+        const res = await invoiceSummaryApi.getAll({ month: invoiceMonth });
+        const inner = res.data?.data;
+        setInvoiceSites(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
+      } catch (err) {
+        console.error("[Dashboard] Failed to load invoice summary:", err);
+        toast.error("Failed to load invoice summary");
+        setInvoiceSites([]);
+      } finally {
+        setInvoiceLoading(false);
+      }
+    };
+
+    fetchInvoiceSummary();
+  }, [activeTab, invoiceMonth]);
+
+  const toggleInvoiceSite = async (siteId) => {
+    if (openInvoiceSite === siteId) {
+      setOpenInvoiceSite(null);
+      return;
+    }
+    setOpenInvoiceSite(siteId);
+
+    const cacheKey = `${siteId}-${invoiceMonth}`;
+    if (invoiceSiteDetail[cacheKey]) return;
+
+    setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: true } }));
+    try {
+      const res = await getInvoiceSiteSummary(siteId, { month: invoiceMonth });
+      const data = res.data?.data ?? res.data ?? null;
+      setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: false, data } }));
+    } catch (err) {
+      console.error("[Dashboard] Failed to load site invoice detail:", err);
+      setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: false, error: true } }));
+    }
+  };
+
   console.log()
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
@@ -360,6 +426,30 @@ subContractorWorkerList.forEach(worker => {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab("attendance")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+              activeTab === "attendance" ? "bg-green-600 text-white" : "bg-white text-gray-500"
+            }`}
+          >
+            <Users size={16} />
+            Attendance
+          </button>
+          <button
+            onClick={() => setActiveTab("invoices")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+              activeTab === "invoices" ? "bg-green-600 text-white" : "bg-white text-gray-500"
+            }`}
+          >
+            <Receipt size={16} />
+            Invoices
+          </button>
+        </div>
+
+        {activeTab === "attendance" && (
+        <>
         {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">
           ⏱ Last updated:{" "}
@@ -507,6 +597,132 @@ subContractorWorkerList.forEach(worker => {
           <div className="text-center text-sm text-gray-500 py-10">
             No assigned sites found
           </div>
+        )}
+        </>
+        )}
+
+        {activeTab === "invoices" && (
+        <>
+        {/* Month selector */}
+        <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3">
+          <button
+            onClick={() => setInvoiceMonth((m) => shiftMonthKey(m, -1))}
+            className="p-1 text-gray-500 cursor-pointer"
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="font-semibold text-sm">{formatMonthLabel(invoiceMonth)}</span>
+          <button
+            onClick={() => setInvoiceMonth((m) => shiftMonthKey(m, 1))}
+            className="p-1 text-gray-500 cursor-pointer"
+            aria-label="Next month"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {invoiceLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <CircularProgress size={28} sx={{ color: "#16a34a" }} />
+            <p className="text-sm text-gray-500">Loading data...</p>
+          </div>
+        ) : invoiceSites.length === 0 ? (
+          <div className="text-center text-sm text-gray-500 py-10">
+            No invoiced amounts for this month
+          </div>
+        ) : (
+          invoiceSites.map((site) => {
+            const cacheKey = `${site.site_id}-${invoiceMonth}`;
+            const detail = invoiceSiteDetail[cacheKey];
+
+            return (
+              <div key={site.site_id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                  onClick={() => toggleInvoiceSite(site.site_id)}
+                >
+                  <div className="flex items-center gap-2">
+                    {openInvoiceSite === site.site_id ? (
+                      <ChevronDown size={18} />
+                    ) : (
+                      <ChevronRight size={18} />
+                    )}
+                    <MapPin size={16} className="text-green-600" />
+                    <span className="font-semibold">{site.site_name}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {formatYen(site.total_tax_incl)}{" "}
+                      <span className="text-xs font-normal text-gray-400">incl.</span>
+                    </p>
+                    <p className="text-xs text-gray-400">{formatYen(site.total_tax_excl)} excl.</p>
+                  </div>
+                </div>
+
+                {openInvoiceSite === site.site_id && (
+                  <div className="border-t px-4 py-4 space-y-4">
+                    {!detail || detail.loading ? (
+                      <div className="flex justify-center py-6">
+                        <CircularProgress size={22} sx={{ color: "#16a34a" }} />
+                      </div>
+                    ) : detail.error ? (
+                      <p className="text-sm text-red-500">Failed to load vendor detail</p>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">VENDORS</p>
+                          {detail.data?.vendors?.length > 0 ? (
+                            <div className="space-y-3">
+                              {detail.data.vendors.map((vendor) => (
+                                <div key={vendor.vendor_id ?? vendor.vendor_name} className="text-sm">
+                                  <p className="font-medium">{vendor.vendor_name}</p>
+                                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>Through last month</span>
+                                    <span>{formatYen(vendor.through_last_month_tax_incl)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-xs text-gray-500">
+                                    <span>This month</span>
+                                    <span>{formatYen(vendor.this_month_tax_incl)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">No vendor data</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">THIS MONTH'S DOCUMENTS</p>
+                          {detail.data?.documents?.length > 0 ? (
+                            <div className="space-y-2">
+                              {detail.data.documents.map((docItem) => (
+                                <div
+                                  key={docItem.document_id ?? `${docItem.vendor_name}-${docItem.date}`}
+                                  className="flex justify-between items-center text-sm"
+                                >
+                                  <div>
+                                    <p className="font-medium">{docItem.vendor_name}</p>
+                                    <p className="text-xs text-gray-400">{docItem.date}</p>
+                                  </div>
+                                  <span className="text-gray-700">{formatYen(docItem.amount_tax_incl)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">No documents this month</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+        </>
         )}
       </div>
     </div>
