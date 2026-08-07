@@ -49,10 +49,21 @@ function OcrUpload() {
   const { attendance, employee } = useAttendanceContext()
   const [subcontractorId, setSubcontractorId] = useState(null);
   const [subcontractorName, setSubcontractorName] = useState(null);
+
+  const logErrorOrRejected = (items, res) => {
+    (items || []).forEach((item) => {
+      if (item.status === "ERROR" || item.status === "REJECTED") {
+        console.log(`[OcrUpload] ${item.status} response:`, res);
+      }
+    });
+  };
+
   const fetchUploads = async () => {
     try {
       const res = await ocrUploadApi.getAll();
-      setUploadedItems(res.data.data || []);
+      const items = res.data.data || [];
+      logErrorOrRejected(items, res);
+      setUploadedItems(items);
     } catch (err) {
       console.error("Error fetching OCR uploads:", err);
     }
@@ -69,7 +80,9 @@ function OcrUpload() {
         ]);
         const catInner = catRes.data?.data;
         setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
-        setUploadedItems(uploadsRes.data?.data || []);
+        const items = uploadsRes.data?.data || [];
+        logErrorOrRejected(items, uploadsRes);
+        setUploadedItems(items);
       } catch (err) {
         console.error("[OcrUpload] Failed to load categories/uploads:", err);
         toast.error("Failed to load data");
