@@ -1,55 +1,83 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { ChevronDown } from "lucide-react";
-import { invoiceDocumentApi, confirmInvoiceDocument, subContractorApi, sitesApi } from "../api/Api";
+import { invoiceDocumentApi, confirmInvoiceDocument } from "../api/Api";
 import axiosApi from "../api/Axios";
 import { parseImagePaths } from "../utils/parseImagePaths";
 import { getFileKind } from "../utils/getFileKind";
 import Button from "../components/Button";
 import FileThumbnail from "../components/FileThumbnail";
+import CircularProgress from "@mui/material/CircularProgress";
+import { useAttendanceContext } from "../context/AttendanceContext";
 
-const DOCUMENT_TYPES = [
-  { value: "INVOICE", label: "請求書" },
-  { value: "MONTHLY_STATEMENT", label: "月締め合計請求書" },
-  { value: "QUOTATION", label: "見積書" },
-  { value: "OTHER", label: "その他" },
-];
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "請求書",
+  MONTHLY_STATEMENT: "月締め合計請求書",
+  QUOTATION: "見積書",
+  OTHER: "その他",
+};
 
 const AGGREGATED_TYPES = ["INVOICE", "MONTHLY_STATEMENT"];
 
-function unwrapList(res) {
-  const inner = res?.data?.data;
-  return Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
+const STATUS_BADGE_STYLE = {
+  CONFIRMED: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
+  ERROR: "bg-red-100 text-red-700",
+  NEEDS_REVIEW: "bg-orange-100 text-orange-700",
+};
+
+const formatYen = (amount) => (amount == null ? "—" : `¥${Math.round(amount).toLocaleString()}`);
+
+const formatDate = (value) => {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+};
+
+const formatMonth = (value) => {
+  if (!value) return null;
+  const [year, month] = String(value).split("-").map(Number);
+  if (!year || !month) return value;
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+};
+
+function Field({ label, value }) {
+  return (
+    <div className="flex justify-between text-sm gap-4">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-medium text-right break-words">{value ?? "—"}</span>
+    </div>
+  );
 }
 
 function OcrReview() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { employee } = useAttendanceContext();
+  const cameFromDashboard = location.state?.from === "dashboard";
+
+  const goBack = () => {
+    if (cameFromDashboard) {
+      navigate("/dashboard", { state: { activeTab: "invoices", filters: location.state.filters } });
+    } else {
+      navigate("/ocr");
+    }
+  };
 
   const [item, setItem] = useState(id ? null : {});
   const [loading, setLoading] = useState(!!id);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
-  const [vendors, setVendors] = useState([]);
-  const [sites, setSites] = useState([]);
-
-  const [vendorId, setVendorId] = useState("");
-  const [vendorName, setVendorName] = useState("");
-  const [isNewVendor, setIsNewVendor] = useState(false);
-
-  const [billingDate, setBillingDate] = useState("");
-  const [documentType, setDocumentType] = useState("INVOICE");
-  const [documentTotal, setDocumentTotal] = useState("");
-  const [lines, setLines] = useState([{ site_id: "", amount: "" }]);
-
-  const imagePaths = parseImagePaths(
-    item?.image_paths ?? item?.image_path ?? item?.ocr_upload?.image_paths ?? item?.ocr_upload?.image_path
-  );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const galleryRef = useRef(null);
   const imageRefs = useRef([]);
+
+  const imagePaths = parseImagePaths(
+    item?.file_path ?? item?.image_paths ?? item?.image_path ?? item?.ocr_upload?.image_paths ?? item?.ocr_upload?.image_path
+  );
 
   const handleGalleryScroll = () => {
     const container = galleryRef.current;
@@ -78,22 +106,6 @@ function OcrReview() {
   };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [vendorRes, siteRes] = await Promise.all([
-          subContractorApi.getAll({ approved: 1 }),
-          sitesApi.getAll(),
-        ]);
-        setVendors(unwrapList(vendorRes));
-        setSites(unwrapList(siteRes));
-      } catch (err) {
-        console.error("[OcrReview] Failed to load vendors/sites:", err);
-      }
-    };
-    load();
-  }, []);
-
-  useEffect(() => {
     if (item) return;
     const fetchItem = async () => {
       setLoading(true);
@@ -113,105 +125,29 @@ function OcrReview() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  useEffect(() => {
-    if (!item) return;
-    setVendorId(
-      item.vendor_id != null
-        ? String(item.vendor_id)
-        : item.subcontractor_id != null
-          ? String(item.subcontractor_id)
-          : ""
-    );
-    setVendorName(item.vendor_name ?? item.subcontractor_name ?? "");
-    setBillingDate(
-      item.billing_date ?? (item.ocr_result_date ? String(item.ocr_result_date).slice(0, 10) : "")
-    );
-    setDocumentType(item.document_type ?? "INVOICE");
-    setDocumentTotal(
-      item.document_total != null
-        ? String(item.document_total)
-        : item.ocr_result_amount != null
-          ? String(item.ocr_result_amount)
-          : ""
-    );
-
-    const initialLines =
-      Array.isArray(item.lines) && item.lines.length > 0
-        ? item.lines.map((l) => ({
-            site_id: l.site_id != null ? String(l.site_id) : "",
-            amount: l.amount != null ? String(l.amount) : "",
-          }))
-        : [
-            {
-              site_id: item.site_id != null ? String(item.site_id) : "",
-              amount: item.ocr_result_amount != null ? String(item.ocr_result_amount) : "",
-            },
-          ];
-    setLines(initialLines);
-  }, [item]);
-
-  const vendorNameRaw = item?.vendor_name_raw ?? item?.subcontractor_name ?? null;
-
+  const warnings = Array.isArray(item?.warnings) ? item.warnings : [];
+  const lines = Array.isArray(item?.lines) ? item.lines : [];
   const linesTotal = lines.reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
-  const documentTotalNumber = parseFloat(documentTotal) || 0;
-  const hasMismatch = documentTotal !== "" && Math.abs(linesTotal - documentTotalNumber) > 0.01;
-
-  const handleVendorSelect = (value) => {
-    if (value === "__new__") {
-      setIsNewVendor(true);
-      setVendorId("");
-      setVendorName("");
-      return;
-    }
-    setIsNewVendor(false);
-    setVendorId(value);
-    const matched = vendors.find((v) => String(v.subcontractor_id) === String(value));
-    setVendorName(matched?.company_name ?? matched?.name ?? "");
-  };
-
-  const addLine = () => setLines((prev) => [...prev, { site_id: "", amount: "" }]);
-  const removeLine = (index) => setLines((prev) => prev.filter((_, i) => i !== index));
-  const updateLine = (index, field, value) => {
-    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
-  };
+  const totalWithTax =
+    item?.total_with_tax != null ? item.total_with_tax : (item?.subtotal ?? 0) + (item?.tax_amount ?? 0);
 
   const handleApprove = async () => {
-    if (!vendorName.trim()) {
-      toast.error("Please select or enter a vendor");
-      return;
-    }
-    if (!billingDate) {
-      toast.error("Please enter a date");
-      return;
-    }
-    const validLines = lines.filter((l) => l.site_id && l.amount !== "");
-    if (validLines.length === 0) {
-      toast.error("Please add at least one line with a site and amount");
-      return;
-    }
-
     setApproving(true);
     try {
-      const payloadLines = validLines.map((l) => {
-        const matched = sites.find((s) => String(s.site_id) === String(l.site_id));
-        return {
-          site_id: matched?.site_id ?? l.site_id,
-          site_name: matched?.site_name ?? "",
-          amount: parseFloat(l.amount) || 0,
-        };
-      });
-
       await confirmInvoiceDocument(id, {
-        vendor_id: isNewVendor ? null : vendorId || null,
-        vendor_name: vendorName.trim(),
-        billing_date: billingDate,
-        document_type: documentType,
-        document_total: documentTotalNumber,
-        lines: payloadLines,
+        subcontractor_id: item.subcontractor_id ?? null,
+        subcontractor_name: item.subcontractor_name ?? null,
+        issue_date: item.issue_date ?? null,
+        billing_month: item.billing_month ?? null,
+        document_type: item.document_type ?? null,
+        subtotal: item.subtotal ?? null,
+        tax_amount: item.tax_amount ?? null,
+        lines,
+        confirmed_by: employee?.employee_id ?? null,
       });
 
       toast.success("Document approved");
-      navigate("/ocr");
+      goBack();
     } catch (err) {
       console.error("[OcrReview] Failed to approve document:", err);
       toast.error("Failed to approve document");
@@ -223,12 +159,10 @@ function OcrReview() {
   const handleReject = async () => {
     setRejecting(true);
     try {
-      await invoiceDocumentApi.update(id, {
-        status: "REJECTED",
-      });
+      await invoiceDocumentApi.update(id, { status: "REJECTED" });
 
       toast.success("Document rejected");
-      navigate("/ocr");
+      goBack();
     } catch (err) {
       console.error("[OcrReview] Failed to reject document:", err);
       toast.error("Failed to reject document");
@@ -239,8 +173,9 @@ function OcrReview() {
 
   if (loading) {
     return (
-      <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Loading...</p>
+      <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-3">
+        <CircularProgress size={32} />
+        <p className="text-gray-400 text-sm">Loading Data</p>
       </div>
     );
   }
@@ -249,7 +184,7 @@ function OcrReview() {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-4 p-4">
         <p className="text-gray-500 text-sm">Document not found</p>
-        <Button buttonStyle="secondary" text="Back" onClick={() => navigate("/ocr")} customButton="w-40" />
+        <Button buttonStyle="secondary" text="Back" onClick={goBack} customButton="w-40" />
       </div>
     );
   }
@@ -257,10 +192,10 @@ function OcrReview() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       <div className="bg-white px-5 py-4 border-b flex items-center gap-3">
-        <button onClick={() => navigate("/ocr")} className="text-gray-500 text-sm cursor-pointer">
-          ← Back
+        <button onClick={goBack} className="text-gray-500 text-sm cursor-pointer">
+          ← Back{cameFromDashboard ? " to Dashboard" : ""}
         </button>
-        <span className="font-semibold text-lg">Review Document</span>
+        <span className="font-semibold text-lg">Invoice Details</span>
       </div>
 
       <div className="p-4 space-y-4">
@@ -317,185 +252,111 @@ function OcrReview() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-          <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Vendor <span className="text-red-500">*</span>
-            </label>
-            {!isNewVendor ? (
-              <div className="relative mt-1">
-                <select
-                  className="w-full appearance-none truncate border border-gray-200 rounded-xl p-3 pr-8 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-                  value={vendorId}
-                  onChange={(e) => handleVendorSelect(e.target.value)}
-                >
-                  <option value="">Select Vendor</option>
-                  {vendors.map((v) => (
-                    <option key={v.subcontractor_id} value={v.subcontractor_id}>
-                      {v.company_name ?? v.name}
-                    </option>
-                  ))}
-                  <option value="__new__">+ Add new vendor</option>
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
-            ) : (
-              <div className="flex gap-2 mt-1 items-center">
-                <input
-                  type="text"
-                  placeholder="New vendor name"
-                  value={vendorName}
-                  onChange={(e) => setVendorName(e.target.value)}
-                  className="flex-1 min-w-0 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-                <button
-                  type="button"
-                  className="shrink-0 text-xs text-gray-500 cursor-pointer px-2 py-3"
-                  onClick={() => {
-                    setIsNewVendor(false);
-                    setVendorName("");
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-            {vendorNameRaw && (
-              <p className="text-xs text-gray-400 mt-1">OCR candidate: {vendorNameRaw}</p>
-            )}
-          </div>
+        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Vendor</p>
+          <Field label="Subcontractor" value={item.subcontractor_name} />
+          <Field label="Vendor" value={item.vendor_name_raw} />
 
-          <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={billingDate}
-              onChange={(e) => setBillingDate(e.target.value)}
-              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+          <div className="border-t pt-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Document</p>
+            <Field label="Issue Date" value={formatDate(item.issue_date)} />
+            <Field label="Billing Month" value={formatMonth(item.billing_month)} />
+            <Field
+              label="Document Type"
+              value={
+                <>
+                  {DOCUMENT_TYPE_LABELS[item.document_type] ?? item.document_type}
+                  {!AGGREGATED_TYPES.includes(item.document_type) && (
+                    <span className="block text-xs text-orange-500 font-normal">not aggregated</span>
+                  )}
+                </>
+              }
+            />
+            <Field label="Category" value={item.category_id} />
+            <Field
+              label="Status"
+              value={
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    STATUS_BADGE_STYLE[item.status] ?? "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {item.status}
+                </span>
+              }
             />
           </div>
 
-          <div>
-            <label className="text-sm text-gray-600 font-medium">
-              Document Type <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <select
-                className="w-full appearance-none truncate border border-gray-200 rounded-xl p-3 pr-8 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-                value={documentType}
-                onChange={(e) => setDocumentType(e.target.value)}
-              >
-                {DOCUMENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-            </div>
-            {!AGGREGATED_TYPES.includes(documentType) && (
-              <p className="text-xs text-orange-500 mt-1">
-                Only 請求書 / 月締め合計請求書 are included in aggregation
-              </p>
-            )}
+          <div className="border-t pt-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Amounts</p>
+            <Field label="Subtotal" value={formatYen(item.subtotal)} />
+            <Field label="Tax" value={formatYen(item.tax_amount)} />
+            <Field label="Total (incl. tax)" value={<span className="font-semibold">{formatYen(totalWithTax)}</span>} />
           </div>
 
-          <div>
-            <label className="text-sm text-gray-600 font-medium">Document Total (¥)</label>
-            <input
-              type="number"
-              value={documentTotal}
-              onChange={(e) => setDocumentTotal(e.target.value)}
-              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-sm text-gray-600 font-medium">
-                Lines <span className="text-red-500">*</span>
-              </label>
-              <button type="button" onClick={addLine} className="text-xs text-green-600 font-medium cursor-pointer">
-                + Add Row
-              </button>
+          {warnings.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-1">
+              {warnings.map((w, idx) => (
+                <p key={idx} className="text-xs text-orange-600">⚠ {w}</p>
+              ))}
             </div>
+          )}
 
-            {lines.map((line, idx) => (
-              <div key={idx} className="flex gap-2 items-center">
-                <div className="relative flex-1 min-w-0">
-                  <select
-                    className="w-full appearance-none truncate border border-gray-200 rounded-xl p-2 pr-8 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                    value={line.site_id}
-                    onChange={(e) => updateLine(idx, "site_id", e.target.value)}
-                  >
-                    <option value="">Select Site</option>
-                    {sites.map((s) => (
-                      <option key={s.site_id} value={s.site_id}>
-                        {s.site_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
+          <div className="border-t pt-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase">Lines</p>
+            {lines.length > 0 ? (
+              lines.map((line, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span>{line.site_name ?? (line.site_id != null ? `Site #${line.site_id}` : "—")}</span>
+                  <span className="font-medium">{formatYen(line.amount)}</span>
                 </div>
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  value={line.amount}
-                  onChange={(e) => updateLine(idx, "amount", e.target.value)}
-                  className="w-20 sm:w-28 shrink-0 min-w-0 border border-gray-200 rounded-xl p-2 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
-                {lines.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeLine(idx)}
-                    className="shrink-0 text-red-500 text-lg leading-none w-8 h-8 flex items-center justify-center cursor-pointer"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-
-            <div className="flex justify-between text-sm pt-4">
-              <span className="text-gray-500">Line total</span>
-              <span className="font-medium">¥{linesTotal.toLocaleString()}</span>
-            </div>
-
-            {hasMismatch && (
-              <p className="text-xs text-red-500">
-                ⚠ Line total (¥{linesTotal.toLocaleString()}) does not match document total (¥
-                {documentTotalNumber.toLocaleString()})
-              </p>
+              ))
+            ) : (
+              <p className="text-sm text-gray-400">No lines</p>
             )}
+            <div className="flex justify-between text-sm pt-1 border-t">
+              <span className="text-gray-500">Line total</span>
+              <span className="font-medium">{formatYen(linesTotal)}</span>
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              buttonStyle="danger"
-              text="Reject"
-              onClick={handleReject}
-              loading={rejecting}
-              customButton={`flex-1 ${approving ? "opacity-50 pointer-events-none" : ""}`}
-            />
-            <Button
-              buttonStyle="primary"
-              text="Approve"
-              onClick={handleApprove}
-              loading={approving}
-              customButton={`flex-1 ${rejecting ? "opacity-50 pointer-events-none" : ""}`}
-            />
+          <div className="border-t pt-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Meta</p>
+            <Field label="Uploaded At" value={formatDate(item.uploaded_at)} />
+            <Field label="Processed At" value={formatDate(item.processed_at)} />
+            <Field label="Confirmed By" value={item.confirmed_by} />
+            <Field label="Confirmed At" value={formatDate(item.confirmed_at)} />
+            <Field label="Note" value={item.note} />
           </div>
+
+          {!cameFromDashboard && (
+            item.status === "CONFIRMED" ? (
+              <p className="text-center text-sm font-semibold text-green-700 border-t pt-4">
+                Approved Document
+              </p>
+            ) : item.status === "REJECTED" ? (
+              <p className="text-center text-sm font-semibold text-red-700 border-t pt-4">
+                Rejected Document
+              </p>
+            ) : (
+              <div className="flex gap-3 border-t pt-4">
+                <Button
+                  buttonStyle="danger"
+                  text="Reject"
+                  onClick={handleReject}
+                  loading={rejecting}
+                  customButton={`flex-1 ${approving ? "opacity-50 pointer-events-none" : ""}`}
+                />
+                <Button
+                  buttonStyle="primary"
+                  text="Approve"
+                  onClick={handleApprove}
+                  loading={approving}
+                  customButton={`flex-1 ${rejecting ? "opacity-50 pointer-events-none" : ""}`}
+                />
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>

@@ -4,15 +4,25 @@ import { Camera, Image, Upload } from "lucide-react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../components/Button";
 import FileThumbnail from "../components/FileThumbnail";
-import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi, subContractorWorkerApi } from "../api/Api";
+import { ocrCategoriesApi, ocrUploadApi, invoiceDocumentApi, siteAssignmentApi, subContractorWorkerApi, subContractorApi, siteSubContractorApi } from "../api/Api";
 import axiosApi from "../api/Axios";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
-import { useLocationContext } from "../context/LocationContext";
+import { useLocationContext, MOCK_SITE } from "../context/LocationContext";
 import { parseImagePaths } from "../utils/parseImagePaths";
+import environment from "../environment";
 import { toast } from "react-toastify";
 
-const STATUS_ORDER = ["PENDING", "PROCESSING", "COMPLETED", "CONFIRMED", "REJECTED", "ERROR"];
+const STATUS_ORDER = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
+
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "請求書",
+  MONTHLY_STATEMENT: "月締め合計請求書",
+  QUOTATION: "見積書",
+  OTHER: "その他",
+};
+
+const formatYen = (amount) => (amount == null ? "" : `¥${Math.round(amount).toLocaleString()}`);
 
 const sortUploadedItems = (items) =>
   [...items].sort((a, b) => {
@@ -22,9 +32,7 @@ const sortUploadedItems = (items) =>
     const orderB = rankB === -1 ? STATUS_ORDER.length : rankB;
     if (orderA !== orderB) return orderA - orderB;
 
-    const dateA = a.status === "PENDING" ? (a.created_at ?? a.uploaded_at) : (a.updated_at ?? a.uploaded_at);
-    const dateB = b.status === "PENDING" ? (b.created_at ?? b.uploaded_at) : (b.updated_at ?? b.uploaded_at);
-    return new Date(dateB) - new Date(dateA);
+    return new Date(b.uploaded_at) - new Date(a.uploaded_at);
   });
 
 function OcrUpload() {
@@ -35,8 +43,21 @@ function OcrUpload() {
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState("");
   const [site, setSite] = useState("");
-  const [allSites, setAllSites] = useState([]);
   const { sites, setSites } = useLocationContext();
+  const siteOptions = !environment.VITE_LIFF_ENABLED
+    ? [
+        ...sites
+          .filter((s) => String(s.site_id) !== String(MOCK_SITE.site_id))
+          .map((s) => ({
+            site_id: s.site_id,
+            site_name: s.site_name,
+          })),
+        {
+          site_id: MOCK_SITE.site_id,
+          site_name: MOCK_SITE.site_name,
+        },
+      ]
+    : sites;
   const [note, setNote] = useState("");
   const [uploadedItems, setUploadedItems] = useState([]);
   const [editItem, setEditItem] = useState(null);
@@ -49,6 +70,8 @@ function OcrUpload() {
   const { attendance, employee } = useAttendanceContext()
   const [subcontractorId, setSubcontractorId] = useState(null);
   const [subcontractorName, setSubcontractorName] = useState(null);
+  const [allSubcontractors, setAllSubcontractors] = useState([]);
+  const [siteSubMap, setSiteSubMap] = useState(new Map());
 
   const logErrorOrRejected = (items, res) => {
     (items || []).forEach((item) => {
@@ -60,12 +83,13 @@ function OcrUpload() {
 
   const fetchUploads = async () => {
     try {
-      const res = await ocrUploadApi.getAll();
-      const items = res.data.data || [];
+      const res = await invoiceDocumentApi.getAll();
+      const inner = res.data?.data;
+      const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
       logErrorOrRejected(items, res);
       setUploadedItems(items);
     } catch (err) {
-      console.error("Error fetching OCR uploads:", err);
+      console.error("Error fetching invoice documents:", err);
     }
   };
 
@@ -76,11 +100,12 @@ function OcrUpload() {
       try {
         const [catRes, uploadsRes] = await Promise.all([
           ocrCategoriesApi.getAll(),
-          ocrUploadApi.getAll(),
+          invoiceDocumentApi.getAll(),
         ]);
         const catInner = catRes.data?.data;
         setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
-        const items = uploadsRes.data?.data || [];
+        const inner = uploadsRes.data?.data;
+        const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
         logErrorOrRejected(items, uploadsRes);
         setUploadedItems(items);
       } catch (err) {
@@ -88,6 +113,34 @@ function OcrUpload() {
         toast.error("Failed to load data");
       } finally {
         setPageLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Load subcontractors and the site → subcontractor mapping — no employee needed
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [subRes, siteSubRes] = await Promise.all([
+          subContractorApi.getAll({ approved: 1 }),
+          siteSubContractorApi.getAll(),
+        ]);
+        const subInner = subRes.data?.data;
+        setAllSubcontractors(Array.isArray(subInner) ? subInner : Array.isArray(subInner?.data) ? subInner.data : []);
+
+        const siteSubInner = siteSubRes.data?.data;
+        const siteSubList = Array.isArray(siteSubInner) ? siteSubInner : Array.isArray(siteSubInner?.data) ? siteSubInner.data : [];
+        const map = new Map();
+        siteSubList.forEach((entry) => {
+          const siteId = String(entry.site_id);
+          const subId = String(entry.subcontractor_id);
+          if (!map.has(siteId)) map.set(siteId, new Set());
+          map.get(siteId).add(subId);
+        });
+        setSiteSubMap(map);
+      } catch (err) {
+        console.error("[OcrUpload] Failed to load subcontractors:", err);
       }
     };
     load();
@@ -118,8 +171,9 @@ function OcrUpload() {
           .filter((s) => s.site_id != null);
 
         console.log("[OcrUpload] employeeId:", employeeId, "matched sites:", matchedSites);
-        setSites(matchedSites);
-        setAllSites(matchedSites);
+        if (matchedSites.length > 0 || environment.VITE_LIFF_ENABLED) {
+          setSites(matchedSites);
+        }
 
         // Subcontractor worker — match by name with fallbacks
         const workerInner = workersRes.data?.data;
@@ -147,6 +201,12 @@ function OcrUpload() {
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id, employee?.name]);
+
+  const allowedSubcontractorIds = site ? siteSubMap.get(String(site)) : null;
+  const subcontractorOptions =
+    allowedSubcontractorIds && allowedSubcontractorIds.size > 0
+      ? allSubcontractors.filter((s) => allowedSubcontractorIds.has(String(s.subcontractor_id ?? s.id)))
+      : allSubcontractors;
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files || []);
@@ -186,13 +246,15 @@ function OcrUpload() {
       const imagesBase64Payload = await Promise.all(imageFiles.map(convertToBase64));
 
       const selectedCategory = categories.find(c => String(c.category_id) === String(category));
-      const selectedSite = sites.find(s => String(s.site_id) === String(site));
+      const selectedSite = siteOptions.find(s => String(s.site_id) === String(site));
 
       const payload = {
         uploaded_by: attendance.employee_id,
         category_id: selectedCategory?.category_id ?? null,
         site_id: selectedSite?.site_id ?? null,
-        site_name: selectedSite?.site_name ?? null,
+        site_name:
+          selectedSite?.site_name ||
+          (String(site) === String(MOCK_SITE.site_id) ? MOCK_SITE.site_name : null),
         subcontractor_id: subcontractorId,
         subcontractor_name: subcontractorName,
         attendance_id: attendance.attendance_id,
@@ -240,7 +302,7 @@ function OcrUpload() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setExistingImagePaths(parseImagePaths(item.image_paths ?? item.image_path));
+    setExistingImagePaths(parseImagePaths(item.file_path ?? item.image_paths ?? item.image_path));
     setImageFiles([]);
     setImagePreviews([]);
 
@@ -409,9 +471,32 @@ function OcrUpload() {
               onChange={(e) => setSite(e.target.value)}
             >
               <option value="">Select Site</option>
-              {sites.map((s) => (
+              {siteOptions.map((s) => (
                 <option key={s.site_id} value={s.site_id}>
                   {s.site_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-600 font-medium">Subcontractor</label>
+            <select
+              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+              value={subcontractorId != null ? String(subcontractorId) : ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSubcontractorId(val || null);
+                const matched = subcontractorOptions.find(
+                  (s) => String(s.subcontractor_id ?? s.id) === val
+                );
+                setSubcontractorName(matched?.company_name ?? matched?.name ?? null);
+              }}
+            >
+              <option value="">Select Subcontractor</option>
+              {subcontractorOptions.map((s) => (
+                <option key={s.subcontractor_id ?? s.id} value={s.subcontractor_id ?? s.id}>
+                  {s.company_name ?? s.name}
                 </option>
               ))}
             </select>
@@ -469,17 +554,13 @@ function OcrUpload() {
               categories.find(
                 (c) => String(c.category_id) === String(item.category_id)
               );
-            const matchedSite =
-              item.site ??
-              allSites.find(
-                (s) => String(s.site_id) === String(item.site_id)
-              );
+            const vendorLabel = item.subcontractor_name || item.vendor_name_raw || "Unknown vendor";
 
             return (
-            <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
+            <div key={item.document_id ?? item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
               <div className="flex justify-between items-start gap-2 flex-wrap">
                 <p className="font-medium text-gray-700 min-w-0 break-words flex-1">
-                  {matchedCategory?.category_name || "No Category"} - {matchedSite?.site_name || "No Site"}{" "}
+                  {vendorLabel} - {DOCUMENT_TYPE_LABELS[item.document_type] ?? item.document_type ?? matchedCategory?.category_name ?? "No Category"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
                       hour: "2-digit",
@@ -488,23 +569,17 @@ function OcrUpload() {
                     : ""}
                 </p>
                 <div className="flex gap-2 shrink-0">
+                  <button
+                    className="text-green-600 text-xs font-medium cursor-pointer"
+                    onClick={() => {
+                      const url = `${axiosApi.defaults.baseURL}invoice-documents/${item.document_id}`;
+                      console.log("[OcrUpload] Review will call:", url);
+                      navigate(`/ocr/${item.document_id}/review`);
+                    }}
+                  >
+                    Review
+                  </button>
                   {item.status !== "CONFIRMED" && (
-                    <button
-                      className="text-green-600 text-xs font-medium cursor-pointer"
-                      onClick={() => {
-                        if (!item.invoice_document_id) {
-                          toast.error("This document isn't ready for review yet");
-                          return;
-                        }
-                        const url = `${axiosApi.defaults.baseURL}invoice-documents/${item.invoice_document_id}`;
-                        console.log("[OcrUpload] Review will call:", url);
-                        navigate(`/ocr/${item.invoice_document_id}/review`);
-                      }}
-                    >
-                      Review
-                    </button>
-                  )}
-                  {item.status !== "COMPLETED" && (
                     <>
                       <button
                         className="text-blue-600 text-xs cursor-pointer"
@@ -525,16 +600,17 @@ function OcrUpload() {
                   )}
                 </div>
               </div>
+              {formatYen(item.total_with_tax) && (
+                <p className="text-sm text-gray-600">{formatYen(item.total_with_tax)}</p>
+              )}
               {item.note && <p className="text-sm text-gray-500">{item.note}</p>}
               <p
                 className={`text-sm ${
-                  item.status === "COMPLETED" || item.status === "CONFIRMED"
+                  item.status === "CONFIRMED"
                     ? "text-green-600"
                     : item.status === "REJECTED" || item.status === "ERROR"
                       ? "text-red-600"
-                      : item.status === "PROCESSING"
-                        ? "text-blue-600"
-                        : "text-orange-500"
+                      : "text-orange-500"
                 }`}
               >
                 Status: {item.status}

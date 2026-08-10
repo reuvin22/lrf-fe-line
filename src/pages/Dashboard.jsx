@@ -1,36 +1,47 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, ChevronLeft, MapPin, Users, Receipt } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ChevronDown, ChevronRight, MapPin, Users, Receipt } from "lucide-react";
 import CircularProgress from "@mui/material/CircularProgress";
 import { toast } from "react-toastify";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceSummaryApi, getInvoiceSiteSummary } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceDocumentApi } from "../api/Api";
 
-const formatMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const STATUS_FILTERS = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
 
-const formatMonthLabel = (monthKey) => {
-  const [year, month] = monthKey.split("-").map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { year: "numeric", month: "long" });
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "請求書",
+  MONTHLY_STATEMENT: "月締め合計請求書",
+  QUOTATION: "見積書",
+  OTHER: "その他",
 };
 
-const shiftMonthKey = (monthKey, delta) => {
-  const [year, month] = monthKey.split("-").map(Number);
-  const shifted = new Date(year, month - 1 + delta, 1);
-  return formatMonthKey(shifted);
+const STATUS_BADGE_STYLE = {
+  CONFIRMED: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
+  ERROR: "bg-red-100 text-red-700",
+  NEEDS_REVIEW: "bg-orange-100 text-orange-700",
 };
 
 const formatYen = (amount) => `¥${Math.round(amount ?? 0).toLocaleString()}`;
 
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState("attendance");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const restoredFilters = location.state?.filters;
+
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? "attendance");
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const isFetchingRef = useRef(false);
 
-  const [invoiceMonth, setInvoiceMonth] = useState(() => formatMonthKey(new Date()));
-  const [invoiceSites, setInvoiceSites] = useState([]);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [openInvoiceSite, setOpenInvoiceSite] = useState(null);
-  const [invoiceSiteDetail, setInvoiceSiteDetail] = useState({});
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState(restoredFilters?.invoiceStatusFilter ?? "");
+  const [uploadedByFilter, setUploadedByFilter] = useState(restoredFilters?.uploadedByFilter ?? "");
+  const [dateFilter, setDateFilter] = useState(restoredFilters?.dateFilter ?? "");
+  const [siteFilter, setSiteFilter] = useState(restoredFilters?.siteFilter ?? "");
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [allInvoiceSites, setAllInvoiceSites] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
+  const [allInvoicesLoading, setAllInvoicesLoading] = useState(false);
 
   const fetchDashboard = async () => {
     // Skip this tick if the previous fetch hasn't finished yet
@@ -360,6 +371,8 @@ subContractorWorkerList.forEach(worker => {
   };
 
   useEffect(() => {
+    if (activeTab !== "attendance") return;
+
     // fetchDashboard is async — setState calls happen after awaits, not synchronously
     // eslint-disable-next-line
     fetchDashboard();
@@ -369,7 +382,7 @@ subContractorWorkerList.forEach(worker => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTab]);
 
   const toggleSite = (siteId) => {
     setOpenSite(openSite === siteId ? null : siteId);
@@ -378,46 +391,46 @@ subContractorWorkerList.forEach(worker => {
   useEffect(() => {
     if (activeTab !== "invoices") return;
 
-    const fetchInvoiceSummary = async () => {
-      setInvoiceLoading(true);
+    const loadFilterOptions = async () => {
       try {
-        const res = await invoiceSummaryApi.getAll({ month: invoiceMonth });
-        const inner = res.data?.data;
-        setInvoiceSites(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
+        const [empRes, siteRes] = await Promise.all([employeeApi.getAll(), sitesApi.getAll()]);
+        const empInner = empRes.data?.data;
+        setAllEmployees(Array.isArray(empInner) ? empInner : Array.isArray(empInner?.data) ? empInner.data : []);
+        const siteInner = siteRes.data?.data;
+        setAllInvoiceSites(Array.isArray(siteInner) ? siteInner : Array.isArray(siteInner?.data) ? siteInner.data : []);
       } catch (err) {
-        console.error("[Dashboard] Failed to load invoice summary:", err);
-        toast.error("Failed to load invoice summary");
-        setInvoiceSites([]);
-      } finally {
-        setInvoiceLoading(false);
+        console.error("[Dashboard] Failed to load filter options:", err);
       }
     };
 
-    fetchInvoiceSummary();
-  }, [activeTab, invoiceMonth]);
+    loadFilterOptions();
+  }, [activeTab]);
 
-  const toggleInvoiceSite = async (siteId) => {
-    if (openInvoiceSite === siteId) {
-      setOpenInvoiceSite(null);
-      return;
-    }
-    setOpenInvoiceSite(siteId);
+  useEffect(() => {
+    if (activeTab !== "invoices") return;
 
-    const cacheKey = `${siteId}-${invoiceMonth}`;
-    if (invoiceSiteDetail[cacheKey]) return;
+    const fetchAllInvoices = async () => {
+      setAllInvoicesLoading(true);
+      try {
+        const res = await invoiceDocumentApi.getAll({
+          status: invoiceStatusFilter || undefined,
+          uploaded_by: uploadedByFilter || undefined,
+          billing_month: dateFilter || undefined,
+          site_id: siteFilter || undefined,
+        });
+        const inner = res.data?.data;
+        setAllInvoices(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
+      } catch (err) {
+        console.error("[Dashboard] Failed to load invoice documents:", err);
+        toast.error("Failed to load invoices");
+        setAllInvoices([]);
+      } finally {
+        setAllInvoicesLoading(false);
+      }
+    };
 
-    setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: true } }));
-    try {
-      const res = await getInvoiceSiteSummary(siteId, { month: invoiceMonth });
-      const data = res.data?.data ?? res.data ?? null;
-      setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: false, data } }));
-    } catch (err) {
-      console.error("[Dashboard] Failed to load site invoice detail:", err);
-      setInvoiceSiteDetail((prev) => ({ ...prev, [cacheKey]: { loading: false, error: true } }));
-    }
-  };
-
-  console.log()
+    fetchAllInvoices();
+  }, [activeTab, invoiceStatusFilter, uploadedByFilter, dateFilter, siteFilter]);
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       {/* Header */}
@@ -603,124 +616,116 @@ subContractorWorkerList.forEach(worker => {
 
         {activeTab === "invoices" && (
         <>
-        {/* Month selector */}
-        <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3">
-          <button
-            onClick={() => setInvoiceMonth((m) => shiftMonthKey(m, -1))}
-            className="p-1 text-gray-500 cursor-pointer"
-            aria-label="Previous month"
+        {/* Filters */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={uploadedByFilter}
+            onChange={(e) => setUploadedByFilter(e.target.value)}
           >
-            <ChevronLeft size={18} />
-          </button>
-          <span className="font-semibold text-sm">{formatMonthLabel(invoiceMonth)}</span>
-          <button
-            onClick={() => setInvoiceMonth((m) => shiftMonthKey(m, 1))}
-            className="p-1 text-gray-500 cursor-pointer"
-            aria-label="Next month"
+            <option value="">All Uploaders</option>
+            {allEmployees.map((emp) => (
+              <option key={emp.employee_id ?? emp.id} value={emp.employee_id ?? emp.id}>
+                {emp.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={invoiceStatusFilter}
+            onChange={(e) => setInvoiceStatusFilter(e.target.value)}
           >
-            <ChevronRight size={18} />
-          </button>
+            <option value="">All Statuses</option>
+            {STATUS_FILTERS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <input
+            type="month"
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          />
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={siteFilter}
+            onChange={(e) => setSiteFilter(e.target.value)}
+          >
+            <option value="">All Sites</option>
+            {allInvoiceSites.map((site) => (
+              <option key={site.site_id ?? site.id} value={site.site_id ?? site.id}>
+                {site.site_name ?? site.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {invoiceLoading ? (
+        {allInvoicesLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <CircularProgress size={28} sx={{ color: "#16a34a" }} />
             <p className="text-sm text-gray-500">Loading data...</p>
           </div>
-        ) : invoiceSites.length === 0 ? (
+        ) : allInvoices.length === 0 ? (
           <div className="text-center text-sm text-gray-500 py-10">
-            No invoiced amounts for this month
+            No invoices found
           </div>
         ) : (
-          invoiceSites.map((site) => {
-            const cacheKey = `${site.site_id}-${invoiceMonth}`;
-            const detail = invoiceSiteDetail[cacheKey];
-
-            return (
-              <div key={site.site_id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <div
-                  className="flex items-center justify-between px-4 py-3 cursor-pointer"
-                  onClick={() => toggleInvoiceSite(site.site_id)}
-                >
-                  <div className="flex items-center gap-2">
-                    {openInvoiceSite === site.site_id ? (
-                      <ChevronDown size={18} />
-                    ) : (
-                      <ChevronRight size={18} />
-                    )}
-                    <MapPin size={16} className="text-green-600" />
-                    <span className="font-semibold">{site.site_name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-700">
-                      {formatYen(site.total_tax_incl)}{" "}
-                      <span className="text-xs font-normal text-gray-400">incl.</span>
-                    </p>
-                    <p className="text-xs text-gray-400">{formatYen(site.total_tax_excl)} excl.</p>
-                  </div>
-                </div>
-
-                {openInvoiceSite === site.site_id && (
-                  <div className="border-t px-4 py-4 space-y-4">
-                    {!detail || detail.loading ? (
-                      <div className="flex justify-center py-6">
-                        <CircularProgress size={22} sx={{ color: "#16a34a" }} />
-                      </div>
-                    ) : detail.error ? (
-                      <p className="text-sm text-red-500">Failed to load vendor detail</p>
-                    ) : (
-                      <>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-2">VENDORS</p>
-                          {detail.data?.vendors?.length > 0 ? (
-                            <div className="space-y-3">
-                              {detail.data.vendors.map((vendor) => (
-                                <div key={vendor.vendor_id ?? vendor.vendor_name} className="text-sm">
-                                  <p className="font-medium">{vendor.vendor_name}</p>
-                                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>Through last month</span>
-                                    <span>{formatYen(vendor.through_last_month_tax_incl)}</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs text-gray-500">
-                                    <span>This month</span>
-                                    <span>{formatYen(vendor.this_month_tax_incl)}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400">No vendor data</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-gray-500 mb-2">THIS MONTH'S DOCUMENTS</p>
-                          {detail.data?.documents?.length > 0 ? (
-                            <div className="space-y-2">
-                              {detail.data.documents.map((docItem) => (
-                                <div
-                                  key={docItem.document_id ?? `${docItem.vendor_name}-${docItem.date}`}
-                                  className="flex justify-between items-center text-sm"
-                                >
-                                  <div>
-                                    <p className="font-medium">{docItem.vendor_name}</p>
-                                    <p className="text-xs text-gray-400">{docItem.date}</p>
-                                  </div>
-                                  <span className="text-gray-700">{formatYen(docItem.amount_tax_incl)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-400">No documents this month</p>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-gray-500 uppercase">
+                  <th className="px-3 py-2 whitespace-nowrap">Vendor</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Issue Date</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Billing Month</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Type</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Subtotal</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Tax</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Total (incl.)</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allInvoices.map((doc) => (
+                  <tr
+                    key={doc.document_id}
+                    onClick={() =>
+                      doc.document_id &&
+                      navigate(`/ocr/${doc.document_id}/review`, {
+                        state: {
+                          from: "dashboard",
+                          filters: { invoiceStatusFilter, uploadedByFilter, dateFilter, siteFilter },
+                        },
+                      })
+                    }
+                    className="border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap font-medium">
+                      {doc.subcontractor_name || doc.vendor_name_raw || "Unknown"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.issue_date ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.billing_month ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">
+                      {DOCUMENT_TYPE_LABELS[doc.document_type] ?? doc.document_type ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.subtotal)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.tax_amount)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
+                      {formatYen(doc.total_with_tax)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          STATUS_BADGE_STYLE[doc.status] ?? "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {doc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         </>
         )}
