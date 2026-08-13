@@ -62,14 +62,14 @@ function SegmentModal() {
         return;
       }
 
-      const tempId = Date.now();
-      setSegments(prev => [{ ...segmentObj, segment_id: tempId, _temp: true }, ...prev]);
-
       if (recordType === "manual") {
         setOpenTimeModal(true);
-      } else {
-        await segmentApi.create(segmentObj);
+        return;
       }
+
+      const tempId = Date.now();
+      setSegments(prev => [{ ...segmentObj, segment_id: tempId, _temp: true }, ...prev]);
+      await segmentApi.create(segmentObj);
 
     } catch (err) {
       console.error(err);
