@@ -115,7 +115,7 @@ export const AttendanceProvider = ({ children }) => {
             ? siteInner.data
             : [];
         const mappedSites = rawSites
-          .filter(v => v != null)
+          .filter(v => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(foundEmployee.employee_id))
           .map(v => {
             const site = v.site ?? v;
             return {
