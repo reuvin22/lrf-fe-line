@@ -263,7 +263,6 @@ function Dashboard() {
       });
 
       groupedSites.forEach((site) => {
-        let siteHasActive = false;
         const nowMs = new Date().getTime();
 
         const isActive = (act) => {
@@ -285,7 +284,7 @@ function Dashboard() {
 
           let segment;
           if (!hasActivities) segment = "Not Started";
-          else if (hasActive) { segment = "In Progress"; siteHasActive = true; }
+          else if (hasActive) segment = "In Progress";
           else if (allEnded) segment = "Completed";
           else segment = "Not Started";
 
@@ -296,8 +295,6 @@ function Dashboard() {
             if (total === 0) return;
             const bucket = s.contract_type === "FIXED_PRICE" ? fixedMap : quasiMap;
             bucket[s.name] = (bucket[s.name] || 0) + total;
-            const anyActive = Object.values(s.workers).some((segs) => segs.some(isActive));
-            if (anyActive) siteHasActive = true;
           });
 
           const matchedSubId =
@@ -354,8 +351,14 @@ subContractorWorkerList.forEach(worker => {
           site.status = "Not Started";
           site.statusStyle = "bg-gray-400 text-white";
         } else {
-          site.status = siteHasActive ? "In Progress" : "Completed";
-          site.statusStyle = siteHasActive ? "bg-yellow-500 text-white" : "bg-green-500 text-white";
+          // Completed only once every employee on site has finished up —
+          // even one person still Not Started/In Progress keeps the whole
+          // site In Progress.
+          const allEmployeesComplete =
+            site.employees.length > 0 &&
+            site.employees.every((e) => e.segment === "Completed");
+          site.status = allEmployeesComplete ? "Completed" : "In Progress";
+          site.statusStyle = allEmployeesComplete ? "bg-green-500 text-white" : "bg-yellow-500 text-white";
         }
 
         site.totalWorkers = totalWorkers;
