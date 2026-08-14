@@ -31,6 +31,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? "attendance");
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const isFetchingRef = useRef(false);
 
@@ -363,8 +364,10 @@ subContractorWorkerList.forEach(worker => {
 
       setAssignedSites(groupedSites);
       setLastUpdated(new Date());
+      setDashboardLoading(false);
     } catch (err) {
       console.error("Error fetching dashboard:", err);
+      setDashboardLoading(false);
     } finally {
       isFetchingRef.current = false;
     }
@@ -461,7 +464,14 @@ subContractorWorkerList.forEach(worker => {
           </button>
         </div>
 
-        {activeTab === "attendance" && (
+        {activeTab === "attendance" && dashboardLoading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <CircularProgress size={28} sx={{ color: "#16a34a" }} />
+            <p className="text-sm text-gray-500">Data is loading, please wait...</p>
+          </div>
+        )}
+
+        {activeTab === "attendance" && !dashboardLoading && (
         <>
         {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">

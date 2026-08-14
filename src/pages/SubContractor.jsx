@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { X, Clock, Plus } from "lucide-react";
 import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
-import Loading from "../components/Loading";
 import LocationModal from "../components/Modals/LocationModal";
 import {
   attendanceApi,
@@ -589,7 +588,12 @@ function SubContractor({ onRefetch }) {
     !isEditingFromCalendar || (monthEditable && isSiteLeader(assignedSites));
 
   if (isEditingFromCalendar && checkingAccess) {
-    return <Loading />;
+    return (
+      <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-3">
+        <CircularProgress size={32} />
+        <p className="text-gray-400 text-sm">Loading</p>
+      </div>
+    );
   }
 
   if (isEditingFromCalendar && !canEditSubcontractors) {

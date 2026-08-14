@@ -6,6 +6,8 @@ import Button from "../components/Button";
 import { toast } from "react-toastify";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { isAttendanceEditable } from "../utils/attendanceLock";
+import { MOCK_SITE } from "../context/LocationContext";
+import environment from "../environment";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -81,6 +83,11 @@ function TransportationExpenseScreen({ onDone }) {
             name: v.site_name ?? v.site?.site_name,
           }))
           .filter(s => s.id != null);
+
+        if (mapped.length === 0 && !environment.VITE_LIFF_ENABLED) {
+          setSegmentSites([{ id: MOCK_SITE.site_id, name: MOCK_SITE.site_name }]);
+          return;
+        }
 
         setSegmentSites(mapped);
       } catch (err) {
