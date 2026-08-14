@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronDown, ChevronRight, MapPin, Users, Receipt } from "lucide-react";
 import CircularProgress from "@mui/material/CircularProgress";
 import { toast } from "react-toastify";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceDocumentApi } from "../api/Api";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceDocumentApi, attendanceSubcontractorSegmentApi } from "../api/Api";
 
 const STATUS_FILTERS = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
 
@@ -54,20 +54,41 @@ function Dashboard() {
     const date = utc8.toISOString().split("T")[0];
 
     try {
-      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes, siteSubcontractorRes] = await Promise.all([
+      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes, siteSubcontractorRes, subSegmentsRes] = await Promise.all([
         dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
         sitesApi.getAll(),
         subContractorApi.getAll(),
         subContractorWorkerApi.getAll(),
-        siteSubContractorApi.getAll()
+        siteSubContractorApi.getAll(),
+        attendanceSubcontractorSegmentApi.getAll()
       ]);
       const allSites = siteRes.data.data || [];
       const attendanceList = dashboardRes.data.data || [];
       const subContractorList = subContractorRes.data.data || [];
       const subContractorWorkerList = subContractorWorkerRes.data.data || [];
       const siteSubcontractorList = siteSubcontractorRes.data?.data || []
+
+      // Fetch subcontractor segments live from their own endpoint rather than
+      // trusting the (possibly stale/incomplete) attendance_subcontractor_segments
+      // nested on each dashboard attendance record, so in-progress/completed
+      // status always reflects the current start_time/end_time.
+      const subSegmentsInner = subSegmentsRes.data?.data;
+      const subSegmentsList = Array.isArray(subSegmentsInner)
+        ? subSegmentsInner
+        : Array.isArray(subSegmentsInner?.data)
+          ? subSegmentsInner.data
+          : [];
+      const subSegmentsByAttendanceId = new Map();
+      subSegmentsList.forEach((seg) => {
+        if (seg == null) return;
+        const key = String(seg.attendance_id);
+        if (!subSegmentsByAttendanceId.has(key)) subSegmentsByAttendanceId.set(key, []);
+        subSegmentsByAttendanceId.get(key).push(seg);
+      });
+      const getSubSegments = (attendance) =>
+        subSegmentsByAttendanceId.get(String(attendance.attendance_id ?? attendance.id)) || [];
       console.log('THIS IS Subcontractor: ', siteSubcontractorList)
       console.log('THIS IS WORKERS: ', subContractorWorkerList)
       const subContractorById = new Map();
@@ -193,7 +214,7 @@ function Dashboard() {
             seg.site?.contract_type ?? null
           );
         });
-        (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
+        getSubSegments(attendance).forEach((sub) => {
           ensureSite(
             sub.site?.site_id ?? sub.site_id,
             sub.site?.site_name ?? sub.site_name,
@@ -233,7 +254,7 @@ function Dashboard() {
           ensureEmployeeOnSite(site).activities.push(segment);
         });
 
-        (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
+        getSubSegments(attendance).forEach((sub) => {
           const siteId = sub.site?.site_id ?? sub.site_id;
           const contractType = sub.site?.contract_type ?? sub.contract_type ?? null;
           const subId = sub.subcontractor_id ?? sub.subcontractor?.id ?? emp.subcontractor_id ?? emp.subcontractor?.id;
@@ -263,12 +284,23 @@ function Dashboard() {
       });
 
       groupedSites.forEach((site) => {
+        let siteHasActive = false;
         const nowMs = new Date().getTime();
 
         const isActive = (act) => {
           const start = act.start_time ? new Date(act.start_time).getTime() : null;
           const end = act.end_time ? new Date(act.end_time).getTime() : null;
           return start !== null && start <= nowMs && (end === null || nowMs < end);
+        };
+
+        // A subcontractor segment is only "completed" once it has both a
+        // start_time and an end_time, and that end_time has actually passed
+        // relative to right now. Anything else (no end_time yet, or the end
+        // hasn't arrived) counts as still in progress.
+        const isSubSegmentCompleted = (seg) => {
+          const start = seg.start_time ? new Date(seg.start_time).getTime() : null;
+          const end = seg.end_time ? new Date(seg.end_time).getTime() : null;
+          return start !== null && end !== null && end <= nowMs;
         };
 
         const quasiMap = {};
@@ -290,11 +322,19 @@ function Dashboard() {
 
           // Aggregate this employee's subcontractors into site-level groups.
           // Count every worker regardless of status (completed still counts as 1).
+          // The site stays "In Progress" until every subcontractor segment's
+          // end time has passed — one still-open segment is enough to keep
+          // the whole site from showing Completed.
           Object.values(emp.subcontractorMap).forEach((s) => {
             const total = Object.keys(s.workers).length;
             if (total === 0) return;
             const bucket = s.contract_type === "FIXED_PRICE" ? fixedMap : quasiMap;
             bucket[s.name] = (bucket[s.name] || 0) + total;
+
+            const anyNotYetDone = Object.values(s.workers).some((segs) =>
+              segs.some((seg) => !isSubSegmentCompleted(seg))
+            );
+            if (anyNotYetDone) siteHasActive = true;
           });
 
           const matchedSubId =
@@ -351,14 +391,8 @@ subContractorWorkerList.forEach(worker => {
           site.status = "Not Started";
           site.statusStyle = "bg-gray-400 text-white";
         } else {
-          // Completed only once every employee on site has finished up —
-          // even one person still Not Started/In Progress keeps the whole
-          // site In Progress.
-          const allEmployeesComplete =
-            site.employees.length > 0 &&
-            site.employees.every((e) => e.segment === "Completed");
-          site.status = allEmployeesComplete ? "Completed" : "In Progress";
-          site.statusStyle = allEmployeesComplete ? "bg-green-500 text-white" : "bg-yellow-500 text-white";
+          site.status = siteHasActive ? "In Progress" : "Completed";
+          site.statusStyle = siteHasActive ? "bg-yellow-500 text-white" : "bg-green-500 text-white";
         }
 
         site.totalWorkers = totalWorkers;
