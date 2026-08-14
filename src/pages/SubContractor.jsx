@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Clock, Plus } from "lucide-react";
 import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
+import Loading from "../components/Loading";
 import LocationModal from "../components/Modals/LocationModal";
 import {
   attendanceApi,
@@ -25,6 +26,7 @@ function SubContractor({ onRefetch }) {
   const [constructionSites, setConstructionSites] = useState([]);
   const [allSegments, setAllSegments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [deletedWorkers, setDeletedWorkers] = useState([]);
   const [openSitePicker, setOpenSitePicker] = useState(false);
   const [assignedSites, setAssignedSites] = useState([]);
@@ -237,6 +239,7 @@ function SubContractor({ onRefetch }) {
         console.error(err);
       } finally {
         setLoading(false);
+        setCheckingAccess(false);
       }
     };
 
@@ -584,6 +587,10 @@ function SubContractor({ onRefetch }) {
   const monthEditable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
   const canEditSubcontractors =
     !isEditingFromCalendar || (monthEditable && isSiteLeader(assignedSites));
+
+  if (isEditingFromCalendar && checkingAccess) {
+    return <Loading />;
+  }
 
   if (isEditingFromCalendar && !canEditSubcontractors) {
     return (
