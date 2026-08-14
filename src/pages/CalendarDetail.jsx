@@ -15,6 +15,7 @@ import {
   segmentApi,
   siteAssignmentApi,
   transportationExpensesApi,
+  attendanceSubcontractorSegmentApi,
 } from "../api/Api";
 
 import { formattedTime } from "../utils/formattedTime";
@@ -36,6 +37,7 @@ function CalendarDetail() {
   const [editingSegment, setEditingSegment] = useState(null);
   const [siteAssign, setSiteAssign] = useState([]);
   const [localExpenses, setLocalExpenses] = useState([]);
+  const [subcontractors, setSubcontractors] = useState([]);
 
   const attendanceRaw = attendanceCalendar.find(a => a.work_date === selectedDate)
 
@@ -47,17 +49,36 @@ function CalendarDetail() {
     };
   }, [attendanceRaw]);
 
-  const subcontractors = useMemo(() => {
-    if (!attendance) return [];
+  const fetchSubcontractors = useCallback(async () => {
+    const attendanceId = attendance?.attendance_id;
 
-    const raw = attendance.attendance_subcontractor_segments || [];
+    if (!attendanceId) {
+      setSubcontractors([]);
+      return;
+    }
 
-    const unique = Array.from(
-      new Map(raw.map(item => [item.company_name, item])).values()
-    );
+    try {
+      const res = await attendanceSubcontractorSegmentApi.getAll({ attendance_id: attendanceId });
+      const raw = res?.data?.data ?? res?.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
-    return unique;
-  }, [attendance]);
+      const matched = list.filter((seg) => String(seg.attendance_id) === String(attendanceId));
+      const unique = Array.from(
+        new Map(matched.map(item => [item.company_name, item])).values()
+      );
+      setSubcontractors(unique);
+    } catch (err) {
+      console.error("Failed to fetch subcontractors:", err);
+    }
+  }, [attendance?.attendance_id]);
+
+  useEffect(() => {
+    if (attendance) {
+      fetchSubcontractors();
+    } else {
+      setSubcontractors([]);
+    }
+  }, [attendance, fetchSubcontractors]);
 
   const hasData =
     !!attendance &&
