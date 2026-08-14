@@ -5,6 +5,7 @@ import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button";
 import { toast } from "react-toastify";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
+import { isAttendanceEditable } from "../utils/attendanceLock";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -24,7 +25,7 @@ function TransportationExpenseScreen({ onDone }) {
   const location = useLocation();
   const from = location.state?.from || "default";
 
-  const { attendance, employee } = useAttendanceContext();
+  const { attendance, employee, closingDay, selectedDate } = useAttendanceContext();
 
   useEffect(() => {
     const fetchExistingExpenses = async () => {
@@ -89,6 +90,9 @@ function TransportationExpenseScreen({ onDone }) {
 
     fetchAssignedSites();
   }, [employee]);
+
+  const isEditingFromCalendar = from === "calendar-detail";
+  const editable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
 
   const handleRedirect = () => {
     if (from === "calendar-detail") {
@@ -215,6 +219,24 @@ function TransportationExpenseScreen({ onDone }) {
   const handleCancelDelete = () => {
     setConfirmData({ open: false, index: null });
   };
+
+  if (isEditingFromCalendar && !editable) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+          <h1 className="text-lg font-semibold">Transportation Expenses</h1>
+          <p className="text-sm text-gray-600">
+            This month is locked. Transportation expenses are view-only.
+          </p>
+          <Button
+            buttonStyle="secondary"
+            text="Back to Calendar"
+            onClick={() => navigate("/calendar/detail")}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen p-6 flex flex-col gap-4">

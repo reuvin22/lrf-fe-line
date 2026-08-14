@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
-import { attendanceApi, systemSettingsApi, transportationExpensesApi } from "../api/Api";
+import { attendanceApi, transportationExpensesApi } from "../api/Api";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useTransportationExpensesContext } from "../context/TransportationExpensesContext";
+import { isAttendanceEditable } from "../utils/attendanceLock";
 
 const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function Calendar() {
-  const { setAttendance, setAttendanceCalendar, setSelectedDate, employee } = useAttendanceContext();
+  const { setAttendance, setAttendanceCalendar, setSelectedDate, employee, closingDay } = useAttendanceContext();
 
   const navigate = useNavigate();
   const { setTransportationExpenses } = useTransportationExpensesContext();
@@ -17,7 +18,6 @@ function Calendar() {
   const [date, setDate] = useState(new Date(today.getFullYear(), today.getMonth()));
   const [calendar, setCalendar] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [closingDay, setClosingDay] = useState(null);
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -58,27 +58,6 @@ function Calendar() {
     fetchAttendance();
   }, [year, month]);
 
-  useEffect(() => {
-    const fetchSystemSettings = async () => {
-      try {
-        const res = await systemSettingsApi.getAll();
-        const inner = res.data?.data;
-        const settings = Array.isArray(inner)
-          ? inner
-          : Array.isArray(inner?.data)
-            ? inner.data
-            : [];
-        const closingEntry = settings.find((s) => s?.key === "closing_day");
-        const day = Number(closingEntry?.value);
-        setClosingDay(Number.isFinite(day) && day >= 1 && day <= 31 ? day : null);
-      } catch (error) {
-        console.error("Error fetching system settings:", error);
-      }
-    };
-
-    fetchSystemSettings();
-  }, []);
-
   const handleClick = async (day) => {
     if (!day) return;
 
@@ -91,7 +70,7 @@ function Calendar() {
       (item) => item.work_date === formatted
     );
 
-    if (!selectedAttendance && employee?.employee_id) {
+    if (!selectedAttendance && employee?.employee_id && isAttendanceEditable(formatted, closingDay)) {
       try {
         const createRes = await attendanceApi.create({
           employee_id: employee.employee_id,
@@ -161,6 +140,10 @@ function Calendar() {
   };
 
   const renderStatus = (day) => {
+    if (!isAttendanceEditable(formatDate(year, month, day), closingDay)) {
+      return <span className="text-xs mt-1">🔒</span>;
+    }
+
     if (closingDay && day === closingDay)
       return <Lock className="w-3 h-3 text-gray-600 mt-1" />;
 

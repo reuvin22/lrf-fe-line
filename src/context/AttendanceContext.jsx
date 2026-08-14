@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { attendanceApi, employeeApi, attendanceEmployeeSegment, siteAssignmentApi } from "../api/Api";
+import { attendanceApi, employeeApi, attendanceEmployeeSegment, siteAssignmentApi, systemSettingsApi } from "../api/Api";
 import { useLiff } from "./LiffContext";
 import * as wanakana from "wanakana";
 
@@ -14,8 +14,30 @@ export const AttendanceProvider = ({ children }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [sites, setSites] = useState([]);
   const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
+  const [closingDay, setClosingDay] = useState(null);
 
   const { profile: lineProfile, loading: liffLoading, loggedIn: liffLoggedIn } = useLiff();
+
+  useEffect(() => {
+    const fetchClosingDay = async () => {
+      try {
+        const res = await systemSettingsApi.getAll();
+        const inner = res.data?.data;
+        const settings = Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data)
+            ? inner.data
+            : [];
+        const closingEntry = settings.find((s) => s?.key === "closing_day");
+        const day = Number(closingEntry?.value);
+        setClosingDay(Number.isFinite(day) && day >= 1 && day <= 31 ? day : null);
+      } catch (error) {
+        console.error("Error fetching closing day setting:", error);
+      }
+    };
+
+    fetchClosingDay();
+  }, []);
 
   const isEmployeeComplete = (emp) => {
     if (!emp) return false;
@@ -163,6 +185,7 @@ export const AttendanceProvider = ({ children }) => {
         selectedDate,
         setSelectedDate,
         isProfileIncomplete,
+        closingDay,
       }}
     >
       {children}

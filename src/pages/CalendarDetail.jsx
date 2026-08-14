@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Lock } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 
 import Button from "../components/Button";
@@ -20,11 +20,12 @@ import {
 import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
 import { toast } from "react-toastify";
+import { isAttendanceEditable, isSiteLeader } from "../utils/attendanceLock";
 
 function CalendarDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendanceCalendar, selectedDate, employee, fetchAttendanceCalendar } = useAttendanceContext();
+  const { attendanceCalendar, selectedDate, employee, fetchAttendanceCalendar, closingDay } = useAttendanceContext();
   const displayDate = selectedDate
     ? formatWorkDate(selectedDate)
     : "No Date";
@@ -62,6 +63,9 @@ function CalendarDetail() {
     !!attendance &&
     (segments.length > 0 || localExpenses.length > 0 || subcontractors.length > 0);
 
+  const editable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
+  const canEditSubcontractor = editable && isSiteLeader(siteAssign);
+
   useEffect(() => {
     if (!employee?.employee_id) return;
 
@@ -76,19 +80,22 @@ function CalendarDetail() {
             : [];
 
         const data = all.filter(
-          (v) => v != null && String(v.employee_id) === String(employee.employee_id)
+          (v) => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employee.employee_id)
         );
         setSiteAssign(data);
 
         const mappedSites = data
-          .filter(v => v.site != null)
-          .map((v) => ({
-            site_id: v.site.site_id,
-            site_name: v.site.site_name,
-            address: v.site?.address,
-            client_name: v.site?.client_name,
-            is_leader: v.is_leader,
-          }));
+          .map((v) => {
+            const site = v.site ?? v;
+            return {
+              site_id: site.site_id,
+              site_name: site.site_name,
+              address: site.address,
+              client_name: site.client_name,
+              is_leader: v.is_leader,
+            };
+          })
+          .filter(v => v.site_id != null);
         setSites(mappedSites);
       } catch (err) {
         console.error("Error fetching site assignments:", err);
@@ -178,6 +185,7 @@ function CalendarDetail() {
   );
 
   const handleEditSegment = (seg) => {
+    if (!editable) return;
     setEditingSegment(seg);
     setOpenEditSegmentModal(true);
     console.log(seg)
@@ -246,6 +254,13 @@ function CalendarDetail() {
           </div>
         </div>
 
+        {!editable && (
+          <div className="bg-gray-100 border border-gray-300 rounded-2xl p-4 flex items-center gap-2 text-gray-600 text-sm">
+            <Lock size={16} />
+            This month is locked. Records are view-only.
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           {!hasData ? (
             <div className="bg-white rounded-2xl shadow-sm p-6 text-center text-gray-500">
@@ -259,7 +274,9 @@ function CalendarDetail() {
                 <div
                   key={seg.segment_id}
                   onClick={() => handleEditSegment(seg)}
-                  className="bg-white rounded-2xl shadow-sm p-4 flex justify-between items-start cursor-pointer hover:bg-gray-50"
+                  className={`bg-white rounded-2xl shadow-sm p-4 flex justify-between items-start ${
+                    editable ? "cursor-pointer hover:bg-gray-50" : "cursor-default"
+                  }`}
                 >
                   <div>
                     <h3 className="font-semibold">
@@ -271,6 +288,7 @@ function CalendarDetail() {
                         : seg.site_name || seg.site_id || "—"}
                     </p>
                   </div>
+                  {!editable && <Lock size={16} className="text-gray-400 mt-1" />}
                 </div>
               );
             })
@@ -311,43 +329,49 @@ function CalendarDetail() {
           </div>
         </div>
 
-        <Button
-          buttonStyle="primary"
-          text={
-            <div className="flex justify-center items-center gap-2">
-              <Plus size={18} />
-              Add Segment
-            </div>
-          }
-          onClick={() => {
-            setRecordType("default");
-            setSegmentType("");
-            setOpenSegmentModal(true);
-          }}
-        />
+        {editable && (
+          <Button
+            buttonStyle="primary"
+            text={
+              <div className="flex justify-center items-center gap-2">
+                <Plus size={18} />
+                Add Segment
+              </div>
+            }
+            onClick={() => {
+              setRecordType("default");
+              setSegmentType("");
+              setOpenSegmentModal(true);
+            }}
+          />
+        )}
 
-        <Button
-          buttonStyle="primary"
-          text="Edit Transport"
-          customButton="bg-lime-500"
-          onClick={() =>
-            navigate("/transportation-expenses", { state: { from: "calendar-detail" } })
-          }
-        />
+        {editable && (
+          <Button
+            buttonStyle="primary"
+            text="Edit Transport"
+            customButton="bg-lime-500"
+            onClick={() =>
+              navigate("/transportation-expenses", { state: { from: "calendar-detail" } })
+            }
+          />
+        )}
 
-        <Button
-          buttonStyle="primary"
-          text="Edit Subcontractor"
-          customButton="bg-lime-500"
-          onClick={() =>
-            navigate("/subcontractor", {
-              state: {
-                from: "subcontractor",
-                attendance_id: attendance?.attendance_id,
-              },
-            })
-          }
-        />
+        {canEditSubcontractor && (
+          <Button
+            buttonStyle="primary"
+            text="Edit Subcontractor"
+            customButton="bg-lime-500"
+            onClick={() =>
+              navigate("/subcontractor", {
+                state: {
+                  from: "subcontractor",
+                  attendance_id: attendance?.attendance_id,
+                },
+              })
+            }
+          />
+        )}
       </div>
 
       <SegmentModal onSave={handleAddSegment} />

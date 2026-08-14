@@ -24,26 +24,44 @@ export const LiffProvider = ({ children }) => {
       return;
     }
 
+    // After LINE's login redirect lands back here, the URL carries
+    // ?code=...&state=...&liffClientId=...&liffRedirectUri=... — strip those
+    // so the address bar doesn't get stuck showing the raw OAuth callback.
+    const cleanCallbackParams = () => {
+      const url = new URL(window.location.href);
+      let changed = false;
+      ["code", "state", "liffClientId", "liffRedirectUri"].forEach((param) => {
+        if (url.searchParams.has(param)) {
+          url.searchParams.delete(param);
+          changed = true;
+        }
+      });
+      if (changed) {
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+    };
+
     const init = async () => {
       try {
         setLoading(true);
-        // Capture the route the user was actually headed to (e.g. /ocr) before
-        // liff.init()/login() can touch the URL, and hand it back as the
-        // redirectUri so LINE's login flow returns here instead of dropping
-        // the user on the default route.
-        const intendedUrl = window.location.href;
+        // No explicit redirectUri here — liff.login()'s default already
+        // uses the current location.href, which preserves the route the
+        // user was headed to (e.g. /ocr) through the login round-trip.
         await liff.init({ liffId: environment.VITE_LIFF_KEY });
 
         if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: intendedUrl });
+          liff.login();
           return;
         }
+
+        cleanCallbackParams();
 
         setLoggedIn(true);
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
       } catch (err) {
         console.error("LIFF init error:", err);
+        cleanCallbackParams();
         setError(err);
       } finally {
         setLoading(false);

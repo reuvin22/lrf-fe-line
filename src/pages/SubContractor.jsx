@@ -16,6 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { toast } from "react-toastify";
 import * as wanakana from "wanakana";
+import { isAttendanceEditable, isSiteLeader } from "../utils/attendanceLock";
 
 function SubContractor({ onRefetch }) {
   const [companies, setCompanies] = useState([]);
@@ -30,7 +31,7 @@ function SubContractor({ onRefetch }) {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendance, employee } = useAttendanceContext();
+  const { attendance, employee, closingDay, selectedDate } = useAttendanceContext();
   const effectiveAttendanceId =
     location.state?.attendance_id ||
     attendance?.attendance_id ||
@@ -213,7 +214,7 @@ function SubContractor({ onRefetch }) {
         const rawSites = Array.isArray(siteAssignInner) ? siteAssignInner : Array.isArray(siteAssignInner?.data) ? siteAssignInner.data : [];
         const mapped = rawSites
           .filter(v => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
-          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name }; })
+          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name, is_leader: v.is_leader }; })
           .filter(s => s.site_id != null);
         console.log("[SubContractor] assigned sites", mapped);
         setAssignedSites(mapped);
@@ -419,7 +420,36 @@ function SubContractor({ onRefetch }) {
     }
   };
 
+  const validateCompanies = () => {
+    for (const company of companies) {
+      if (!company.company || !company.company.trim()) {
+        return "Company Name is required.";
+      }
+
+      for (const worker of company.workers) {
+        if (worker.inputMode === "manual") {
+          if (!worker.name || !worker.name.trim()) {
+            return `Name is required for ${company.company}.`;
+          }
+          if (!worker.status) {
+            return `Status is required for ${company.company}.`;
+          }
+        } else if (!worker.worker_id) {
+          return `Please select a worker for ${company.company}.`;
+        }
+      }
+    }
+
+    return null;
+  };
+
   const handleNext = async () => {
+    const validationError = validateCompanies();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     setLoading(true);
     try {
       for (const id of deletedWorkers) {
@@ -550,6 +580,31 @@ function SubContractor({ onRefetch }) {
     );
   };
   
+  const isEditingFromCalendar = location.state?.from === "subcontractor";
+  const monthEditable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
+  const canEditSubcontractors =
+    !isEditingFromCalendar || (monthEditable && isSiteLeader(assignedSites));
+
+  if (isEditingFromCalendar && !canEditSubcontractors) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+          <h1 className="text-lg font-semibold">Subcontractor Report</h1>
+          <p className="text-sm text-gray-600">
+            {monthEditable
+              ? "Only a Site Leader can edit subcontractor information."
+              : "This month is locked. Subcontractor information is view-only."}
+          </p>
+          <Button
+            buttonStyle="secondary"
+            text="Back to Calendar"
+            onClick={() => navigate("/calendar/detail")}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
       <div className="w-full p-6 space-y-6 flex flex-col">
@@ -579,7 +634,9 @@ function SubContractor({ onRefetch }) {
                   </p>
 
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm text-gray-600">Company</label>
+                    <label className="text-sm text-gray-600">
+                      Company <span className="text-red-500">*</span>
+                    </label>
                     <button
                       onClick={() => deleteCompanyApi(company)}
                       className="text-red-500 hover:text-red-700"
@@ -601,6 +658,7 @@ function SubContractor({ onRefetch }) {
                     renderInput={(params) => (
                       <TextField
                         {...params}
+                        required
                         placeholder="Select or type Company"
                         size="small"
                         fullWidth
@@ -669,7 +727,8 @@ function SubContractor({ onRefetch }) {
                               <div className="space-y-2">
                                 <input
                                   type="text"
-                                  placeholder="Name"
+                                  placeholder="Name *"
+                                  required
                                   value={worker.name}
                                   onChange={(e) => handleWorkerFieldChange(company, worker, "name", e.target.value)}
                                   className="w-full border rounded-lg p-2 text-sm"
@@ -707,7 +766,8 @@ function SubContractor({ onRefetch }) {
                                 renderInput={(params) => (
                                   <TextField
                                     {...params}
-                                    placeholder="Select worker"
+                                    required
+                                    placeholder="Select worker *"
                                     size="small"
                                     fullWidth
                                     InputProps={{
