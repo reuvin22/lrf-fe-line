@@ -68,8 +68,6 @@ function SubContractor({ onRefetch }) {
         attendance?.id;
       const employeeId = employee?.employee_id;
 
-      console.log("[fetchAttendanceSubcontractor] attendance_id:", attendanceId, "employee_id:", employeeId);
-
       if (!attendanceId) {
         setCompanies([]);
         return;
@@ -79,8 +77,6 @@ function SubContractor({ onRefetch }) {
         employee_id: employeeId,
         attendance_id: attendanceId,
       });
-
-      console.log("[fetchAttendanceSubcontractor] raw API response:", res.data);
 
       const segInner = res.data?.data;
       const allRaw = Array.isArray(segInner)
@@ -92,8 +88,6 @@ function SubContractor({ onRefetch }) {
       const raw = allRaw.filter(
         (item) => String(item.attendance_id) === String(attendanceId)
       );
-
-      console.log("[fetchAttendanceSubcontractor] segments matched to attendance_id:", raw);
 
       const grouped = {};
 
@@ -126,7 +120,6 @@ function SubContractor({ onRefetch }) {
       });
 
       const companiesData = Object.values(grouped);
-      console.log("[fetchAttendanceSubcontractor] grouped companies:", companiesData);
 
       // Fetch workers so dropdowns have options to select from
       const workersRes = await subContractorWorkerApi.getAll();
@@ -149,7 +142,6 @@ function SubContractor({ onRefetch }) {
         return { ...c, availableWorkers };
       });
 
-      console.log("[fetchAttendanceSubcontractor] final companies:", finalCompanies);
       setCompanies(finalCompanies);
     } catch (err) {
       console.error("❌ Error fetching attendance segment:", err);
@@ -209,7 +201,6 @@ function SubContractor({ onRefetch }) {
         ]);
 
         const attendanceEmployeeId = employee?.employee_id;
-        console.log("[SubContractor] attendanceEmployeeId for site filter:", attendanceEmployeeId);
 
         const siteAssignInner = siteAssignRes.data?.data;
         const rawSites = Array.isArray(siteAssignInner) ? siteAssignInner : Array.isArray(siteAssignInner?.data) ? siteAssignInner.data : [];
@@ -217,7 +208,6 @@ function SubContractor({ onRefetch }) {
           .filter(v => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
           .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name, is_leader: v.is_leader }; })
           .filter(s => s.site_id != null);
-        console.log("[SubContractor] assigned sites", mapped);
         setAssignedSites(mapped);
 
         const subsInner = subsRes.data?.data;
@@ -341,9 +331,6 @@ function SubContractor({ onRefetch }) {
   const deleteCompanyApi = (company) => {
     const uuids = company.workers.map((w) => w.uuid).filter(Boolean);
 
-    console.log("🗑️ Deleting site/company:", company.site_name, "|", company.company);
-    console.log("🗑️ Worker UUIDs to delete:", uuids);
-
     if (uuids.length > 0) {
       setDeletedWorkers((prev) => [...prev, ...uuids]);
     }
@@ -405,7 +392,6 @@ function SubContractor({ onRefetch }) {
           start_time: `${today}T${worker.start}:00`,
           end_time: `${today}T${worker.end}:00`,
         };
-        console.log("[saveCompany] payload:", payload);
 
         if (worker.uuid) {
           await attendanceSubcontractorSegmentApi.update(worker.uuid, payload);
@@ -510,7 +496,6 @@ function SubContractor({ onRefetch }) {
         workers = all.filter(
           w => String(w.subcontractor_id) === String(subId)
         );
-        console.log("[SubContractor] workers for", selectedSub.company_name, workers);
       } catch (err) {
         console.error("Failed to fetch workers:", err);
       }

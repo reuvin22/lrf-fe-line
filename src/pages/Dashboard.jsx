@@ -89,8 +89,6 @@ function Dashboard() {
       });
       const getSubSegments = (attendance) =>
         subSegmentsByAttendanceId.get(String(attendance.attendance_id ?? attendance.id)) || [];
-      console.log('THIS IS Subcontractor: ', siteSubcontractorList)
-      console.log('THIS IS WORKERS: ', subContractorWorkerList)
       const subContractorById = new Map();
       subContractorList.forEach((sub) => {
         const id = sub.subcontractor_id ?? sub.id;
@@ -152,31 +150,6 @@ function Dashboard() {
         return;
       }
 
-      const employeeById = new Map();
-      employeeList.forEach((emp) => {
-        if (emp.employee_id != null) employeeById.set(String(emp.employee_id), emp);
-        if (emp.id != null) employeeById.set(String(emp.id), emp);
-      });
-
-      assignments.forEach((assignment) => {
-        const empId = String(
-          assignment.employee_id ??
-          assignment.employee?.employee_id ??
-          assignment.employee?.id ??
-          ""
-        );
-        if (!empId) return;
-        const emp = employeeById.get(empId);
-        if (!emp) return;
-        const assignedSiteId = assignment.site_id ?? assignment.site?.site_id;
-        const matchedSite = allSites.find(
-          (s) => String(s.id ?? s.site_id) === String(assignedSiteId)
-        );
-        console.log(
-          `[Dashboard] Employee: ${emp.name} → Site: ${matchedSite?.name ?? matchedSite?.site_name ?? "Unknown"} (site_id: ${assignedSiteId})`
-        );
-      });
-
       const siteMap = new Map();
 
       allSites.forEach((s) => {
@@ -224,7 +197,6 @@ function Dashboard() {
       });
 
       const groupedSites = Array.from(siteMap.values());
-      console.log("[Dashboard] groupedSites:", groupedSites);
       attendanceList.forEach((attendance) => {
         const emp = attendance.employee;
         if (!emp) return;

@@ -120,10 +120,6 @@ function TransportationExpenseScreen({ onDone }) {
       return;
     }
 
-    const selectedSiteId = Number(site);
-    console.log("Selected site ID:", selectedSiteId);
-    console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
-
     const selectedSite = segmentSites.find((s) => String(s.id) === site);
     if (!selectedSite) {
       toast.error("Selected site is invalid. Please select a site from the dropdown.");

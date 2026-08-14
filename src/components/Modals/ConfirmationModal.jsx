@@ -1,11 +1,8 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { useAttendanceContext } from '../../context/AttendanceContext';
 
 function ConfirmationModal({ message, onConfirm, onCancel, loading = false }) {
   if (!message) return null;
-  const { attendance } = useAttendanceContext()
-  console.log(attendance)
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-6">
       <div

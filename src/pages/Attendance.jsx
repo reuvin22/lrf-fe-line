@@ -52,7 +52,6 @@ function Attendance({ employee }) {
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
       const matched = list.filter((seg) => String(seg.attendance_id) === String(attendanceId));
-      console.log("[Attendance] segments for attendance_id", attendanceId, matched);
       setSegments(matched);
     } catch (error) {
       console.error("Error fetching segments:", error);
@@ -70,7 +69,6 @@ function Attendance({ employee }) {
       const todayDate = formatWorkDate(new Date());
       const todayAttendance = list.find((att) => att.work_date === todayDate) || null;
 
-      console.log("[Attendance] today's attendance:", todayAttendance);
       setAttendance(todayAttendance);
     } catch (error) {
       console.error("Error fetching attendance:", error);
@@ -246,15 +244,9 @@ function Attendance({ employee }) {
           v => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employee.employee_id)
         );
 
-        console.log("[END OF DAY] employee assignments:", employeeAssignments);
-        console.log("[END OF DAY] is_leader values:", employeeAssignments.map(v => v.is_leader));
-
         const employeeIsLeader = employeeAssignments.some(
           v => v.is_leader === true || v.is_leader === 1 || String(v.is_leader).toUpperCase() === "YES"
         );
-
-        console.log("[END OF DAY] employeeIsLeader:", employeeIsLeader);
-        console.log("[END OF DAY] navigating to:", employeeIsLeader ? '/subcontractor' : '/transportation-expenses');
 
         navigate(employeeIsLeader ? '/subcontractor' : '/transportation-expenses');
       } catch (err) {
@@ -275,7 +267,6 @@ function Attendance({ employee }) {
         end_time: updatedSegment.end_time
       };
 
-      console.log('THIS IS PAYLOAD: ', payload)
       await segmentApi.update(updatedSegment.segment_id, payload);
       await fetchSegments();
     } catch (err) {

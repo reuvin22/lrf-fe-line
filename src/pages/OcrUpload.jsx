@@ -5,7 +5,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../components/Button";
 import FileThumbnail from "../components/FileThumbnail";
 import { ocrCategoriesApi, ocrUploadApi, invoiceDocumentApi, siteAssignmentApi, subContractorWorkerApi, subContractorApi, siteSubContractorApi } from "../api/Api";
-import axiosApi from "../api/Axios";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext, MOCK_SITE } from "../context/LocationContext";
@@ -73,20 +72,11 @@ function OcrUpload() {
   const [allSubcontractors, setAllSubcontractors] = useState([]);
   const [siteSubMap, setSiteSubMap] = useState(new Map());
 
-  const logErrorOrRejected = (items, res) => {
-    (items || []).forEach((item) => {
-      if (item.status === "ERROR" || item.status === "REJECTED") {
-        console.log(`[OcrUpload] ${item.status} response:`, res);
-      }
-    });
-  };
-
   const fetchUploads = async () => {
     try {
       const res = await invoiceDocumentApi.getAll();
       const inner = res.data?.data;
       const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
-      logErrorOrRejected(items, res);
       setUploadedItems(items);
     } catch (err) {
       console.error("Error fetching invoice documents:", err);
@@ -106,7 +96,6 @@ function OcrUpload() {
         setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
         const inner = uploadsRes.data?.data;
         const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
-        logErrorOrRejected(items, uploadsRes);
         setUploadedItems(items);
       } catch (err) {
         console.error("[OcrUpload] Failed to load categories/uploads:", err);
@@ -170,7 +159,6 @@ function OcrUpload() {
           .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
           .filter((s) => s.site_id != null);
 
-        console.log("[OcrUpload] employeeId:", employeeId, "matched sites:", matchedSites);
         if (matchedSites.length > 0 || environment.VITE_LIFF_ENABLED) {
           setSites(matchedSites);
         }
@@ -190,7 +178,6 @@ function OcrUpload() {
           workers.find((w) => normalize(w.name).includes(norm)) ??
           workers.find((w) => norm.includes(normalize(w.name)));
 
-        console.log("[OcrUpload] employeeName:", employeeName, "matched worker:", matched);
         setSubcontractorId(matched?.subcontractor_id ?? null);
         setSubcontractorName(matched?.subcontractor_name ?? null);
       } catch (err) {
@@ -233,7 +220,6 @@ function OcrUpload() {
       reader.onerror = (error) => reject(error);
     });
   };
-  console.log(categories)
   const handleUpload = async () => {
     if (!site) {
       toast.error("Please select a site");
@@ -241,7 +227,6 @@ function OcrUpload() {
     }
 
     setLoading(true);
-    console.log(categories)
     try {
       const imagesBase64Payload = await Promise.all(imageFiles.map(convertToBase64));
 
@@ -273,7 +258,6 @@ function OcrUpload() {
         processed_at: null,
       };
 
-      console.log(payload)
       if (editItem) {
         await ocrUploadApi.update(editItem.upload_id, payload);
         toast.success("Document updated successfully");
@@ -572,8 +556,6 @@ function OcrUpload() {
                   <button
                     className="text-green-600 text-xs font-medium cursor-pointer"
                     onClick={() => {
-                      const url = `${axiosApi.defaults.baseURL}invoice-documents/${item.document_id}`;
-                      console.log("[OcrUpload] Review will call:", url);
                       navigate(`/ocr/${item.document_id}/review`);
                     }}
                   >

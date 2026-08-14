@@ -91,8 +91,6 @@ function EditSegmentModal({
       payload.end_time = `${today} ${endTime}:00`;
     }
 
-    console.log("✅ FINAL PAYLOAD:", payload);
-
     try {
       await onSave(payload);
       onClose();

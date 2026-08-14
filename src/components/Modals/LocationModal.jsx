@@ -44,7 +44,6 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
           }))
           .filter((s) => s.site_id != null);
 
-        console.log("[LocationModal] assigned sites:", matchedSites);
         setSites(matchedSites);
       } catch (err) {
         console.error("[LocationModal] Failed to fetch assigned sites:", err);
@@ -64,7 +63,6 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
   const handleSelectSite = async (site) => {
     if (onSelectSite) {
       onSelectSite(site);
-      console.log(site)
       handleClose();
       return;
     }

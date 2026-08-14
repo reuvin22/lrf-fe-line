@@ -19,7 +19,21 @@ import { ToastContainer } from "react-toastify";
 
 function App() {
   const { attendance, employee, attendanceLoading, isProfileIncomplete } = useAttendanceContext();
-  const { loading: liffLoading, loggedIn: liffLoggedIn } = useLiff();
+  const { loading: liffLoading, loggedIn: liffLoggedIn, error: liffError } = useLiff();
+
+  if (liffError && !liffLoggedIn) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-gray-600">Something went wrong signing you in.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (liffLoading || !liffLoggedIn) return <Loading />;
   if (attendanceLoading) return <Loading />;

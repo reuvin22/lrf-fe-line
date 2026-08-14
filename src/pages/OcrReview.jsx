@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { invoiceDocumentApi, confirmInvoiceDocument } from "../api/Api";
-import axiosApi from "../api/Axios";
 import { parseImagePaths } from "../utils/parseImagePaths";
 import { getFileKind } from "../utils/getFileKind";
 import Button from "../components/Button";
@@ -110,8 +109,6 @@ function OcrReview() {
     const fetchItem = async () => {
       setLoading(true);
       try {
-        const url = `${axiosApi.defaults.baseURL}invoice-documents/${id}`;
-        console.log("[OcrReview] Fetching:", url);
         const res = await invoiceDocumentApi.getById(id);
         setItem(res.data?.data ?? res.data ?? null);
       } catch (err) {

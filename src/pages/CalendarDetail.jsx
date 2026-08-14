@@ -140,7 +140,6 @@ function CalendarDetail() {
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
       const matched = list.filter((seg) => seg.attendance_id === attendanceId);
-      console.log("[CalendarDetail] segments for attendance_id", attendanceId, matched);
       setSegments(matched);
     } catch (err) {
       console.error("Failed to fetch segments:", err);
@@ -209,7 +208,6 @@ function CalendarDetail() {
     if (!editable) return;
     setEditingSegment(seg);
     setOpenEditSegmentModal(true);
-    console.log(seg)
   };
 
   const handleSaveSegment = async (payload) => {
