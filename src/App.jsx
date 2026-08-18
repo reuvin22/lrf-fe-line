@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Main from "./layout/Main";
 import Manual from "./pages/Manual";
@@ -16,6 +16,30 @@ import { useLiff } from "./context/LiffContext";
 import Loading from "./components/Loading";
 import PendingApproval from "./pages/PendingApproval";
 import { ToastContainer } from "react-toastify";
+
+// Once logged in, restore whatever route the user was actually headed to
+// (e.g. /calendar from a LINE rich menu tap) — set by LiffContext right
+// before it sent the user through LINE's login flow. This doesn't trust
+// LIFF/LINE to preserve the path through that redirect on its own.
+function RestoreIntendedRoute() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const intended = sessionStorage.getItem("liff_intended_path");
+    if (!intended) return;
+
+    sessionStorage.removeItem("liff_intended_path");
+    if (intended !== location.pathname + location.search) {
+      navigate(intended, { replace: true });
+    }
+    // Run once on mount — this is a one-time redirect after login, not a
+    // reaction to route changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
 
 function App() {
   const { attendance, employee, attendanceLoading, isProfileIncomplete } = useAttendanceContext();
@@ -42,6 +66,7 @@ function App() {
   return (
     <ErrorBoundary>
     <Router>
+      <RestoreIntendedRoute />
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Main />} />
