@@ -1,5 +1,7 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import liff from "@line/liff";
+import environment from "./environment";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Main from "./layout/Main";
 import Manual from "./pages/Manual";
@@ -39,6 +41,34 @@ function RestoreIntendedRoute() {
   }, []);
 
   return null;
+}
+
+// Safety net for when LINE hands back a path our router doesn't recognize
+// (e.g. a garbled /{liffId}-ish path) and RestoreIntendedRoute above has
+// nothing to recover to. Rather than leaving a blank screen, ask the user
+// to reopen the app and close the LIFF window for them on confirmation.
+function RouteFallback() {
+  const handleContinue = () => {
+    if (environment.VITE_LIFF_ENABLED) {
+      liff.closeWindow();
+    } else {
+      window.location.href = "/";
+    }
+  };
+
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+      <p className="text-gray-700">
+        Something went wrong opening this page. Please reopen the app from LINE to continue.
+      </p>
+      <button
+        onClick={handleContinue}
+        className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold cursor-pointer"
+      >
+        Continue
+      </button>
+    </div>
+  );
 }
 
 function App() {
@@ -86,6 +116,7 @@ function App() {
             element={<SubContractor />}
           />
         </Route>
+        <Route path="*" element={<RouteFallback />} />
       </Routes>
       <ToastContainer
         position="top-right"

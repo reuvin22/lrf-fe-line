@@ -424,11 +424,12 @@ subContractorWorkerList.forEach(worker => {
     const fetchAllInvoices = async () => {
       setAllInvoicesLoading(true);
       try {
+        // GET /invoice-documents only supports status and uploaded_by
+        // server-side — it has no date or site filter, so billing_month/
+        // site_id are applied client-side below instead of sent here.
         const res = await invoiceDocumentApi.getAll({
           status: invoiceStatusFilter || undefined,
           uploaded_by: uploadedByFilter || undefined,
-          billing_month: dateFilter || undefined,
-          site_id: siteFilter || undefined,
         });
         const inner = res.data?.data;
         setAllInvoices(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
@@ -443,6 +444,18 @@ subContractorWorkerList.forEach(worker => {
 
     fetchAllInvoices();
   }, [activeTab, invoiceStatusFilter, uploadedByFilter, dateFilter, siteFilter]);
+
+  // GET /invoice-documents has no date or site filter server-side (only
+  // status/uploaded_by), so both are applied here instead. Filtering on
+  // issue_date rather than billing_month since issue_date is what's actually
+  // set on the document — billing_month only gets filled in once a document
+  // is reviewed/confirmed, which would hide everything still NEEDS_REVIEW.
+  const visibleInvoices = allInvoices.filter((doc) => {
+    if (dateFilter && String(doc.issue_date ?? "").slice(0, 7) !== dateFilter) return false;
+    if (siteFilter && String(doc.site_id) !== String(siteFilter)) return false;
+    return true;
+  });
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       {/* Header */}
@@ -684,7 +697,7 @@ subContractorWorkerList.forEach(worker => {
             <CircularProgress size={28} sx={{ color: "#16a34a" }} />
             <p className="text-sm text-gray-500">Loading data...</p>
           </div>
-        ) : allInvoices.length === 0 ? (
+        ) : visibleInvoices.length === 0 ? (
           <div className="text-center text-sm text-gray-500 py-10">
             No invoices found
           </div>
@@ -704,7 +717,7 @@ subContractorWorkerList.forEach(worker => {
                 </tr>
               </thead>
               <tbody>
-                {allInvoices.map((doc) => (
+                {visibleInvoices.map((doc) => (
                   <tr
                     key={doc.document_id}
                     onClick={() =>
