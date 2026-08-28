@@ -2,7 +2,7 @@ import axios from "axios";
 import environment from "../environment";
 
 const axiosApi = axios.create({
-  baseURL: `${environment.VITE_API_URL}${environment.VITE_API_BASE_URL}`,
+  baseURL: `${environment.API_URL}${environment.VITE_API_BASE_URL}`,
   timeout: 0,
   headers: {
     "Content-Type": "application/json",
