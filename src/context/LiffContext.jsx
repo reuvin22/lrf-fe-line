@@ -9,7 +9,6 @@ export const LiffProvider = ({ children }) => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [needsReopen, setNeedsReopen] = useState(false);
 
   useEffect(() => {
     // LINE login is disabled via environment.VITE_LIFF_ENABLED.
@@ -62,17 +61,6 @@ export const LiffProvider = ({ children }) => {
 
         cleanCallbackParams();
 
-        // Login can succeed through LINE's external-browser OAuth page (e.g.
-        // when this link was opened inside another app's embedded browser
-        // instead of the LINE app). That context doesn't reliably support
-        // this LIFF app runtime, so send the user back to LINE rather than
-        // rendering the app itself.
-        if (!liff.isInClient()) {
-          setNeedsReopen(true);
-          setLoading(false);
-          return;
-        }
-
         setLoggedIn(true);
         const userProfile = await liff.getProfile();
         setProfile(userProfile);
@@ -98,7 +86,7 @@ export const LiffProvider = ({ children }) => {
   };
 
   return (
-    <LiffContext.Provider value={{ profile, loggedIn, loading, error, needsReopen, logout }}>
+    <LiffContext.Provider value={{ profile, loggedIn, loading, error, logout }}>
       {children}
     </LiffContext.Provider>
   );
