@@ -73,7 +73,21 @@ function RouteFallback() {
 
 function App() {
   const { attendance, employee, attendanceLoading, isProfileIncomplete } = useAttendanceContext();
-  const { loading: liffLoading, loggedIn: liffLoggedIn, error: liffError } = useLiff();
+  const { loading: liffLoading, loggedIn: liffLoggedIn, error: liffError, needsReopen: liffNeedsReopen } = useLiff();
+
+  if (liffNeedsReopen) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-gray-700">Login successful! Please reopen the app from LINE to continue.</p>
+        <button
+          onClick={() => window.close()}
+          className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold cursor-pointer"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
 
   if (liffError && !liffLoggedIn) {
     return (
