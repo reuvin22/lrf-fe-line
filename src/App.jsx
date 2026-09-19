@@ -59,13 +59,13 @@ function RouteFallback() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-6 text-center">
       <p className="text-gray-700">
-        Something went wrong opening this page. Please reopen the app from LINE to continue.
+        ページを開く際にエラーが発生しました。LINEからアプリを再度開いてください。
       </p>
       <button
         onClick={handleContinue}
         className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold cursor-pointer"
       >
-        Continue
+        続ける
       </button>
     </div>
   );
@@ -78,12 +78,12 @@ function App() {
   if (liffError && !liffLoggedIn) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-gray-600">Something went wrong signing you in.</p>
+        <p className="text-gray-600">ログイン中にエラーが発生しました。</p>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold cursor-pointer"
         >
-          Retry
+          再試行
         </button>
       </div>
     );

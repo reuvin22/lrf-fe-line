@@ -351,7 +351,7 @@ function OcrUpload() {
       {pageLoading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24">
           <CircularProgress size={32} sx={{ color: "#16a34a" }} />
-          <p className="text-sm text-gray-500">Loading data...</p>
+          <p className="text-sm text-gray-500">読み込み中...</p>
         </div>
       ) : (
       <div className="p-4 space-y-4">

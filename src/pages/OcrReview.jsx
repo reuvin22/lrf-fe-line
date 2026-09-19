@@ -31,14 +31,14 @@ const formatDate = (value) => {
   if (!value) return null;
   const d = new Date(value);
   if (isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
 };
 
 const formatMonth = (value) => {
   if (!value) return null;
   const [year, month] = String(value).split("-").map(Number);
   if (!year || !month) return value;
-  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  return new Date(year, month - 1, 1).toLocaleDateString("ja-JP", { year: "numeric", month: "long" });
 };
 
 function Field({ label, value }) {
@@ -113,7 +113,7 @@ function OcrReview() {
         setItem(res.data?.data ?? res.data ?? null);
       } catch (err) {
         console.error("[OcrReview] Failed to load document:", err);
-        toast.error("Failed to load document");
+        toast.error("書類の読み込みに失敗しました");
       } finally {
         setLoading(false);
       }
@@ -143,11 +143,11 @@ function OcrReview() {
         confirmed_by: employee?.employee_id ?? null,
       });
 
-      toast.success("Document approved");
+      toast.success("書類を承認しました");
       goBack();
     } catch (err) {
       console.error("[OcrReview] Failed to approve document:", err);
-      toast.error("Failed to approve document");
+      toast.error("書類の承認に失敗しました");
     } finally {
       setApproving(false);
     }
@@ -158,11 +158,11 @@ function OcrReview() {
     try {
       await invoiceDocumentApi.update(id, { status: "REJECTED" });
 
-      toast.success("Document rejected");
+      toast.success("書類を却下しました");
       goBack();
     } catch (err) {
       console.error("[OcrReview] Failed to reject document:", err);
-      toast.error("Failed to reject document");
+      toast.error("書類の却下に失敗しました");
     } finally {
       setRejecting(false);
     }
@@ -172,7 +172,7 @@ function OcrReview() {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-3">
         <CircularProgress size={32} />
-        <p className="text-gray-400 text-sm">Loading Data</p>
+        <p className="text-gray-400 text-sm">読み込み中...</p>
       </div>
     );
   }
@@ -180,8 +180,8 @@ function OcrReview() {
   if (!item) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-4 p-4">
-        <p className="text-gray-500 text-sm">Document not found</p>
-        <Button buttonStyle="secondary" text="Back" onClick={goBack} customButton="w-40" />
+        <p className="text-gray-500 text-sm">書類が見つかりません</p>
+        <Button buttonStyle="secondary" text="戻る" onClick={goBack} customButton="w-40" />
       </div>
     );
   }
@@ -190,14 +190,14 @@ function OcrReview() {
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       <div className="bg-white px-5 py-4 border-b flex items-center gap-3">
         <button onClick={goBack} className="text-gray-500 text-sm cursor-pointer">
-          ← Back{cameFromDashboard ? " to Dashboard" : ""}
+          ← {cameFromDashboard ? "ダッシュボードへ戻る" : "戻る"}
         </button>
-        <span className="font-semibold text-lg">Invoice Details</span>
+        <span className="font-semibold text-lg">書類詳細</span>
       </div>
 
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Original Document</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">元の書類</p>
           {imagePaths.length > 0 ? (
             <div className="flex flex-col gap-3">
               <div
@@ -245,33 +245,33 @@ function OcrReview() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">No image available</p>
+            <p className="text-sm text-gray-400">画像がありません</p>
           )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Vendor</p>
-          <Field label="Subcontractor" value={item.subcontractor_name} />
-          <Field label="Vendor" value={item.vendor_name_raw} />
+          <p className="text-xs font-semibold text-gray-500 uppercase">業者</p>
+          <Field label="外注業者" value={item.subcontractor_name} />
+          <Field label="業者名" value={item.vendor_name_raw} />
 
           <div className="border-t pt-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Document</p>
-            <Field label="Issue Date" value={formatDate(item.issue_date)} />
-            <Field label="Billing Month" value={formatMonth(item.billing_month)} />
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">書類</p>
+            <Field label="発行日" value={formatDate(item.issue_date)} />
+            <Field label="請求月" value={formatMonth(item.billing_month)} />
             <Field
-              label="Document Type"
+              label="書類種別"
               value={
                 <>
                   {DOCUMENT_TYPE_LABELS[item.document_type] ?? item.document_type}
                   {!AGGREGATED_TYPES.includes(item.document_type) && (
-                    <span className="block text-xs text-orange-500 font-normal">not aggregated</span>
+                    <span className="block text-xs text-orange-500 font-normal">集計外</span>
                   )}
                 </>
               }
             />
-            <Field label="Category" value={item.category_id} />
+            <Field label="カテゴリ" value={item.category_id} />
             <Field
-              label="Status"
+              label="ステータス"
               value={
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
@@ -285,10 +285,10 @@ function OcrReview() {
           </div>
 
           <div className="border-t pt-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Amounts</p>
-            <Field label="Subtotal" value={formatYen(item.subtotal)} />
-            <Field label="Tax" value={formatYen(item.tax_amount)} />
-            <Field label="Total (incl. tax)" value={<span className="font-semibold">{formatYen(totalWithTax)}</span>} />
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">金額</p>
+            <Field label="小計" value={formatYen(item.subtotal)} />
+            <Field label="消費税" value={formatYen(item.tax_amount)} />
+            <Field label="合計（税込）" value={<span className="font-semibold">{formatYen(totalWithTax)}</span>} />
           </div>
 
           {warnings.length > 0 && (
@@ -300,53 +300,53 @@ function OcrReview() {
           )}
 
           <div className="border-t pt-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Lines</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase">明細</p>
             {lines.length > 0 ? (
               lines.map((line, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
-                  <span>{line.site_name ?? (line.site_id != null ? `Site #${line.site_id}` : "—")}</span>
+                  <span>{line.site_name ?? (line.site_id != null ? `現場 #${line.site_id}` : "—")}</span>
                   <span className="font-medium">{formatYen(line.amount)}</span>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-400">No lines</p>
+              <p className="text-sm text-gray-400">明細なし</p>
             )}
             <div className="flex justify-between text-sm pt-1 border-t">
-              <span className="text-gray-500">Line total</span>
+              <span className="text-gray-500">明細合計</span>
               <span className="font-medium">{formatYen(linesTotal)}</span>
             </div>
           </div>
 
           <div className="border-t pt-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Meta</p>
-            <Field label="Uploaded At" value={formatDate(item.uploaded_at)} />
-            <Field label="Processed At" value={formatDate(item.processed_at)} />
-            <Field label="Confirmed By" value={item.confirmed_by} />
-            <Field label="Confirmed At" value={formatDate(item.confirmed_at)} />
-            <Field label="Note" value={item.note} />
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">メタ情報</p>
+            <Field label="アップロード日時" value={formatDate(item.uploaded_at)} />
+            <Field label="処理日時" value={formatDate(item.processed_at)} />
+            <Field label="承認者" value={item.confirmed_by} />
+            <Field label="承認日時" value={formatDate(item.confirmed_at)} />
+            <Field label="メモ" value={item.note} />
           </div>
 
           {!cameFromDashboard && (
             item.status === "CONFIRMED" ? (
               <p className="text-center text-sm font-semibold text-green-700 border-t pt-4">
-                Approved Document
+                承認済み書類
               </p>
             ) : item.status === "REJECTED" ? (
               <p className="text-center text-sm font-semibold text-red-700 border-t pt-4">
-                Rejected Document
+                却下済み書類
               </p>
             ) : (
               <div className="flex gap-3 border-t pt-4">
                 <Button
                   buttonStyle="danger"
-                  text="Reject"
+                  text="却下"
                   onClick={handleReject}
                   loading={rejecting}
                   customButton={`flex-1 ${approving ? "opacity-50 pointer-events-none" : ""}`}
                 />
                 <Button
                   buttonStyle="primary"
-                  text="Approve"
+                  text="承認"
                   onClick={handleApprove}
                   loading={approving}
                   customButton={`flex-1 ${rejecting ? "opacity-50 pointer-events-none" : ""}`}

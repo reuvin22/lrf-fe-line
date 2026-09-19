@@ -695,7 +695,7 @@ subContractorWorkerList.forEach(worker => {
         {allInvoicesLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <CircularProgress size={28} sx={{ color: "#16a34a" }} />
-            <p className="text-sm text-gray-500">Loading data...</p>
+            <p className="text-sm text-gray-500">読み込み中...</p>
           </div>
         ) : visibleInvoices.length === 0 ? (
           <div className="text-center text-sm text-gray-500 py-10">
