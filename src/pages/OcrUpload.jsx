@@ -130,7 +130,7 @@ function OcrUpload() {
   console.log(categories)
   const handleUpload = async () => {
     if (!site) {
-      toast.error("Please select a site");
+      toast.error("現場を選択してください");
       return;
     }
 
@@ -183,11 +183,11 @@ function OcrUpload() {
       console.log(payload)
       if (editItem) {
         await ocrUploadApi.update(editItem.upload_id, payload);
-        toast.success("Document updated successfully");
+        toast.success("書類を更新しました");
         setPreviousImagePath(null);
       } else {
         await ocrUploadApi.create(payload);
-        toast.success("Document uploaded successfully");
+        toast.success("書類をアップロードしました");
       }
 
       await fetchUploads();
@@ -201,7 +201,7 @@ function OcrUpload() {
 
     } catch (err) {
       console.error("Error saving upload:", err);
-      toast.error("Failed to save document ❌");
+      toast.error("書類の保存に失敗しました");
     } finally {
       setLoading(false);
     }
@@ -256,14 +256,14 @@ function OcrUpload() {
         setPreviousImagePath(null);
       }
 
-      toast.success("Document deleted successfully");
+      toast.success("書類を削除しました");
 
       setShowConfirm(false);
       setDeleteId(null);
 
     } catch (err) {
       console.error("Error deleting upload:", err);
-      toast.error("Failed to delete document");
+      toast.error("書類の削除に失敗しました");
     } finally {
       setDeleteLoading(false);
     }
@@ -272,7 +272,7 @@ function OcrUpload() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       <div className="bg-white px-5 py-4 border-b">
-        <span className="font-semibold text-lg">Document Upload</span>
+        <span className="font-semibold text-lg">書類アップロード</span>
       </div>
 
       <div className="p-4 space-y-4">
@@ -291,7 +291,7 @@ function OcrUpload() {
               </div>
               <Button
                 buttonStyle="secondary"
-                text="Remove"
+                text="削除"
                 onClick={() => {
                   setImageFile(null);
                   setImagePreview(null);
@@ -312,7 +312,7 @@ function OcrUpload() {
                 text={
                   <span className="flex items-center gap-2 justify-center">
                     <Image size={18} />
-                    Upload Image
+                    画像をアップロード
                   </span>
                 }
               />
@@ -329,13 +329,13 @@ function OcrUpload() {
 
         <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
           <div>
-            <label className="text-sm text-gray-600 font-medium">Category *</label>
+            <label className="text-sm text-gray-600 font-medium">カテゴリ *</label>
             <select
               className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="">Select Category</option>
+              <option value="">カテゴリを選択</option>
               {categories.map((cat) => (
                 <option key={cat.category_id} value={cat.category_id}>
                   {cat.category_name}
@@ -345,13 +345,13 @@ function OcrUpload() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600 font-medium">Site *</label>
+            <label className="text-sm text-gray-600 font-medium">現場 *</label>
             <select
               className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
               value={site}
               onChange={(e) => setSite(e.target.value)}
             >
-              <option value="">Select Site</option>
+              <option value="">現場を選択</option>
               {sites.map((s) => (
                 <option key={s.site_id} value={s.site_id}>
                   {s.site_name}
@@ -361,9 +361,9 @@ function OcrUpload() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600 font-medium">Note</label>
+            <label className="text-sm text-gray-600 font-medium">メモ</label>
             <textarea
-              placeholder="Optional"
+              placeholder="任意"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -373,7 +373,7 @@ function OcrUpload() {
           {editItem && (
             <Button
               buttonStyle="secondary"
-              text="Cancel Edit"
+              text="編集キャンセル"
               onClick={() => {
                 setEditItem(null);
                 setImageFile(null);
@@ -395,16 +395,16 @@ function OcrUpload() {
             text={
               <span className="flex items-center gap-2 justify-center">
                 <Upload size={18} />
-                {editItem ? "Update" : "Upload"}
+                {editItem ? "更新" : "アップロード"}
               </span>
             }
           />
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Uploaded (Today)</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">アップロード済み（本日）</p>
           {uploadedItems.length === 0 && (
-            <div className="text-sm text-gray-400">No documents uploaded yet</div>
+            <div className="text-sm text-gray-400">書類がまだありません</div>
           )}
 
           {uploadedItems.map((item) => {
@@ -423,7 +423,7 @@ function OcrUpload() {
             <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">
-                  {matchedCategory?.category_name || "No Category"} - {matchedSite?.site_name || "No Site"}{" "}
+                  {matchedCategory?.category_name || "カテゴリなし"} - {matchedSite?.site_name || "現場なし"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
                       hour: "2-digit",
@@ -437,7 +437,7 @@ function OcrUpload() {
                       className="text-blue-600 text-xs"
                       onClick={() => handleEdit(item)}
                     >
-                      Edit
+                      編集
                     </button>
                     <button
                       className="text-red-600 text-xs"
@@ -446,7 +446,7 @@ function OcrUpload() {
                         setShowConfirm(true);
                       }}
                     >
-                      Delete
+                      削除
                     </button>
                   </div>
                 )}
@@ -463,7 +463,7 @@ function OcrUpload() {
                         : "text-orange-500"
                 }`}
               >
-                Status: {item.status}
+                ステータス：{item.status}
               </p>
             </div>
             );
@@ -472,7 +472,7 @@ function OcrUpload() {
       </div>
       {showConfirm && (
         <ConfirmationModal
-          message="Are you sure you want to delete this document?"
+          message="この書類を削除してもよろしいですか？"
           onConfirm={handleDelete}
           onCancel={() => {
             if (!deleteLoading) {

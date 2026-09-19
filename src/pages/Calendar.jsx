@@ -5,7 +5,7 @@ import { attendanceApi, systemSettingsApi, transportationExpensesApi } from "../
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useTransportationExpensesContext } from "../context/TransportationExpensesContext";
 
-const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const days = ["日", "月", "火", "水", "木", "金", "土"];
 
 function Calendar() {
   const { setAttendance, setAttendanceCalendar, setSelectedDate, employee } = useAttendanceContext();
@@ -176,14 +176,14 @@ function Calendar() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       <div className="bg-white px-5 py-4 border-b">
-        <span className="font-semibold text-lg">Input / Edit</span>
+        <span className="font-semibold text-lg">入力 / 編集</span>
       </div>
 
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="text-3xl cursor-pointer">‹</button>
           <h2 className="font-semibold text-gray-800">
-            {date.toLocaleString("en-US", { month: "long" })} {year}
+            {date.toLocaleString("ja-JP", { month: "long" })} {year}
           </h2>
           <button onClick={nextMonth} className="text-3xl cursor-pointer">›</button>
         </div>
@@ -225,13 +225,13 @@ function Calendar() {
 
         <div className="flex gap-6 text-xs mt-4 text-gray-600">
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span> Entered
+            <span className="w-2 h-2 bg-green-500 rounded-full"></span> 入力済み
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-orange-400 rounded-full"></span> Missing
+            <span className="w-2 h-2 bg-orange-400 rounded-full"></span> 未入力
           </div>
           <div className="flex items-center gap-1">
-            <Lock className="w-3 h-3 text-gray-600" /> Locked
+            <Lock className="w-3 h-3 text-gray-600" /> 締め済
           </div>
         </div>
       </div>

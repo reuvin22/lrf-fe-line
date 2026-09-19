@@ -103,7 +103,7 @@ function Attendance({ employee }) {
 
         const exists = withoutTemp.some(s => s.segment_id === seg.segment_id);
         if (exists) return withoutTemp;
-        toast.success(`${seg.segment_type} segment added`);
+        toast.success(`${seg.segment_type}のセグメントが追加されました`);
         return [seg, ...withoutTemp];
       });
     };
@@ -201,7 +201,7 @@ function Attendance({ employee }) {
   };
 
   const handleEndOfDay = () => {
-    openConfirmation("Are you sure you want to end work?", async () => {
+    openConfirmation("本当に作業を終了しますか？", async () => {
       setConfirmLoading(true);
       const now = getCurrentTime();
       try {
@@ -231,7 +231,7 @@ function Attendance({ employee }) {
         };
         await attendanceApi.update(attendanceId, updatedAttendance);
         setAttendance(updatedAttendance);
-        toast.success("Work day ended successfully");
+        toast.success("勤務終了しました");
         await fetchSegments();
 
         const siteRes = await siteAssignmentApi.getAll();
@@ -246,15 +246,9 @@ function Attendance({ employee }) {
           v => v != null && String(v.worker_id ?? v.employee_id ?? "") === String(employee.employee_id)
         );
 
-        console.log("[END OF DAY] employee assignments:", employeeAssignments);
-        console.log("[END OF DAY] is_leader values:", employeeAssignments.map(v => v.is_leader));
-
         const employeeIsLeader = employeeAssignments.some(
           v => v.is_leader === true || v.is_leader === 1 || String(v.is_leader).toUpperCase() === "YES"
         );
-
-        console.log("[END OF DAY] employeeIsLeader:", employeeIsLeader);
-        console.log("[END OF DAY] navigating to:", employeeIsLeader ? '/subcontractor' : '/transportation-expenses');
 
         navigate(employeeIsLeader ? '/subcontractor' : '/transportation-expenses');
       } catch (err) {
@@ -285,6 +279,8 @@ function Attendance({ employee }) {
 
   const isEnded = attendance?.status === "END_OF_DAY";
 
+  const statusLabel = { "Working": "作業中", "COMPLETED": "完了", "Not Started": "未開始" }[status] ?? status;
+
   return (
     <div className="max-w-md mx-auto min-h-screen">
       <div className="bg-white px-5 py-4 border-b">
@@ -297,7 +293,7 @@ function Attendance({ employee }) {
             status === "COMPLETED" ? "text-blue-600" :
             "text-gray-600"
           }`}>
-            Status: {status}
+            ステータス：{statusLabel}
           </span>
         </div>
       </div>
@@ -326,7 +322,7 @@ function Attendance({ employee }) {
                   {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)} {seg.segment_type}
                 </p>
                 {seg.segment_type !== "OFFICE" && (
-                  <p className="text-sm text-gray-500">→ {seg.site_name || "No Selected Site"}</p>
+                  <p className="text-sm text-gray-500">→ {seg.site_name || "現場未選択"}</p>
                 )}
               </div>
             </div>
@@ -336,7 +332,7 @@ function Attendance({ employee }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openConfirmation(`End "${seg.segment_type}" segment?`, () => handleEndSegment(seg));
+                    openConfirmation(`「${seg.segment_type}」セグメントを終了しますか？`, () => handleEndSegment(seg));
                   }}
                   className="p-1 rounded-full hover:bg-red-100 text-red-500"
                 >
@@ -350,17 +346,17 @@ function Attendance({ employee }) {
         {!isEnded && (
           <div className="space-y-2">
             <Button
-              text={segments.length > 0 ? "+ Add Segment" : "▶ Start"}
+              text={segments.length > 0 ? "＋ セグメント追加" : "▶ 開始"}
               customButton="bg-green-500 text-white py-4 hover:bg-green-600"
               onClick={() => handleStartSegment("default")}
             />
             <Button
-              text="+ Add Segment (manual)"
+              text="＋ セグメント追加（手動）"
               customButton="bg-lime-500 text-white py-4 hover:bg-lime-600"
               onClick={() => handleStartSegment("manual")}
             />
             <Button
-              text="↪ End Work Day"
+              text="↪ 勤務終了"
               customButton="border border-gray-300 py-4"
               onClick={handleEndOfDay}
               disabled={segments.length === 0}

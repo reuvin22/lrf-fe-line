@@ -157,7 +157,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
       employee_id: employeeId,
       work_date: workDate,
       site_id: null,
-      site_name: "No Selected Site",
+      site_name: "現場未選択",
       start_time: tempSegment?.start_time
         ? new Date(tempSegment.start_time).toISOString()
         : new Date().toISOString(),
@@ -218,7 +218,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
       <div className="relative bg-white w-full max-w-sm h-[80vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-bold text-gray-900">
-            Select Site
+            現場を選択
           </h2>
           <button
             onClick={handleClose}
@@ -245,7 +245,7 @@ function LocationModal({ open: openProp, onClose: onCloseProp, onSelectSite }) {
               onClick={handleSkip}
               className="w-full py-3 text-green-500 font-semibold rounded-lg hover:text-green-700"
             >
-              Skip (No Site)
+              スキップ（現場なし）
             </button>
           </div>
         )}

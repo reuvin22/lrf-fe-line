@@ -157,7 +157,7 @@ function TransportationExpenseModal({
       />
       <div className="relative bg-white w-full max-w-md rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Transportation Expenses</h2>
+          <h2 className="text-lg font-semibold">交通費</h2>
           <button
             onClick={() => setOpen(false)}
             className="text-gray-400 hover:text-gray-600"
@@ -167,16 +167,16 @@ function TransportationExpenseModal({
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
-          ※ No need to enter commuter pass expenses
+          ※ 定期券の交通費は入力不要
           <br />
-          ※ Enter ad-hoc transport costs (train/bus) only
+          ※ 電車・バスなどの都度払い交通費のみ入力
         </p>
 
         <div className="flex flex-col gap-4">
           {expenses.map((expense, index) => (
             <div key={expense.id || expense.tempId || index} className="border rounded-xl p-4 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="font-medium text-sm">Expense {index + 1}</span>
+                <span className="font-medium text-sm">交通費 {index + 1}</span>
                 <button
                   onClick={() => deleteExpense(index)}
                   className="flex-shrink-0 text-red-500 hover:text-red-700 w-8 h-8 flex items-center justify-center"
@@ -186,7 +186,7 @@ function TransportationExpenseModal({
               </div>
 
               <div className="flex flex-col">
-                <label className="text-sm text-gray-600">Amount (¥)</label>
+                <label className="text-sm text-gray-600">金額（¥）</label>
                 <input
                   type="number"
                   className="w-full border rounded-lg p-2 mt-1"
@@ -196,7 +196,7 @@ function TransportationExpenseModal({
               </div>
 
               <div className="flex flex-col">
-                <label className="text-sm text-gray-600">Route (optional)</label>
+                <label className="text-sm text-gray-600">経路（任意）</label>
                 <input
                   type="text"
                   className="w-full border rounded-lg p-2 mt-1"
@@ -206,13 +206,13 @@ function TransportationExpenseModal({
               </div>
 
               <div className="flex flex-col">
-                <label className="text-sm text-gray-600">Site</label>
+                <label className="text-sm text-gray-600">現場</label>
                 <select
                   className="w-full border rounded-lg p-2 mt-1"
                   value={expense.site_id || ""}
                   onChange={e => updateExpense(index, "site_id", Number(e.target.value))}
                 >
-                  <option value="">Select site</option>
+                  <option value="">現場を選択</option>
                   {sites.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -228,20 +228,20 @@ function TransportationExpenseModal({
           onClick={addExpense}
           className="mt-4 flex items-center gap-1 text-sm text-green-600 font-medium hover:text-green-800"
         >
-          <Plus size={16} /> Add Another
+          <Plus size={16} /> 追加
         </button>
 
         <div className="flex gap-3 mt-6">
           <Button
             buttonStyle="primary"
-            text="Done"
+            text="完了"
             onClick={handleDone}
             loading={loading}
             disabled={!hasChanges && !deletedIds.length}
           />
           <Button
             buttonStyle="secondary"
-            text="Skip (no transport cost)"
+            text="スキップ（交通費なし）"
             onClick={() => setOpen(false)}
           />
         </div>

@@ -159,7 +159,7 @@ function SubContractorModal({
       <div className="relative bg-white w-full max-w-md rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">
-            Subcontractor Report
+            外注報告
           </h2>
           <button
             onClick={() => setOpen(false)}
@@ -172,7 +172,7 @@ function SubContractorModal({
         <p className="text-sm text-gray-600 mb-4">
           Site:{" "}
           <span className="font-medium">
-            {constructionSite?.name || "Site"}
+            {constructionSite?.name || "現場"}
           </span>
         </p>
 
@@ -190,7 +190,7 @@ function SubContractorModal({
               >
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-sm text-gray-600">
-                    Company
+                    会社
                   </label>
                   <button
                     onClick={() => deleteCompanyApi(cIndex)}
@@ -217,7 +217,7 @@ function SubContractorModal({
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder="Select Company"
+                      placeholder="会社を選択"
                       size="small"
                       fullWidth
                     />
@@ -226,7 +226,7 @@ function SubContractorModal({
 
                 <div className="mt-2">
                   <label className="text-sm text-gray-600">
-                    Contract Type
+                    契約種別
                   </label>
                   <p className="text-sm">{company.contract}</p>
                 </div>
@@ -262,7 +262,7 @@ function SubContractorModal({
                           renderInput={(params) => (
                             <TextField
                               {...params}
-                              placeholder="Select or type worker name"
+                              placeholder="作業員を選択または入力"
                               size="small"
                               fullWidth
                             />
@@ -316,7 +316,7 @@ function SubContractorModal({
                     onClick={() => addWorker(cIndex)}
                     className="text-green-600 text-sm flex items-center gap-1"
                   >
-                    <Plus size={16} /> Add Worker
+                    <Plus size={16} /> 作業員追加
                   </button>
 
                   <button
@@ -325,7 +325,7 @@ function SubContractorModal({
                     }
                     className="text-blue-600 text-sm"
                   >
-                    Bulk Set: Same time for all
+                    一括設定：全員同じ時間
                   </button>
                 </div>
               </div>
@@ -337,21 +337,21 @@ function SubContractorModal({
           onClick={addCompany}
           className="mt-4 text-green-600 flex items-center gap-1 text-sm"
         >
-          <Plus size={16} /> Add Another Company
+          <Plus size={16} /> 会社追加
         </button>
 
         <div className="mt-6 border-t pt-4 space-y-3">
-          <p className="font-semibold text-sm">Entered</p>
+          <p className="font-semibold text-sm">入力済み</p>
 
           {companies.map((company, cIndex) => (
             <div key={cIndex}>
               <p className="text-sm font-medium">
-                ■ {company.company || "Company"} ({company.contract})
+                ■ {company.company || "会社"} ({company.contract})
               </p>
 
               {company.workers.map((w, i) => (
                 <p key={i} className="text-xs text-gray-600 ml-2">
-                  {w.name || "Worker"} {w.start}-{w.end}
+                  {w.name || "作業員"} {w.start}-{w.end}
                 </p>
               ))}
             </div>
@@ -361,7 +361,7 @@ function SubContractorModal({
         <div className="flex gap-3 mt-6">
           <Button
             buttonStyle="active"
-            text="Save"
+            text="保存"
             onClick={async () => {
               for (const company of companies) {
                 await saveCompany(company);
@@ -374,7 +374,7 @@ function SubContractorModal({
 
           <Button
             buttonStyle="active"
-            text="Next (Transportation)"
+            text="次へ（交通費）"
             onClick={() => {
               setOpen(false);
               openTransportModalParent(true);
@@ -384,7 +384,7 @@ function SubContractorModal({
 
           <Button
             buttonStyle="secondary"
-            text="Skip"
+            text="スキップ"
             onClick={() => setOpen(false)}
             customButton="flex-1"
           />

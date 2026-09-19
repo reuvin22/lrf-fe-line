@@ -193,7 +193,7 @@ function CalendarDetail() {
 
       setOpenEditSegmentModal(false);
       await fetchSegments();
-      toast.success("Segment updated successfully");
+      toast.success("セグメントを更新しました");
     } catch (err) {
       console.error("Failed to update segment", err);
     }
@@ -214,7 +214,7 @@ function CalendarDetail() {
         fetchSegments();
       }
 
-      toast.success("New segment added successfully!");
+      toast.success("セグメントを追加しました！");
     } catch (err) {
       console.error("Failed to add segment:", err);
     }
@@ -223,7 +223,7 @@ function CalendarDetail() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       <div className="bg-white px-5 py-4 border-b">
-        <span className="font-semibold text-lg">Input / Edit</span>
+        <span className="font-semibold text-lg">入力 / 編集</span>
       </div>
 
       <div className="p-4 space-y-4">
@@ -231,7 +231,7 @@ function CalendarDetail() {
           onClick={() => navigate("/calendar")}
           className="text-green-600 text-sm cursor-pointer"
         >
-          ← Back to Calendar
+          ← カレンダーに戻る
         </button>
 
         <div className="bg-white rounded-2xl shadow-sm p-4">
@@ -239,9 +239,9 @@ function CalendarDetail() {
             {attendance?.work_date ? formatWorkDate(attendance.work_date) : displayDate}
           </h2>
           <div className="flex items-center gap-2">
-            <span>Status:</span>
+            <span>ステータス：</span>
             <span className={`text-sm ${!hasData ? "text-orange-500" : "text-green-600"}`}>
-              {!hasData ? "Empty" : "Entered"}
+              {!hasData ? "未入力" : "入力済み"}
             </span>
           </div>
         </div>
@@ -249,7 +249,7 @@ function CalendarDetail() {
         <div className="flex flex-col gap-4">
           {!hasData ? (
             <div className="bg-white rounded-2xl shadow-sm p-6 text-center text-gray-500">
-              No Data Available
+              データなし
             </div>
           ) : (
             segments.filter(Boolean).map((seg) => {
@@ -267,7 +267,7 @@ function CalendarDetail() {
                     </h3>
                     <p className="text-gray-500 text-sm">
                       {seg.segment_type === "TRAVEL"
-                        ? `→ ${seg.site_name || seg.site_id || "(unspecified)"}`
+                        ? `→ ${seg.site_name || seg.site_id || "（未指定）"}`
                         : seg.site_name || seg.site_id || "—"}
                     </p>
                   </div>
@@ -279,16 +279,16 @@ function CalendarDetail() {
 
         <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
           <div className="flex justify-between">
-            <span>Actual</span>
+            <span>実労働</span>
             <span className="font-semibold">{totalHours}</span>
           </div>
           <div className="flex justify-between">
-            <span>Overtime</span>
+            <span>残業</span>
             <span className="font-semibold">{overtimeHours}</span>
           </div>
           <hr />
           <div className="flex justify-between">
-            <span>Transport</span>
+            <span>交通費</span>
             <span className="font-semibold">
               ¥{totalTransportAmount.toLocaleString()}
             </span>
@@ -296,7 +296,7 @@ function CalendarDetail() {
           <hr />
 
           <div className="space-y-1">
-            <span>Subcontractors</span>
+            <span>外注</span>
             {subcontractors.length > 0 ? (
               subcontractors.map((item) => (
                 <p key={item.uuid} className="text-sm mt-1">
@@ -306,7 +306,7 @@ function CalendarDetail() {
                 </p>
               ))
             ) : (
-              <p className="text-sm mt-1 text-gray-500">No subcontractors assigned</p>
+              <p className="text-sm mt-1 text-gray-500">外注なし</p>
             )}
           </div>
         </div>
@@ -316,7 +316,7 @@ function CalendarDetail() {
           text={
             <div className="flex justify-center items-center gap-2">
               <Plus size={18} />
-              Add Segment
+              セグメント追加
             </div>
           }
           onClick={() => {
@@ -328,7 +328,7 @@ function CalendarDetail() {
 
         <Button
           buttonStyle="primary"
-          text="Edit Transport"
+          text="交通費編集"
           customButton="bg-lime-500"
           onClick={() =>
             navigate("/transportation-expenses", { state: { from: "calendar-detail" } })
@@ -337,7 +337,7 @@ function CalendarDetail() {
 
         <Button
           buttonStyle="primary"
-          text="Edit Subcontractor"
+          text="外注編集"
           customButton="bg-lime-500"
           onClick={() =>
             navigate("/subcontractor", {

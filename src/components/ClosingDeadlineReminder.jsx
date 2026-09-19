@@ -76,7 +76,7 @@ function ClosingDeadlineReminder() {
 
   const targetMonthName = useMemo(() => {
     if (!deadline) return "";
-    return deadline.toLocaleString("en-US", { month: "long" });
+    return deadline.toLocaleString("ja-JP", { month: "long" });
   }, [deadline]);
 
   const handleDismiss = () => {
@@ -101,7 +101,7 @@ function ClosingDeadlineReminder() {
         <div className="flex items-center justify-between px-5 py-3 bg-orange-50 border-b border-orange-100">
           <div className="flex items-center gap-2 text-orange-700 font-semibold">
             <Clock className="w-5 h-5" />
-            <span>Closing Deadline Approaching</span>
+            <span>締め切り期日が近づいています</span>
           </div>
           <button
             type="button"
@@ -115,7 +115,7 @@ function ClosingDeadlineReminder() {
 
         <div className="px-5 py-6 space-y-4 text-gray-700">
           <div className="text-center">
-            <p className="text-sm text-gray-500">Edit deadline for</p>
+            <p className="text-sm text-gray-500">入力期限：</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
               {targetMonthName}
             </p>
@@ -126,7 +126,7 @@ function ClosingDeadlineReminder() {
 
           <div className="bg-orange-50 rounded-xl py-4 text-center">
             <p className="text-xs uppercase tracking-wide text-orange-600 font-semibold">
-              Time remaining
+              残り時間
             </p>
             <p className="text-3xl font-bold text-orange-700 mt-1">
               {countdown}
@@ -134,10 +134,10 @@ function ClosingDeadlineReminder() {
           </div>
 
           <p className="text-sm text-center">
-            Please check for any missing entries.
+            未入力の項目をご確認ください。
           </p>
           <p className="text-xs text-gray-500 text-center">
-            ※ If corrections are complete, you can dismiss this message.
+            ※ 修正が完了した場合は、このメッセージを閉じてください。
           </p>
         </div>
 
@@ -147,7 +147,7 @@ function ClosingDeadlineReminder() {
             onClick={handleGoToCalendar}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl cursor-pointer"
           >
-            Check Input/Edit →
+            入力 / 編集を確認 →
           </button>
         </div>
       </div>

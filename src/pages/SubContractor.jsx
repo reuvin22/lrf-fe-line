@@ -245,7 +245,7 @@ function SubContractor({ onRefetch }) {
 
   const addCompany = () => {
     if (assignedSites.length === 0 && constructionSites.length === 0) {
-      toast.error("No available construction sites");
+      toast.error("利用可能な建設現場がありません");
       return;
     }
     setOpenSitePicker(true);
@@ -431,7 +431,7 @@ function SubContractor({ onRefetch }) {
       }
 
       setDeletedWorkers([]);
-      toast.success("Saved successfully!");
+      toast.success("保存しました！");
 
       onRefetch?.();
 
@@ -439,7 +439,7 @@ function SubContractor({ onRefetch }) {
         navigate("/transportation-expenses");
       }
     } catch {
-      toast.error("Error saving data");
+      toast.error("データの保存に失敗しました");
     } finally {
       setLoading(false);
     }
@@ -554,7 +554,7 @@ function SubContractor({ onRefetch }) {
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
       <div className="w-full p-6 space-y-6 flex flex-col">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Subcontractor Report</h1>
+          <h1 className="text-2xl font-bold">外注報告</h1>
         </div>
 
         <div className="space-y-6">
@@ -574,12 +574,12 @@ function SubContractor({ onRefetch }) {
               return (
                 <div key={cIndex} className="border rounded-xl p-4 space-y-4">
                   <p className="text-sm text-gray-600 mb-4">
-                    Site:{" "}
+                    現場：{" "}
                     <span className="font-medium">{company.site_name}</span>
                   </p>
 
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm text-gray-600">Company</label>
+                    <label className="text-sm text-gray-600">会社</label>
                     <button
                       onClick={() => deleteCompanyApi(company)}
                       className="text-red-500 hover:text-red-700"
@@ -601,7 +601,7 @@ function SubContractor({ onRefetch }) {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        placeholder="Select or type Company"
+                        placeholder="会社を選択または入力"
                         size="small"
                         fullWidth
                       />
@@ -610,7 +610,7 @@ function SubContractor({ onRefetch }) {
 
                   <div className="mt-2">
                     <label className="text-sm text-gray-600">
-                      Contract Type
+                      契約種別
                     </label>
                     <p className="text-sm">{company.contract}</p>
                   </div>
@@ -646,13 +646,13 @@ function SubContractor({ onRefetch }) {
                                   onClick={() => handleWorkerInputMode(company, worker, "dropdown")}
                                   className={`text-xs px-2 py-1 rounded ${worker.inputMode !== "manual" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}
                                 >
-                                  Select
+                                  選択
                                 </button>
                                 <button
                                   onClick={() => handleWorkerInputMode(company, worker, "manual")}
                                   className={`text-xs px-2 py-1 rounded ${worker.inputMode === "manual" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}
                                 >
-                                  Manual
+                                  手動
                                 </button>
                               </div>
                               {company.workers.length > 1 && (
@@ -669,14 +669,14 @@ function SubContractor({ onRefetch }) {
                               <div className="space-y-2">
                                 <input
                                   type="text"
-                                  placeholder="Name"
+                                  placeholder="氏名"
                                   value={worker.name}
                                   onChange={(e) => handleWorkerFieldChange(company, worker, "name", e.target.value)}
                                   className="w-full border rounded-lg p-2 text-sm"
                                 />
                                 <input
                                   type="text"
-                                  placeholder="Name (Kana)"
+                                  placeholder="氏名（カナ）"
                                   value={worker.name_kana || ""}
                                   onChange={(e) => handleWorkerFieldChange(company, worker, "name_kana", e.target.value)}
                                   className="w-full border rounded-lg p-2 text-sm"
@@ -699,15 +699,15 @@ function SubContractor({ onRefetch }) {
                                   String(option?.worker_id) === String(value?.worker_id)
                                 }
                                 loading={company.workersLoading ?? false}
-                                loadingText="Loading workers..."
-                                noOptionsText={company.workersLoading ? "Loading..." : "No workers found"}
+                                loadingText="作業員を読み込み中..."
+                                noOptionsText={company.workersLoading ? "読み込み中..." : "作業員が見つかりません"}
                                 onChange={(e, newValue) =>
                                   handleWorkerChange(company, worker, newValue)
                                 }
                                 renderInput={(params) => (
                                   <TextField
                                     {...params}
-                                    placeholder="Select worker"
+                                    placeholder="作業員を選択"
                                     size="small"
                                     fullWidth
                                     InputProps={{
@@ -761,14 +761,14 @@ function SubContractor({ onRefetch }) {
                       onClick={() => addWorker(company)}
                       className="text-green-600 text-sm flex items-center gap-1"
                     >
-                      <Plus size={16} /> Add Worker
+                      <Plus size={16} /> 作業員追加
                     </button>
 
                     <button
                       onClick={() => bulkSet(company, "09:00", "18:00")}
                       className="text-blue-600 text-sm"
                     >
-                      Bulk Set: Same time for all
+                      一括設定：全員同じ時間
                     </button>
                   </div>
                 </div>
@@ -780,11 +780,11 @@ function SubContractor({ onRefetch }) {
           onClick={addCompany}
           className="mt-4 text-green-600 flex items-center gap-1 text-sm"
         >
-          <Plus size={16} /> Add Another Company
+          <Plus size={16} /> 会社追加
         </button>
 
         <div className="mt-6 border-t pt-4 space-y-3">
-          <p className="font-semibold text-sm">Entered</p>
+          <p className="font-semibold text-sm">入力済み</p>
 
           {companies
             .filter((company) => {
@@ -799,12 +799,12 @@ function SubContractor({ onRefetch }) {
             .map((company, cIndex) => (
               <div key={cIndex}>
                 <p className="text-sm font-medium">
-                  ■ {company.company || "Company"} ({company.contract})
+                  ■ {company.company || "会社"} ({company.contract})
                 </p>
 
                 {company.workers.map((w, i) => (
                   <p key={i} className="text-xs text-gray-600 ml-2">
-                    {w.name || "Worker"} {w.start}-{w.end}
+                    {w.name || "作業員"} {w.start}-{w.end}
                   </p>
                 ))}
               </div>
@@ -822,8 +822,8 @@ function SubContractor({ onRefetch }) {
                 {loading && <CircularProgress size={18} color="inherit" />}
                 <span>
                   {location.state?.from === "subcontractor"
-                    ? "Update"
-                    : "Next (Transportation)"}
+                    ? "更新"
+                    : "次へ（交通費）"}
                 </span>
               </div>
             }
@@ -833,8 +833,8 @@ function SubContractor({ onRefetch }) {
             buttonStyle="default"
             text={
               location.state?.from === "subcontractor"
-                ? "Back to Calendar"
-                : "Skip"
+                ? "カレンダーに戻る"
+                : "スキップ"
             }
             onClick={() => {
               if (location.state?.from === "subcontractor") {

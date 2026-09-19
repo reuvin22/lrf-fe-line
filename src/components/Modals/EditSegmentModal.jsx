@@ -106,10 +106,10 @@ function EditSegmentModal({
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl w-[90%] max-w-md p-6 space-y-4 shadow-lg">
 
-        <h2 className="text-lg font-semibold">Edit Segment</h2>
+        <h2 className="text-lg font-semibold">セグメント編集</h2>
 
         <div>
-          <label className="text-sm text-gray-500">Segment</label>
+          <label className="text-sm text-gray-500">セグメント</label>
           <select
             value={segment}
             onChange={(e) => handleSegmentChange(e.target.value)}
@@ -141,14 +141,14 @@ function EditSegmentModal({
 
           return (
             <div>
-              <label className="text-sm text-gray-500">Site</label>
+              <label className="text-sm text-gray-500">現場</label>
               <select
                 value={site ?? ""}
                 onChange={(e) => handleSiteChange(e.target.value)}
                 className="w-full border rounded-lg p-2 mt-1"
               >
                 <option value="">
-                  {segment === "TRAVEL" ? "No Selected Site" : "Select Site"}
+                  {segment === "TRAVEL" ? "現場未選択" : "現場を選択"}
                 </option>
 
                 {mergedSites.map((s, i) => (
@@ -164,7 +164,7 @@ function EditSegmentModal({
         {isManual && (
           <>
             <div>
-              <label className="text-sm text-gray-500">Start Time</label>
+              <label className="text-sm text-gray-500">開始時間</label>
               <input
                 type="time"
                 value={startTime}
@@ -174,7 +174,7 @@ function EditSegmentModal({
             </div>
 
             <div>
-              <label className="text-sm text-gray-500">End Time</label>
+              <label className="text-sm text-gray-500">終了時間</label>
               <input
                 type="time"
                 value={endTime}
@@ -187,7 +187,7 @@ function EditSegmentModal({
 
         <div className="flex gap-2 pt-2">
           <Button
-            text="Cancel"
+            text="キャンセル"
             buttonStyle="secondary"
             onClick={onClose}
           />
@@ -195,7 +195,7 @@ function EditSegmentModal({
           <Button
             onClick={handleSave}
             buttonStyle="active"
-            text="Save"
+            text="保存"
             loading={isLoading}
           />
         </div>

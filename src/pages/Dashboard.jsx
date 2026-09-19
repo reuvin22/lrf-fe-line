@@ -315,10 +315,10 @@ subContractorWorkerList.forEach(worker => {
         const totalWorkers = site.employees.length + totalQuasi + totalFixed;
 
         if (totalWorkers === 0) {
-          site.status = "Not Started";
+          site.status = "未開始";
           site.statusStyle = "bg-gray-400 text-white";
         } else {
-          site.status = siteHasActive ? "In Progress" : "Completed";
+          site.status = siteHasActive ? "進行中" : "完了";
           site.statusStyle = siteHasActive ? "bg-yellow-500 text-white" : "bg-green-500 text-white";
         }
 
@@ -356,13 +356,13 @@ subContractorWorkerList.forEach(worker => {
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white px-5 py-4 border-b">
-        <span className="font-semibold text-lg">Dashboard</span>
+        <span className="font-semibold text-lg">ダッシュボード</span>
       </div>
 
       <div className="p-4 space-y-4">
         {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">
-          ⏱ Last updated:{" "}
+          ⏱ 最終更新：{" "}
           {lastUpdated
             ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
             : "—"}
@@ -404,10 +404,10 @@ subContractorWorkerList.forEach(worker => {
                 {/* EMPLOYEES */}
                   <div>
                     <p className="text-xs text-gray-500 mb-2">
-                      EMPLOYEES
+                      従業員
                       {site?.employees?.length > 0 && (
                         <span className="ml-1 text-gray-400">
-                          ({site.employees.length} ppl)
+                          ({site.employees.length}名)
                         </span>
                       )}
                     </p>
@@ -427,10 +427,10 @@ subContractorWorkerList.forEach(worker => {
                               key={emp.id}
                               className="flex justify-between items-center text-sm"
                             >
-                              <span className="font-medium">{emp.name || "Unknown"}</span>
+                              <span className="font-medium">{emp.name || "不明"}</span>
 
                               <span className={`text-xs px-2 py-1 rounded ${status}`}>
-                                {emp.segment || "Not Started"}
+                                {{ "In Progress": "進行中", "Completed": "完了", "Not Started": "未開始" }[emp.segment] || "未開始"}
                               </span>
                             </div>
                           );
@@ -438,18 +438,18 @@ subContractorWorkerList.forEach(worker => {
                       </div>
                     ) : (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">No employee assigned</span>
-                        <span className="text-gray-400">0 ppl</span>
+                        <span className="text-gray-400">従業員未割当</span>
+                        <span className="text-gray-400">0名</span>
                       </div>
                     )}
                   </div>
 
                 <div>
                   <p className="text-xs text-gray-500 mb-2">
-                    QUASI DELEGATION
+                    準委任
                     {site.subcontractors.quasi.length > 0 && (
                       <span className="ml-1 text-gray-400">
-                        ({site.subcontractors.quasi.reduce((sum, g) => sum + g.count, 0)} ppl)
+                        ({site.subcontractors.quasi.reduce((sum, g) => sum + g.count, 0)}名)
                       </span>
                     )}
                   </p>
@@ -459,24 +459,24 @@ subContractorWorkerList.forEach(worker => {
                       {site.subcontractors.quasi.map((group) => (
                         <div key={group.name} className="flex justify-between items-center text-sm">
                           <span>{group.name}</span>
-                          <span className="text-gray-500">{group.count} ppl</span>
+                          <span className="text-gray-500">{group.count}名</span>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="flex justify-between text-sm">
-                      <span>No quasi delegation yet</span>
-                      <span className="text-gray-400">0 ppl</span>
+                      <span>準委任なし</span>
+                      <span className="text-gray-400">0名</span>
                     </div>
                   )}
                 </div>
 
                 <div>
                   <p className="text-xs text-gray-500 mb-2">
-                    FIXED PRICE
+                    固定価格
                     {site.subcontractors.fixed.length > 0 && (
                       <span className="ml-1 text-gray-400">
-                        ({site.subcontractors.fixed.reduce((sum, g) => sum + g.count, 0)} ppl)
+                        ({site.subcontractors.fixed.reduce((sum, g) => sum + g.count, 0)}名)
                       </span>
                     )}
                   </p>
@@ -486,14 +486,14 @@ subContractorWorkerList.forEach(worker => {
                       {site.subcontractors.fixed.map((group) => (
                         <div key={group.name} className="flex justify-between items-center text-sm">
                           <span>{group.name}</span>
-                          <span className="text-gray-500">{group.count} ppl</span>
+                          <span className="text-gray-500">{group.count}名</span>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="flex justify-between text-sm">
-                      <span>No fixed price yet</span>
-                      <span className="text-gray-400">0 ppl</span>
+                      <span>固定価格なし</span>
+                      <span className="text-gray-400">0名</span>
                     </div>
                   )}
                 </div>
@@ -505,7 +505,7 @@ subContractorWorkerList.forEach(worker => {
         {/* Empty State */}
         {!assignedSites.length && (
           <div className="text-center text-sm text-gray-500 py-10">
-            No assigned sites found
+            現場が見つかりません
           </div>
         )}
       </div>

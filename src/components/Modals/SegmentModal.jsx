@@ -27,9 +27,9 @@ function SegmentModal() {
   if (!openSegmentModal) return null;
 
   const options = [
-    { id: 1, name: "Travel", description: "Movement between sites", icon: Car, value: "TRAVEL" },
-    { id: 2, name: "Site", description: "Construction site work", icon: MapPin, value: "SITE" },
-    { id: 3, name: "Office", description: "Office work", icon: Building2, value: "OFFICE" },
+    { id: 1, name: "移動", description: "現場間の移動", icon: Car, value: "TRAVEL" },
+    { id: 2, name: "現場", description: "建設現場作業", icon: MapPin, value: "SITE" },
+    { id: 3, name: "事務所", description: "事務所作業", icon: Building2, value: "OFFICE" },
   ];
 
   const handleSelect = async (segment) => {
@@ -85,7 +85,7 @@ function SegmentModal() {
 
       <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 pointer-events-auto">
         <div className="flex justify-between items-center mb-6 px-1">
-          <h2 className="text-xl font-bold text-gray-900">Select Segment Type</h2>
+          <h2 className="text-xl font-bold text-gray-900">セグメントタイプ選択</h2>
 
           <button
             onClick={() => setOpenSegmentModal(false)}

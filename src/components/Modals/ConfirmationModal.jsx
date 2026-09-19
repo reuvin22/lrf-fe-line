@@ -15,7 +15,7 @@ function ConfirmationModal({ message, onConfirm, onCancel, loading = false }) {
 
       <div className="relative bg-white w-full max-w-sm rounded-xl shadow-2xl p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900">Confirmation</h2>
+          <h2 className="text-lg font-bold text-gray-900">確認</h2>
           <button
             onClick={onCancel}
             disabled={loading}
@@ -33,7 +33,7 @@ function ConfirmationModal({ message, onConfirm, onCancel, loading = false }) {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:opacity-50"
           >
-            Cancel
+            キャンセル
           </button>
 
           <button
@@ -44,7 +44,7 @@ function ConfirmationModal({ message, onConfirm, onCancel, loading = false }) {
             {loading ? (
               <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             ) : (
-              "Confirm"
+              "確認"
             )}
           </button>
         </div>

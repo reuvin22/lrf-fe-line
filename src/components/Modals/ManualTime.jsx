@@ -20,7 +20,7 @@ function ManualTimeModal() {
 
   useEffect(() => {
     if (tempStartTime && tempEndTime && tempEndTime < tempStartTime) {
-      setErrorMessage("End time cannot be before start time.");
+      setErrorMessage("終了時間は開始時間より後に設定してください。");
     } else {
       setErrorMessage("");
     }
@@ -28,7 +28,7 @@ function ManualTimeModal() {
 
   const handleSave = async () => {
     if (tempEndTime && tempEndTime < tempStartTime) {
-      alert("End time cannot be before start time.");
+      alert("終了時間は開始時間より後に設定してください。");
       return;
     }
 

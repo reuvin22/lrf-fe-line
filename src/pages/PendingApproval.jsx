@@ -61,12 +61,11 @@ function PendingApproval() {
             className="text-xl font-bold mb-2"
             style={{ color: "hsl(155, 55%, 30%)" }}
           >
-            Awaiting Admin Approval
+            管理者承認待ち
           </h1>
 
           <p className="text-sm text-gray-600 leading-relaxed mb-5">
-            Your account has been registered. The administrator needs to complete
-            your information before you can start using the app.
+            アカウントの登録が完了しました。管理者が情報を入力するまでお待ちください。
           </p>
 
           <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -80,12 +79,12 @@ function PendingApproval() {
                 style={{ backgroundColor: "hsl(155, 55%, 40%)" }}
               />
             </span>
-            Waiting for admin to complete your profile
+            管理者によるプロフィール入力をお待ちください
           </div>
         </div>
 
         <p className="mt-5 text-xs text-center text-gray-500 max-w-xs">
-          Please contact your administrator if this takes longer than expected.
+          お時間がかかる場合は、管理者にお問い合わせください。
         </p>
       </div>
 

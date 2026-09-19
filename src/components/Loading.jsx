@@ -76,7 +76,7 @@ const Loading = () => {
           fontFamily: "'Comic Sans MS', 'Chalkboard SE', cursive",
         }}
       >
-        Loading...
+        読み込み中...
       </p>
 
       <style>{`

@@ -100,12 +100,12 @@ function TransportationExpenseScreen({ onDone }) {
 
   const handleAdd = () => {
     if (!amount || !site) {
-      toast.error("Amount and Site are required");
+      toast.error("金額と現場は必須です");
       return;
     }
 
     if (!attendance?.attendance_id || !attendance?.employee_id) {
-      toast.error("System error: attendance not ready");
+      toast.error("システムエラー：勤怠情報が準備できていません");
       return;
     }
 
@@ -115,7 +115,7 @@ function TransportationExpenseScreen({ onDone }) {
 
     const selectedSite = segmentSites.find((s) => String(s.id) === site);
     if (!selectedSite) {
-      toast.error("Selected site is invalid. Please select a site from the dropdown.");
+      toast.error("選択された現場が無効です。ドロップダウンから選択してください");
       return;
     }
 
@@ -183,13 +183,13 @@ function TransportationExpenseScreen({ onDone }) {
         });
       }
 
-      toast.success("Saved Successfully!");
+      toast.success("保存しました！");
       onDone && onDone(expenses);
       handleRedirect();
 
     } catch (err) {
       console.error("❌ Failed:", err);
-      toast.error("Failed to save changes");
+      toast.error("保存に失敗しました");
     } finally {
       setIsLoading(false);
     }
@@ -209,7 +209,7 @@ function TransportationExpenseScreen({ onDone }) {
 
     setConfirmData({ open: false, index: null, loading: false });
 
-    toast.success("Removed");
+    toast.success("削除しました");
   };
 
   const handleCancelDelete = () => {
@@ -218,17 +218,17 @@ function TransportationExpenseScreen({ onDone }) {
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen p-6 flex flex-col gap-4">
-      <h1 className="text-xl font-bold">Transportation Expenses</h1>
+      <h1 className="text-xl font-bold">交通費</h1>
 
       <div className="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
-        <p>※ No need to enter commuter pass expenses</p>
-        <p>※ Enter ad-hoc transport costs (train/bus) only</p>
+        <p>※ 定期券の交通費は入力不要</p>
+        <p>※ 電車・バスなどの都度払い交通費のみ入力</p>
       </div>
 
       {/* Inputs */}
       <div className="space-y-3">
         <div>
-          <label className="text-sm text-gray-500">Amount</label>
+          <label className="text-sm text-gray-500">金額</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
             <span className="mr-2">¥</span>
             <input
@@ -242,18 +242,18 @@ function TransportationExpenseScreen({ onDone }) {
         </div>
 
         <div>
-          <label className="text-sm text-gray-500">Route (optional)</label>
+          <label className="text-sm text-gray-500">経路（任意）</label>
           <input
             type="text"
             value={route}
             onChange={(e) => setRoute(e.target.value)}
             className="w-full border rounded-lg px-3 py-2"
-            placeholder="e.g. Shinjuku → Site A"
+            placeholder="例：新宿 → 現場A"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-gray-700 mb-1">Site</label>
+          <label className="block text-sm text-gray-700 mb-1">現場</label>
           <div className="flex items-center border rounded-lg px-3 py-2">
             <span className="text-gray-400 mr-2">📍</span>
             <select
@@ -261,7 +261,7 @@ function TransportationExpenseScreen({ onDone }) {
               onChange={(e) => setSite(e.target.value)}
               className="w-full outline-none bg-transparent text-gray-700"
             >
-              <option value="">Select site</option>
+              <option value="">現場を選択</option>
               {segmentSites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -275,7 +275,7 @@ function TransportationExpenseScreen({ onDone }) {
           onClick={handleAdd}
           className={`w-full py-2 rounded-lg text-white ${editingExpense ? "bg-green-500" : "bg-blue-500"}`}
         >
-          {editingExpense ? "✓ Update" : "+ Add Another"}
+          {editingExpense ? "✓ 更新" : "＋ 追加"}
         </button>
       </div>
 
@@ -300,7 +300,7 @@ function TransportationExpenseScreen({ onDone }) {
                   setExpenses(prev => prev.filter((_, i) => i !== index));
                 }}
                 className="text-blue-500 hover:text-blue-700"
-                title="Edit"
+                title="編集"
               >
                 ✏️
               </button>
@@ -314,7 +314,7 @@ function TransportationExpenseScreen({ onDone }) {
                   });
                 }}
                 className="text-red-500 hover:text-red-700"
-                title="Delete"
+                title="削除"
               >
                 🗑️
               </button>
@@ -326,7 +326,7 @@ function TransportationExpenseScreen({ onDone }) {
       <div className="mt-auto space-y-2 pt-4">
         <Button
           buttonStyle="primary"
-          text="Done"
+          text="完了"
           onClick={handleDone}
           loading={isLoading}
         />
@@ -335,8 +335,8 @@ function TransportationExpenseScreen({ onDone }) {
           buttonStyle="secondary"
           text={
             from === "calendar-detail"
-              ? "Back to Calendar"
-              : "Skip (no transport cost)"
+              ? "カレンダーに戻る"
+              : "スキップ（交通費なし）"
           }
           onClick={handleRedirect}
         />
@@ -344,7 +344,7 @@ function TransportationExpenseScreen({ onDone }) {
       <ConfirmationModal
         message={
           confirmData.open
-            ? `Delete expense ¥${expenses[confirmData.index]?.amount}?`
+            ? `¥${expenses[confirmData.index]?.amount}を削除しますか？`
             : null
         }
         onConfirm={handleConfirmDelete}
