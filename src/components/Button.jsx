@@ -1,7 +1,7 @@
 import React from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
-function Button({ buttonStyle, text, customButton = "", onClick, loading = false }) {
+function Button({ buttonStyle, text, customButton = "", onClick, loading = false, disabled = false }) {
   let style = "";
 
   switch (buttonStyle) {
@@ -21,13 +21,13 @@ function Button({ buttonStyle, text, customButton = "", onClick, loading = false
       style = "bg-gray-200 text-black py-3 hover:bg-gray-300";
   }
 
-  const loadingStyle = loading ? "opacity-70 cursor-not-allowed" : "";
+  const disabledStyle = disabled || loading ? "opacity-70 cursor-not-allowed" : "";
 
   return (
     <button
       onClick={onClick}
-      disabled={loading}
-      className={`w-full rounded-xl font-semibold cursor-pointer flex justify-center items-center ${style} ${loadingStyle} ${customButton}`}
+      disabled={disabled || loading}
+      className={`w-full rounded-xl font-semibold cursor-pointer flex justify-center items-center ${style} ${disabledStyle} ${customButton}`}
     >
       {loading ? <CircularProgress size={20} color="inherit" /> : text}
     </button>

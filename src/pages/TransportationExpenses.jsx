@@ -5,6 +5,9 @@ import { useAttendanceContext } from "../context/AttendanceContext";
 import Button from "../components/Button";
 import { toast } from "react-toastify";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
+import { isAttendanceEditable } from "../utils/attendanceLock";
+import { MOCK_SITE } from "../context/LocationContext";
+import environment from "../environment";
 
 function TransportationExpenseScreen({ onDone }) {
   const [amount, setAmount] = useState("");
@@ -24,7 +27,7 @@ function TransportationExpenseScreen({ onDone }) {
   const location = useLocation();
   const from = location.state?.from || "default";
 
-  const { attendance, employee } = useAttendanceContext();
+  const { attendance, employee, closingDay, selectedDate } = useAttendanceContext();
 
   useEffect(() => {
     const fetchExistingExpenses = async () => {
@@ -81,6 +84,11 @@ function TransportationExpenseScreen({ onDone }) {
           }))
           .filter(s => s.id != null);
 
+        if (mapped.length === 0 && !environment.VITE_LIFF_ENABLED) {
+          setSegmentSites([{ id: MOCK_SITE.site_id, name: MOCK_SITE.site_name }]);
+          return;
+        }
+
         setSegmentSites(mapped);
       } catch (err) {
         console.error("Failed to fetch assigned sites:", err);
@@ -89,6 +97,9 @@ function TransportationExpenseScreen({ onDone }) {
 
     fetchAssignedSites();
   }, [employee]);
+
+  const isEditingFromCalendar = from === "calendar-detail";
+  const editable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
 
   const handleRedirect = () => {
     if (from === "calendar-detail") {
@@ -108,10 +119,6 @@ function TransportationExpenseScreen({ onDone }) {
       toast.error("システムエラー：勤怠情報が準備できていません");
       return;
     }
-
-    const selectedSiteId = Number(site);
-    console.log("Selected site ID:", selectedSiteId);
-    console.log("Available segmentSites IDs:", segmentSites.map(s => s.id));
 
     const selectedSite = segmentSites.find((s) => String(s.id) === site);
     if (!selectedSite) {
@@ -215,6 +222,24 @@ function TransportationExpenseScreen({ onDone }) {
   const handleCancelDelete = () => {
     setConfirmData({ open: false, index: null });
   };
+
+  if (isEditingFromCalendar && !editable) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+          <h1 className="text-lg font-semibold">Transportation Expenses</h1>
+          <p className="text-sm text-gray-600">
+            This month is locked. Transportation expenses are view-only.
+          </p>
+          <Button
+            buttonStyle="secondary"
+            text="Back to Calendar"
+            onClick={() => navigate("/calendar/detail")}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen p-6 flex flex-col gap-4">

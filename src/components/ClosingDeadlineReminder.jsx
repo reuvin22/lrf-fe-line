@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Clock, X } from "lucide-react";
-import { systemSettingsApi } from "../api/Api";
+import { useAttendanceContext } from "../context/AttendanceContext";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const REMINDER_WINDOW_MS = 48 * ONE_HOUR_MS;
@@ -13,32 +13,11 @@ const dismissKey = () => `closingReminderDismissed:${new Date().toDateString()}`
 function ClosingDeadlineReminder() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [closingDay, setClosingDay] = useState(null);
+  const { closingDay } = useAttendanceContext();
   const [dismissed, setDismissed] = useState(
     () => sessionStorage.getItem(dismissKey()) === "1"
   );
   const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await systemSettingsApi.getAll();
-        const inner = res.data?.data;
-        const settings = Array.isArray(inner)
-          ? inner
-          : Array.isArray(inner?.data)
-            ? inner.data
-            : [];
-        const closingEntry = settings.find((s) => s?.key === "closing_day");
-        const day = Number(closingEntry?.value);
-        setClosingDay(Number.isFinite(day) && day >= 1 && day <= 31 ? day : null);
-      } catch (error) {
-        console.error("Error fetching system settings:", error);
-      }
-    };
-
-    fetchSettings();
-  }, []);
 
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 60 * 1000);

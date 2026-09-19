@@ -1,55 +1,135 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Camera, Image, Upload } from "lucide-react";
+import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../components/Button";
-import { ocrCategoriesApi, ocrUploadApi, siteAssignmentApi, subContractorWorkerApi } from "../api/Api";
+import FileThumbnail from "../components/FileThumbnail";
+import { ocrCategoriesApi, ocrUploadApi, invoiceDocumentApi, siteAssignmentApi, subContractorWorkerApi, subContractorApi, siteSubContractorApi } from "../api/Api";
 import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
-import { useLocationContext } from "../context/LocationContext";
+import { useLocationContext, MOCK_SITE } from "../context/LocationContext";
+import { parseImagePaths } from "../utils/parseImagePaths";
+import environment from "../environment";
 import { toast } from "react-toastify";
 
+const STATUS_ORDER = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
+
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "請求書",
+  MONTHLY_STATEMENT: "月締め合計請求書",
+  QUOTATION: "見積書",
+  OTHER: "その他",
+};
+
+const formatYen = (amount) => (amount == null ? "" : `¥${Math.round(amount).toLocaleString()}`);
+
+const sortUploadedItems = (items) =>
+  [...items].sort((a, b) => {
+    const rankA = STATUS_ORDER.indexOf(a.status);
+    const rankB = STATUS_ORDER.indexOf(b.status);
+    const orderA = rankA === -1 ? STATUS_ORDER.length : rankA;
+    const orderB = rankB === -1 ? STATUS_ORDER.length : rankB;
+    if (orderA !== orderB) return orderA - orderB;
+
+    return new Date(b.uploaded_at) - new Date(a.uploaded_at);
+  });
+
 function OcrUpload() {
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const navigate = useNavigate();
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImagePaths, setExistingImagePaths] = useState([]);
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState("");
   const [site, setSite] = useState("");
-  const [allSites, setAllSites] = useState([]);
   const { sites, setSites } = useLocationContext();
+  const siteOptions = !environment.VITE_LIFF_ENABLED
+    ? [
+        ...sites
+          .filter((s) => String(s.site_id) !== String(MOCK_SITE.site_id))
+          .map((s) => ({
+            site_id: s.site_id,
+            site_name: s.site_name,
+          })),
+        {
+          site_id: MOCK_SITE.site_id,
+          site_name: MOCK_SITE.site_name,
+        },
+      ]
+    : sites;
   const [note, setNote] = useState("");
   const [uploadedItems, setUploadedItems] = useState([]);
   const [editItem, setEditItem] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const libraryInputRef = useRef(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const { attendance, employee } = useAttendanceContext()
-  const [removeImage, setRemoveImage] = useState(false);
-  const [previousImagePath, setPreviousImagePath] = useState(null);
   const [subcontractorId, setSubcontractorId] = useState(null);
   const [subcontractorName, setSubcontractorName] = useState(null);
+  const [allSubcontractors, setAllSubcontractors] = useState([]);
+  const [siteSubMap, setSiteSubMap] = useState(new Map());
+
   const fetchUploads = async () => {
     try {
-      const res = await ocrUploadApi.getAll();
-      setUploadedItems(res.data.data || []);
+      const res = await invoiceDocumentApi.getAll();
+      const inner = res.data?.data;
+      const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
+      setUploadedItems(items);
     } catch (err) {
-      console.error("Error fetching OCR uploads:", err);
+      console.error("Error fetching invoice documents:", err);
     }
   };
 
   // Load categories and uploads immediately on mount — no employee needed
   useEffect(() => {
     const load = async () => {
+      setPageLoading(true);
       try {
         const [catRes, uploadsRes] = await Promise.all([
           ocrCategoriesApi.getAll(),
-          ocrUploadApi.getAll(),
+          invoiceDocumentApi.getAll(),
         ]);
         const catInner = catRes.data?.data;
         setCategories(Array.isArray(catInner) ? catInner : Array.isArray(catInner?.data) ? catInner.data : []);
-        setUploadedItems(uploadsRes.data?.data || []);
+        const inner = uploadsRes.data?.data;
+        const items = Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : [];
+        setUploadedItems(items);
       } catch (err) {
         console.error("[OcrUpload] Failed to load categories/uploads:", err);
+        toast.error("Failed to load data");
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Load subcontractors and the site → subcontractor mapping — no employee needed
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [subRes, siteSubRes] = await Promise.all([
+          subContractorApi.getAll({ approved: 1 }),
+          siteSubContractorApi.getAll(),
+        ]);
+        const subInner = subRes.data?.data;
+        setAllSubcontractors(Array.isArray(subInner) ? subInner : Array.isArray(subInner?.data) ? subInner.data : []);
+
+        const siteSubInner = siteSubRes.data?.data;
+        const siteSubList = Array.isArray(siteSubInner) ? siteSubInner : Array.isArray(siteSubInner?.data) ? siteSubInner.data : [];
+        const map = new Map();
+        siteSubList.forEach((entry) => {
+          const siteId = String(entry.site_id);
+          const subId = String(entry.subcontractor_id);
+          if (!map.has(siteId)) map.set(siteId, new Set());
+          map.get(siteId).add(subId);
+        });
+        setSiteSubMap(map);
+      } catch (err) {
+        console.error("[OcrUpload] Failed to load subcontractors:", err);
       }
     };
     load();
@@ -79,9 +159,9 @@ function OcrUpload() {
           .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
           .filter((s) => s.site_id != null);
 
-        console.log("[OcrUpload] employeeId:", employeeId, "matched sites:", matchedSites);
-        setSites(matchedSites);
-        setAllSites(matchedSites);
+        if (matchedSites.length > 0 || environment.VITE_LIFF_ENABLED) {
+          setSites(matchedSites);
+        }
 
         // Subcontractor worker — match by name with fallbacks
         const workerInner = workersRes.data?.data;
@@ -98,7 +178,6 @@ function OcrUpload() {
           workers.find((w) => normalize(w.name).includes(norm)) ??
           workers.find((w) => norm.includes(normalize(w.name)));
 
-        console.log("[OcrUpload] employeeName:", employeeName, "matched worker:", matched);
         setSubcontractorId(matched?.subcontractor_id ?? null);
         setSubcontractorName(matched?.subcontractor_name ?? null);
       } catch (err) {
@@ -110,13 +189,27 @@ function OcrUpload() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee?.employee_id, employee?.name]);
 
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setRemoveImage(false);
-    }
+  const allowedSubcontractorIds = site ? siteSubMap.get(String(site)) : null;
+  const subcontractorOptions =
+    allowedSubcontractorIds && allowedSubcontractorIds.size > 0
+      ? allSubcontractors.filter((s) => allowedSubcontractorIds.has(String(s.subcontractor_id ?? s.id)))
+      : allSubcontractors;
+
+  const handleImages = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setImageFiles((prev) => [...prev, ...files]);
+    setImagePreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    e.target.value = "";
+  };
+
+  const removeExistingImage = (path) => {
+    setExistingImagePaths((prev) => prev.filter((p) => p !== path));
+  };
+
+  const removeNewImage = (index) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const convertToBase64 = (file) => {
@@ -127,7 +220,6 @@ function OcrUpload() {
       reader.onerror = (error) => reject(error);
     });
   };
-  console.log(categories)
   const handleUpload = async () => {
     if (!site) {
       toast.error("現場を選択してください");
@@ -135,35 +227,26 @@ function OcrUpload() {
     }
 
     setLoading(true);
-    console.log(categories)
     try {
-      let imageBase64Payload;
+      const imagesBase64Payload = await Promise.all(imageFiles.map(convertToBase64));
 
-      if (removeImage) {
-        imageBase64Payload = "";
-      } else if (imageFile) {
-        imageBase64Payload = await convertToBase64(imageFile);
-      } else {
-        imageBase64Payload = undefined;
-      }
-
-      const fileName = previousImagePath
-        ? previousImagePath.split('/').pop()
-        : null;
       const selectedCategory = categories.find(c => String(c.category_id) === String(category));
-      const selectedSite = sites.find(s => String(s.site_id) === String(site));
+      const selectedSite = siteOptions.find(s => String(s.site_id) === String(site));
 
       const payload = {
         uploaded_by: attendance.employee_id,
         category_id: selectedCategory?.category_id ?? null,
         site_id: selectedSite?.site_id ?? null,
-        site_name: selectedSite?.site_name ?? null,
+        site_name:
+          selectedSite?.site_name ||
+          (String(site) === String(MOCK_SITE.site_id) ? MOCK_SITE.site_name : null),
         subcontractor_id: subcontractorId,
         subcontractor_name: subcontractorName,
         attendance_id: attendance.attendance_id,
         upload_source: "LINE",
         status: "PENDING",
-        image_path: imagePreview ? imagePreview : "",
+        images_base64: imagesBase64Payload,
+        previous_image_paths: existingImagePaths,
         ocr_result_amount: null,
         ocr_result_date: null,
         ocr_result_raw: null,
@@ -173,18 +256,11 @@ function OcrUpload() {
         note: note || null,
         uploaded_at: new Date().toISOString(),
         processed_at: null,
-        previous_image_path: fileName
       };
 
-      if (imageBase64Payload !== undefined) {
-        payload.image_base64 = imageBase64Payload;
-      }
-
-      console.log(payload)
       if (editItem) {
         await ocrUploadApi.update(editItem.upload_id, payload);
         toast.success("書類を更新しました");
-        setPreviousImagePath(null);
       } else {
         await ocrUploadApi.create(payload);
         toast.success("書類をアップロードしました");
@@ -192,8 +268,9 @@ function OcrUpload() {
 
       await fetchUploads();
 
-      setImageFile(null);
-      setImagePreview(null);
+      setImageFiles([]);
+      setImagePreviews([]);
+      setExistingImagePaths([]);
       setSite("");
       setNote("");
       setCategory("");
@@ -209,12 +286,10 @@ function OcrUpload() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setRemoveImage(false);
-    console.log(item.image_path)
-    const fixedUrl = item.image_path?.replace(/\\\//g, "/");
-    setImagePreview(fixedUrl);
+    setExistingImagePaths(parseImagePaths(item.file_path ?? item.image_paths ?? item.image_path));
+    setImageFiles([]);
+    setImagePreviews([]);
 
-    setPreviousImagePath(item.image_path);
     setCategory(
       item.category?.category_id != null
         ? String(item.category.category_id)
@@ -230,7 +305,6 @@ function OcrUpload() {
           : ""
     );
     setNote(item.note ?? "");
-    setImageFile(null);
   };
 
   const handleDelete = async () => {
@@ -247,13 +321,12 @@ function OcrUpload() {
 
       if (editItem?.upload_id === deleteId) {
         setEditItem(null);
-        setImageFile(null);
-        setImagePreview(null);
+        setImageFiles([]);
+        setImagePreviews([]);
+        setExistingImagePaths([]);
         setSite("");
         setNote("");
         setCategory("");
-        setRemoveImage(false);
-        setPreviousImagePath(null);
       }
 
       toast.success("書類を削除しました");
@@ -275,27 +348,56 @@ function OcrUpload() {
         <span className="font-semibold text-lg">書類アップロード</span>
       </div>
 
+      {pageLoading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24">
+          <CircularProgress size={32} sx={{ color: "#16a34a" }} />
+          <p className="text-sm text-gray-500">Loading data...</p>
+        </div>
+      ) : (
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-          {imagePreview ? (
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-full h-64 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-                <img
-                  src={imagePreview}
-                  alt="preview"
-                  onError={(e) => {
-                    e.target.src = "";
-                  }}
-                  className="max-h-full max-w-full object-contain"
-                />
+          {(existingImagePaths.length > 0 || imagePreviews.length > 0) ? (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-3 gap-2">
+                {existingImagePaths.map((path) => (
+                  <div key={path} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
+                    <FileThumbnail src={path} name={path} />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(path)}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {imagePreviews.map((url, idx) => (
+                  <div key={url} className="relative w-full h-24 bg-gray-100 rounded-xl overflow-hidden">
+                    <FileThumbnail src={url} name={imageFiles[idx]?.name} mimeType={imageFiles[idx]?.type} />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(idx)}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => libraryInputRef.current.click()}
+                  className="w-full h-24 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 cursor-pointer transition-colors hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50"
+                >
+                  <Image size={22} />
+                </button>
               </div>
               <Button
                 buttonStyle="secondary"
                 text="削除"
                 onClick={() => {
-                  setImageFile(null);
-                  setImagePreview(null);
-                  setRemoveImage(true);
+                  setImageFiles([]);
+                  setImagePreviews([]);
+                  setExistingImagePaths([]);
                 }}
                 customButton="w-full"
               />
@@ -321,8 +423,9 @@ function OcrUpload() {
           <input
             ref={libraryInputRef}
             type="file"
-            accept="image/*"
-            onChange={handleImage}
+            accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            multiple
+            onChange={handleImages}
             className="hidden"
           />
         </div>
@@ -352,9 +455,32 @@ function OcrUpload() {
               onChange={(e) => setSite(e.target.value)}
             >
               <option value="">現場を選択</option>
-              {sites.map((s) => (
+              {siteOptions.map((s) => (
                 <option key={s.site_id} value={s.site_id}>
                   {s.site_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-600 font-medium">外注業者</label>
+            <select
+              className="w-full mt-1 border border-gray-200 rounded-xl p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400"
+              value={subcontractorId != null ? String(subcontractorId) : ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSubcontractorId(val || null);
+                const matched = subcontractorOptions.find(
+                  (s) => String(s.subcontractor_id ?? s.id) === val
+                );
+                setSubcontractorName(matched?.company_name ?? matched?.name ?? null);
+              }}
+            >
+              <option value="">外注業者を選択</option>
+              {subcontractorOptions.map((s) => (
+                <option key={s.subcontractor_id ?? s.id} value={s.subcontractor_id ?? s.id}>
+                  {s.company_name ?? s.name}
                 </option>
               ))}
             </select>
@@ -376,13 +502,12 @@ function OcrUpload() {
               text="編集キャンセル"
               onClick={() => {
                 setEditItem(null);
-                setImageFile(null);
-                setImagePreview(null);
+                setImageFiles([]);
+                setImagePreviews([]);
+                setExistingImagePaths([]);
                 setSite("");
                 setNote("");
                 setCategory("");
-                setRemoveImage(false);
-                setPreviousImagePath(null);
               }}
             />
           )}
@@ -407,23 +532,19 @@ function OcrUpload() {
             <div className="text-sm text-gray-400">書類がまだありません</div>
           )}
 
-          {uploadedItems.map((item) => {
+          {sortUploadedItems(uploadedItems).map((item) => {
             const matchedCategory =
               item.category ??
               categories.find(
                 (c) => String(c.category_id) === String(item.category_id)
               );
-            const matchedSite =
-              item.site ??
-              allSites.find(
-                (s) => String(s.site_id) === String(item.site_id)
-              );
+            const vendorLabel = item.subcontractor_name || item.vendor_name_raw || "不明な業者";
 
             return (
-            <div key={item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <p className="font-medium text-gray-700">
-                  {matchedCategory?.category_name || "カテゴリなし"} - {matchedSite?.site_name || "現場なし"}{" "}
+            <div key={item.document_id ?? item.upload_id} className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-1">
+              <div className="flex justify-between items-start gap-2 flex-wrap">
+                <p className="font-medium text-gray-700 min-w-0 break-words flex-1">
+                  {vendorLabel} - {DOCUMENT_TYPE_LABELS[item.document_type] ?? item.document_type ?? matchedCategory?.category_name ?? "カテゴリなし"}{" "}
                   {item.uploaded_at
                     ? new Date(item.uploaded_at).toLocaleTimeString([], {
                       hour: "2-digit",
@@ -431,36 +552,47 @@ function OcrUpload() {
                     })
                     : ""}
                 </p>
-                {item.status !== "COMPLETED" && (
-                  <div className="flex gap-2">
-                    <button
-                      className="text-blue-600 text-xs"
-                      onClick={() => handleEdit(item)}
-                    >
-                      編集
-                    </button>
-                    <button
-                      className="text-red-600 text-xs"
-                      onClick={() => {
-                        setDeleteId(item.upload_id);
-                        setShowConfirm(true);
-                      }}
-                    >
-                      削除
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    className="text-green-600 text-xs font-medium cursor-pointer"
+                    onClick={() => {
+                      navigate(`/ocr/${item.document_id}/review`);
+                    }}
+                  >
+                    確認
+                  </button>
+                  {item.status !== "CONFIRMED" && (
+                    <>
+                      <button
+                        className="text-blue-600 text-xs cursor-pointer"
+                        onClick={() => handleEdit(item)}
+                      >
+                        編集
+                      </button>
+                      <button
+                        className="text-red-600 text-xs cursor-pointer"
+                        onClick={() => {
+                          setDeleteId(item.upload_id);
+                          setShowConfirm(true);
+                        }}
+                      >
+                        削除
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
+              {formatYen(item.total_with_tax) && (
+                <p className="text-sm text-gray-600">{formatYen(item.total_with_tax)}</p>
+              )}
               {item.note && <p className="text-sm text-gray-500">{item.note}</p>}
               <p
                 className={`text-sm ${
-                  item.status === "COMPLETED"
+                  item.status === "CONFIRMED"
                     ? "text-green-600"
                     : item.status === "REJECTED" || item.status === "ERROR"
                       ? "text-red-600"
-                      : item.status === "PROCESSING"
-                        ? "text-blue-600"
-                        : "text-orange-500"
+                      : "text-orange-500"
                 }`}
               >
                 ステータス：{item.status}
@@ -470,6 +602,7 @@ function OcrUpload() {
           })}
         </div>
       </div>
+      )}
       {showConfirm && (
         <ConfirmationModal
           message="この書類を削除してもよろしいですか？"

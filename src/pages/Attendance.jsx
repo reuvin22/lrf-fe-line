@@ -52,7 +52,6 @@ function Attendance({ employee }) {
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
       const matched = list.filter((seg) => String(seg.attendance_id) === String(attendanceId));
-      console.log("[Attendance] segments for attendance_id", attendanceId, matched);
       setSegments(matched);
     } catch (error) {
       console.error("Error fetching segments:", error);
@@ -70,7 +69,6 @@ function Attendance({ employee }) {
       const todayDate = formatWorkDate(new Date());
       const todayAttendance = list.find((att) => att.work_date === todayDate) || null;
 
-      console.log("[Attendance] today's attendance:", todayAttendance);
       setAttendance(todayAttendance);
     } catch (error) {
       console.error("Error fetching attendance:", error);
@@ -269,7 +267,6 @@ function Attendance({ employee }) {
         end_time: updatedSegment.end_time
       };
 
-      console.log('THIS IS PAYLOAD: ', payload)
       await segmentApi.update(updatedSegment.segment_id, payload);
       await fetchSegments();
     } catch (err) {

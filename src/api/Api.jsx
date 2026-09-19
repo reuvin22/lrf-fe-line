@@ -25,8 +25,16 @@ export const attendanceSubcontractorSegmentApi = createApi('attendance-subcontra
 export const attendanceEmployeeSegment = createApi('attendance-employee');
 export const getAttendanceEmployeeSegment = createApi('get-attendance-employee');
 export const siteAssignedEmployee = createApi('employee-site');
-export const ocrUploadApi= createApi('ocr-uploads');
+export const ocrUploadApi = createApi('ocr-uploads');
+export const reviewOcrUpload = (id, data) =>
+  axiosApi.patch(`ocr-uploads/${id}/review`, data);
+export const invoiceDocumentApi = createApi('invoice-documents');
+export const confirmInvoiceDocument = (id, data) =>
+  axiosApi.patch(`invoice-documents/${id}/confirm`, data);
 export const ocrCategoriesApi = createApi('ocr-categories');
 export const getAttendanceSubcontractor = createApi('get-attendance-subcontractor');
 export const dashboardApi = createApi('dashboard')
 export const systemSettingsApi = createApi('settings')
+export const invoiceSummaryApi = createApi('invoice-summary')
+export const getInvoiceSiteSummary = (siteId, params = {}) =>
+  axiosApi.get(`invoice-summary/sites/${siteId}`, { params });

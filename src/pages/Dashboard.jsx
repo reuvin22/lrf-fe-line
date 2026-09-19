@@ -1,12 +1,48 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, MapPin, Users } from "lucide-react";
-import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi } from "../api/Api";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ChevronDown, ChevronRight, MapPin, Users, Receipt } from "lucide-react";
+import CircularProgress from "@mui/material/CircularProgress";
+import { toast } from "react-toastify";
+import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceDocumentApi, attendanceSubcontractorSegmentApi } from "../api/Api";
+
+const STATUS_FILTERS = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
+
+const DOCUMENT_TYPE_LABELS = {
+  INVOICE: "請求書",
+  MONTHLY_STATEMENT: "月締め合計請求書",
+  QUOTATION: "見積書",
+  OTHER: "その他",
+};
+
+const STATUS_BADGE_STYLE = {
+  CONFIRMED: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
+  ERROR: "bg-red-100 text-red-700",
+  NEEDS_REVIEW: "bg-orange-100 text-orange-700",
+};
+
+const formatYen = (amount) => `¥${Math.round(amount ?? 0).toLocaleString()}`;
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const restoredFilters = location.state?.filters;
+
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? "attendance");
   const [openSite, setOpenSite] = useState(null);
   const [assignedSites, setAssignedSites] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const isFetchingRef = useRef(false);
+
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState(restoredFilters?.invoiceStatusFilter ?? "");
+  const [uploadedByFilter, setUploadedByFilter] = useState(restoredFilters?.uploadedByFilter ?? "");
+  const [dateFilter, setDateFilter] = useState(restoredFilters?.dateFilter ?? "");
+  const [siteFilter, setSiteFilter] = useState(restoredFilters?.siteFilter ?? "");
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [allInvoiceSites, setAllInvoiceSites] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
+  const [allInvoicesLoading, setAllInvoicesLoading] = useState(false);
 
   const fetchDashboard = async () => {
     // Skip this tick if the previous fetch hasn't finished yet
@@ -18,22 +54,41 @@ function Dashboard() {
     const date = utc8.toISOString().split("T")[0];
 
     try {
-      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes, siteSubcontractorRes] = await Promise.all([
+      const [dashboardRes, siteAssignRes, employeeRes, siteRes, subContractorRes, subContractorWorkerRes, siteSubcontractorRes, subSegmentsRes] = await Promise.all([
         dashboardApi.getAll({ date }),
         siteAssignmentApi.getAll(),
         employeeApi.getAll(),
         sitesApi.getAll(),
         subContractorApi.getAll(),
         subContractorWorkerApi.getAll(),
-        siteSubContractorApi.getAll()
+        siteSubContractorApi.getAll(),
+        attendanceSubcontractorSegmentApi.getAll()
       ]);
       const allSites = siteRes.data.data || [];
       const attendanceList = dashboardRes.data.data || [];
       const subContractorList = subContractorRes.data.data || [];
       const subContractorWorkerList = subContractorWorkerRes.data.data || [];
       const siteSubcontractorList = siteSubcontractorRes.data?.data || []
-      console.log('THIS IS Subcontractor: ', siteSubcontractorList)
-      console.log('THIS IS WORKERS: ', subContractorWorkerList)
+
+      // Fetch subcontractor segments live from their own endpoint rather than
+      // trusting the (possibly stale/incomplete) attendance_subcontractor_segments
+      // nested on each dashboard attendance record, so in-progress/completed
+      // status always reflects the current start_time/end_time.
+      const subSegmentsInner = subSegmentsRes.data?.data;
+      const subSegmentsList = Array.isArray(subSegmentsInner)
+        ? subSegmentsInner
+        : Array.isArray(subSegmentsInner?.data)
+          ? subSegmentsInner.data
+          : [];
+      const subSegmentsByAttendanceId = new Map();
+      subSegmentsList.forEach((seg) => {
+        if (seg == null) return;
+        const key = String(seg.attendance_id);
+        if (!subSegmentsByAttendanceId.has(key)) subSegmentsByAttendanceId.set(key, []);
+        subSegmentsByAttendanceId.get(key).push(seg);
+      });
+      const getSubSegments = (attendance) =>
+        subSegmentsByAttendanceId.get(String(attendance.attendance_id ?? attendance.id)) || [];
       const subContractorById = new Map();
       subContractorList.forEach((sub) => {
         const id = sub.subcontractor_id ?? sub.id;
@@ -95,31 +150,6 @@ function Dashboard() {
         return;
       }
 
-      const employeeById = new Map();
-      employeeList.forEach((emp) => {
-        if (emp.employee_id != null) employeeById.set(String(emp.employee_id), emp);
-        if (emp.id != null) employeeById.set(String(emp.id), emp);
-      });
-
-      assignments.forEach((assignment) => {
-        const empId = String(
-          assignment.employee_id ??
-          assignment.employee?.employee_id ??
-          assignment.employee?.id ??
-          ""
-        );
-        if (!empId) return;
-        const emp = employeeById.get(empId);
-        if (!emp) return;
-        const assignedSiteId = assignment.site_id ?? assignment.site?.site_id;
-        const matchedSite = allSites.find(
-          (s) => String(s.id ?? s.site_id) === String(assignedSiteId)
-        );
-        console.log(
-          `[Dashboard] Employee: ${emp.name} → Site: ${matchedSite?.name ?? matchedSite?.site_name ?? "Unknown"} (site_id: ${assignedSiteId})`
-        );
-      });
-
       const siteMap = new Map();
 
       allSites.forEach((s) => {
@@ -157,7 +187,7 @@ function Dashboard() {
             seg.site?.contract_type ?? null
           );
         });
-        (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
+        getSubSegments(attendance).forEach((sub) => {
           ensureSite(
             sub.site?.site_id ?? sub.site_id,
             sub.site?.site_name ?? sub.site_name,
@@ -167,7 +197,6 @@ function Dashboard() {
       });
 
       const groupedSites = Array.from(siteMap.values());
-      console.log("[Dashboard] groupedSites:", groupedSites);
       attendanceList.forEach((attendance) => {
         const emp = attendance.employee;
         if (!emp) return;
@@ -197,7 +226,7 @@ function Dashboard() {
           ensureEmployeeOnSite(site).activities.push(segment);
         });
 
-        (attendance.attendance_subcontractor_segments || []).forEach((sub) => {
+        getSubSegments(attendance).forEach((sub) => {
           const siteId = sub.site?.site_id ?? sub.site_id;
           const contractType = sub.site?.contract_type ?? sub.contract_type ?? null;
           const subId = sub.subcontractor_id ?? sub.subcontractor?.id ?? emp.subcontractor_id ?? emp.subcontractor?.id;
@@ -236,6 +265,16 @@ function Dashboard() {
           return start !== null && start <= nowMs && (end === null || nowMs < end);
         };
 
+        // A subcontractor segment is only "completed" once it has both a
+        // start_time and an end_time, and that end_time has actually passed
+        // relative to right now. Anything else (no end_time yet, or the end
+        // hasn't arrived) counts as still in progress.
+        const isSubSegmentCompleted = (seg) => {
+          const start = seg.start_time ? new Date(seg.start_time).getTime() : null;
+          const end = seg.end_time ? new Date(seg.end_time).getTime() : null;
+          return start !== null && end !== null && end <= nowMs;
+        };
+
         const quasiMap = {};
         const fixedMap = {};
 
@@ -249,19 +288,25 @@ function Dashboard() {
 
           let segment;
           if (!hasActivities) segment = "Not Started";
-          else if (hasActive) { segment = "In Progress"; siteHasActive = true; }
+          else if (hasActive) segment = "In Progress";
           else if (allEnded) segment = "Completed";
           else segment = "Not Started";
 
           // Aggregate this employee's subcontractors into site-level groups.
           // Count every worker regardless of status (completed still counts as 1).
+          // The site stays "In Progress" until every subcontractor segment's
+          // end time has passed — one still-open segment is enough to keep
+          // the whole site from showing Completed.
           Object.values(emp.subcontractorMap).forEach((s) => {
             const total = Object.keys(s.workers).length;
             if (total === 0) return;
             const bucket = s.contract_type === "FIXED_PRICE" ? fixedMap : quasiMap;
             bucket[s.name] = (bucket[s.name] || 0) + total;
-            const anyActive = Object.values(s.workers).some((segs) => segs.some(isActive));
-            if (anyActive) siteHasActive = true;
+
+            const anyNotYetDone = Object.values(s.workers).some((segs) =>
+              segs.some((seg) => !isSubSegmentCompleted(seg))
+            );
+            if (anyNotYetDone) siteHasActive = true;
           });
 
           const matchedSubId =
@@ -328,14 +373,18 @@ subContractorWorkerList.forEach(worker => {
 
       setAssignedSites(groupedSites);
       setLastUpdated(new Date());
+      setDashboardLoading(false);
     } catch (err) {
       console.error("Error fetching dashboard:", err);
+      setDashboardLoading(false);
     } finally {
       isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
+    if (activeTab !== "attendance") return;
+
     // fetchDashboard is async — setState calls happen after awaits, not synchronously
     // eslint-disable-next-line
     fetchDashboard();
@@ -345,13 +394,68 @@ subContractorWorkerList.forEach(worker => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTab]);
 
   const toggleSite = (siteId) => {
     setOpenSite(openSite === siteId ? null : siteId);
   };
 
-  console.log()
+  useEffect(() => {
+    if (activeTab !== "invoices") return;
+
+    const loadFilterOptions = async () => {
+      try {
+        const [empRes, siteRes] = await Promise.all([employeeApi.getAll(), sitesApi.getAll()]);
+        const empInner = empRes.data?.data;
+        setAllEmployees(Array.isArray(empInner) ? empInner : Array.isArray(empInner?.data) ? empInner.data : []);
+        const siteInner = siteRes.data?.data;
+        setAllInvoiceSites(Array.isArray(siteInner) ? siteInner : Array.isArray(siteInner?.data) ? siteInner.data : []);
+      } catch (err) {
+        console.error("[Dashboard] Failed to load filter options:", err);
+      }
+    };
+
+    loadFilterOptions();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "invoices") return;
+
+    const fetchAllInvoices = async () => {
+      setAllInvoicesLoading(true);
+      try {
+        // GET /invoice-documents only supports status and uploaded_by
+        // server-side — it has no date or site filter, so billing_month/
+        // site_id are applied client-side below instead of sent here.
+        const res = await invoiceDocumentApi.getAll({
+          status: invoiceStatusFilter || undefined,
+          uploaded_by: uploadedByFilter || undefined,
+        });
+        const inner = res.data?.data;
+        setAllInvoices(Array.isArray(inner) ? inner : Array.isArray(inner?.data) ? inner.data : []);
+      } catch (err) {
+        console.error("[Dashboard] Failed to load invoice documents:", err);
+        toast.error("Failed to load invoices");
+        setAllInvoices([]);
+      } finally {
+        setAllInvoicesLoading(false);
+      }
+    };
+
+    fetchAllInvoices();
+  }, [activeTab, invoiceStatusFilter, uploadedByFilter, dateFilter, siteFilter]);
+
+  // GET /invoice-documents has no date or site filter server-side (only
+  // status/uploaded_by), so both are applied here instead. Filtering on
+  // issue_date rather than billing_month since issue_date is what's actually
+  // set on the document — billing_month only gets filled in once a document
+  // is reviewed/confirmed, which would hide everything still NEEDS_REVIEW.
+  const visibleInvoices = allInvoices.filter((doc) => {
+    if (dateFilter && String(doc.issue_date ?? "").slice(0, 7) !== dateFilter) return false;
+    if (siteFilter && String(doc.site_id) !== String(siteFilter)) return false;
+    return true;
+  });
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-100">
       {/* Header */}
@@ -360,6 +464,37 @@ subContractorWorkerList.forEach(worker => {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab("attendance")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+              activeTab === "attendance" ? "bg-green-600 text-white" : "bg-white text-gray-500"
+            }`}
+          >
+            <Users size={16} />
+            Attendance
+          </button>
+          <button
+            onClick={() => setActiveTab("invoices")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+              activeTab === "invoices" ? "bg-green-600 text-white" : "bg-white text-gray-500"
+            }`}
+          >
+            <Receipt size={16} />
+            Invoices
+          </button>
+        </div>
+
+        {activeTab === "attendance" && dashboardLoading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <CircularProgress size={28} sx={{ color: "#16a34a" }} />
+            <p className="text-sm text-gray-500">Data is loading, please wait...</p>
+          </div>
+        )}
+
+        {activeTab === "attendance" && !dashboardLoading && (
+        <>
         {/* Last Updated */}
         <div className="text-sm text-gray-500 flex items-center gap-2">
           ⏱ 最終更新：{" "}
@@ -507,6 +642,124 @@ subContractorWorkerList.forEach(worker => {
           <div className="text-center text-sm text-gray-500 py-10">
             現場が見つかりません
           </div>
+        )}
+        </>
+        )}
+
+        {activeTab === "invoices" && (
+        <>
+        {/* Filters */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={uploadedByFilter}
+            onChange={(e) => setUploadedByFilter(e.target.value)}
+          >
+            <option value="">All Uploaders</option>
+            {allEmployees.map((emp) => (
+              <option key={emp.employee_id ?? emp.id} value={emp.employee_id ?? emp.id}>
+                {emp.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={invoiceStatusFilter}
+            onChange={(e) => setInvoiceStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            {STATUS_FILTERS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <input
+            type="month"
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          />
+          <select
+            className="bg-white rounded-xl shadow-sm px-3 py-2 text-sm cursor-pointer focus:outline-none"
+            value={siteFilter}
+            onChange={(e) => setSiteFilter(e.target.value)}
+          >
+            <option value="">All Sites</option>
+            {allInvoiceSites.map((site) => (
+              <option key={site.site_id ?? site.id} value={site.site_id ?? site.id}>
+                {site.site_name ?? site.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {allInvoicesLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <CircularProgress size={28} sx={{ color: "#16a34a" }} />
+            <p className="text-sm text-gray-500">Loading data...</p>
+          </div>
+        ) : visibleInvoices.length === 0 ? (
+          <div className="text-center text-sm text-gray-500 py-10">
+            No invoices found
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-gray-500 uppercase">
+                  <th className="px-3 py-2 whitespace-nowrap">Vendor</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Issue Date</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Billing Month</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Type</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Subtotal</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Tax</th>
+                  <th className="px-3 py-2 whitespace-nowrap text-right">Total (incl.)</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleInvoices.map((doc) => (
+                  <tr
+                    key={doc.document_id}
+                    onClick={() =>
+                      doc.document_id &&
+                      navigate(`/ocr/${doc.document_id}/review`, {
+                        state: {
+                          from: "dashboard",
+                          filters: { invoiceStatusFilter, uploadedByFilter, dateFilter, siteFilter },
+                        },
+                      })
+                    }
+                    className="border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap font-medium">
+                      {doc.subcontractor_name || doc.vendor_name_raw || "Unknown"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.issue_date ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.billing_month ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-500">
+                      {DOCUMENT_TYPE_LABELS[doc.document_type] ?? doc.document_type ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.subtotal)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.tax_amount)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
+                      {formatYen(doc.total_with_tax)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          STATUS_BADGE_STYLE[doc.status] ?? "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {doc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        </>
         )}
       </div>
     </div>

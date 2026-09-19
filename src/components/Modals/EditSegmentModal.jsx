@@ -40,6 +40,7 @@ function EditSegmentModal({
 
   if (!open) return null;
   const isManual = segmentData?.type === "manual";
+  const showTimeFields = isManual || segment === "OFFICE";
 
   const handleSegmentChange = (value) => {
     setSegment(value);
@@ -85,12 +86,10 @@ function EditSegmentModal({
       site_name: segment === "OFFICE" ? null : siteName,
     };
 
-    if (isManual) {
+    if (showTimeFields) {
       payload.start_time = `${today} ${startTime}:00`;
       payload.end_time = `${today} ${endTime}:00`;
     }
-
-    console.log("✅ FINAL PAYLOAD:", payload);
 
     try {
       await onSave(payload);
@@ -161,7 +160,7 @@ function EditSegmentModal({
           );
         })()}
 
-        {isManual && (
+        {showTimeFields && (
           <>
             <div>
               <label className="text-sm text-gray-500">開始時間</label>

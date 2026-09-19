@@ -4,7 +4,6 @@ import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
 import LocationModal from "../components/Modals/LocationModal";
 import {
-  attendanceApi,
   attendanceSubcontractorSegmentApi,
   constructionSiteApi,
   siteAssignmentApi,
@@ -16,21 +15,21 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { toast } from "react-toastify";
 import * as wanakana from "wanakana";
+import { isAttendanceEditable, isSiteLeader } from "../utils/attendanceLock";
 
 function SubContractor({ onRefetch }) {
   const [companies, setCompanies] = useState([]);
   const [allSubcontractors, setAllSubcontractors] = useState([]);
-  const [siteSubcontractors, setSiteSubcontractors] = useState([]);
   const [constructionSites, setConstructionSites] = useState([]);
-  const [allSegments, setAllSegments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [deletedWorkers, setDeletedWorkers] = useState([]);
   const [openSitePicker, setOpenSitePicker] = useState(false);
   const [assignedSites, setAssignedSites] = useState([]);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { attendance, employee } = useAttendanceContext();
+  const { attendance, employee, closingDay, selectedDate } = useAttendanceContext();
   const effectiveAttendanceId =
     location.state?.attendance_id ||
     attendance?.attendance_id ||
@@ -58,15 +57,13 @@ function SubContractor({ onRefetch }) {
     return "00:00";
   };
 
-  async function fetchAttendanceSubcontractor(subsList = []) {
+  async function fetchAttendanceSubcontractor() {
     try {
       const attendanceId =
         location.state?.attendance_id ||
         attendance?.attendance_id ||
         attendance?.id;
       const employeeId = employee?.employee_id;
-
-      console.log("[fetchAttendanceSubcontractor] attendance_id:", attendanceId, "employee_id:", employeeId);
 
       if (!attendanceId) {
         setCompanies([]);
@@ -78,8 +75,6 @@ function SubContractor({ onRefetch }) {
         attendance_id: attendanceId,
       });
 
-      console.log("[fetchAttendanceSubcontractor] raw API response:", res.data);
-
       const segInner = res.data?.data;
       const allRaw = Array.isArray(segInner)
         ? segInner
@@ -90,8 +85,6 @@ function SubContractor({ onRefetch }) {
       const raw = allRaw.filter(
         (item) => String(item.attendance_id) === String(attendanceId)
       );
-
-      console.log("[fetchAttendanceSubcontractor] segments matched to attendance_id:", raw);
 
       const grouped = {};
 
@@ -124,7 +117,6 @@ function SubContractor({ onRefetch }) {
       });
 
       const companiesData = Object.values(grouped);
-      console.log("[fetchAttendanceSubcontractor] grouped companies:", companiesData);
 
       // Fetch workers so dropdowns have options to select from
       const workersRes = await subContractorWorkerApi.getAll();
@@ -147,7 +139,6 @@ function SubContractor({ onRefetch }) {
         return { ...c, availableWorkers };
       });
 
-      console.log("[fetchAttendanceSubcontractor] final companies:", finalCompanies);
       setCompanies(finalCompanies);
     } catch (err) {
       console.error("❌ Error fetching attendance segment:", err);
@@ -207,15 +198,13 @@ function SubContractor({ onRefetch }) {
         ]);
 
         const attendanceEmployeeId = employee?.employee_id;
-        console.log("[SubContractor] attendanceEmployeeId for site filter:", attendanceEmployeeId);
 
         const siteAssignInner = siteAssignRes.data?.data;
         const rawSites = Array.isArray(siteAssignInner) ? siteAssignInner : Array.isArray(siteAssignInner?.data) ? siteAssignInner.data : [];
         const mapped = rawSites
           .filter(v => v != null && String(v.worker_id ?? "") === String(attendanceEmployeeId ?? ""))
-          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name }; })
+          .map(v => { const s = v.site ?? v; return { site_id: s.site_id, site_name: s.site_name, is_leader: v.is_leader }; })
           .filter(s => s.site_id != null);
-        console.log("[SubContractor] assigned sites", mapped);
         setAssignedSites(mapped);
 
         const subsInner = subsRes.data?.data;
@@ -225,7 +214,6 @@ function SubContractor({ onRefetch }) {
         const siteSubs = Array.isArray(siteSubsInner) ? siteSubsInner : Array.isArray(siteSubsInner?.data) ? siteSubsInner.data : [];
 
         setAllSubcontractors(subs);
-        setSiteSubcontractors(siteSubs);
 
         if (location.state?.from === "subcontractor") {
           await fetchAttendanceSubcontractor(subs);
@@ -236,6 +224,7 @@ function SubContractor({ onRefetch }) {
         console.error(err);
       } finally {
         setLoading(false);
+        setCheckingAccess(false);
       }
     };
 
@@ -338,9 +327,6 @@ function SubContractor({ onRefetch }) {
   const deleteCompanyApi = (company) => {
     const uuids = company.workers.map((w) => w.uuid).filter(Boolean);
 
-    console.log("🗑️ Deleting site/company:", company.site_name, "|", company.company);
-    console.log("🗑️ Worker UUIDs to delete:", uuids);
-
     if (uuids.length > 0) {
       setDeletedWorkers((prev) => [...prev, ...uuids]);
     }
@@ -402,7 +388,6 @@ function SubContractor({ onRefetch }) {
           start_time: `${today}T${worker.start}:00`,
           end_time: `${today}T${worker.end}:00`,
         };
-        console.log("[saveCompany] payload:", payload);
 
         if (worker.uuid) {
           await attendanceSubcontractorSegmentApi.update(worker.uuid, payload);
@@ -419,7 +404,36 @@ function SubContractor({ onRefetch }) {
     }
   };
 
+  const validateCompanies = () => {
+    for (const company of companies) {
+      if (!company.company || !company.company.trim()) {
+        return "Company Name is required.";
+      }
+
+      for (const worker of company.workers) {
+        if (worker.inputMode === "manual") {
+          if (!worker.name || !worker.name.trim()) {
+            return `Name is required for ${company.company}.`;
+          }
+          if (!worker.status) {
+            return `Status is required for ${company.company}.`;
+          }
+        } else if (!worker.worker_id) {
+          return `Please select a worker for ${company.company}.`;
+        }
+      }
+    }
+
+    return null;
+  };
+
   const handleNext = async () => {
+    const validationError = validateCompanies();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     setLoading(true);
     try {
       for (const id of deletedWorkers) {
@@ -478,7 +492,6 @@ function SubContractor({ onRefetch }) {
         workers = all.filter(
           w => String(w.subcontractor_id) === String(subId)
         );
-        console.log("[SubContractor] workers for", selectedSub.company_name, workers);
       } catch (err) {
         console.error("Failed to fetch workers:", err);
       }
@@ -550,6 +563,40 @@ function SubContractor({ onRefetch }) {
     );
   };
   
+  const isEditingFromCalendar = location.state?.from === "subcontractor";
+  const monthEditable = isAttendanceEditable(attendance?.work_date || selectedDate, closingDay);
+  const canEditSubcontractors =
+    !isEditingFromCalendar || (monthEditable && isSiteLeader(assignedSites));
+
+  if (isEditingFromCalendar && checkingAccess) {
+    return (
+      <div className="max-w-md mx-auto min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-3">
+        <CircularProgress size={32} />
+        <p className="text-gray-400 text-sm">Loading</p>
+      </div>
+    );
+  }
+
+  if (isEditingFromCalendar && !canEditSubcontractors) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+          <h1 className="text-lg font-semibold">Subcontractor Report</h1>
+          <p className="text-sm text-gray-600">
+            {monthEditable
+              ? "Only a Site Leader can edit subcontractor information."
+              : "This month is locked. Subcontractor information is view-only."}
+          </p>
+          <Button
+            buttonStyle="secondary"
+            text="Back to Calendar"
+            onClick={() => navigate("/calendar/detail")}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
       <div className="w-full p-6 space-y-6 flex flex-col">
@@ -579,7 +626,9 @@ function SubContractor({ onRefetch }) {
                   </p>
 
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm text-gray-600">会社</label>
+                    <label className="text-sm text-gray-600">
+                      会社 <span className="text-red-500">*</span>
+                    </label>
                     <button
                       onClick={() => deleteCompanyApi(company)}
                       className="text-red-500 hover:text-red-700"
