@@ -101,7 +101,8 @@ function Attendance({ employee }) {
 
         const exists = withoutTemp.some(s => s.segment_id === seg.segment_id);
         if (exists) return withoutTemp;
-        toast.success(`${seg.segment_type}のセグメントが追加されました`);
+        const segLabel = { TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg.segment_type] ?? seg.segment_type;
+        toast.success(`${segLabel}のセグメントが追加されました`);
         return [seg, ...withoutTemp];
       });
     };
@@ -316,7 +317,7 @@ function Attendance({ employee }) {
               />
               <div>
                 <p className="font-semibold text-gray-800">
-                  {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)} {seg.segment_type}
+                  {formattedTime(seg.start_time)} – {formattedTime(seg.end_time)} {{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg.segment_type] ?? seg.segment_type}
                 </p>
                 {seg.segment_type !== "OFFICE" && (
                   <p className="text-sm text-gray-500">→ {seg.site_name || "現場未選択"}</p>
@@ -329,7 +330,7 @@ function Attendance({ employee }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openConfirmation(`「${seg.segment_type}」セグメントを終了しますか？`, () => handleEndSegment(seg));
+                    openConfirmation(`「${{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg.segment_type] ?? seg.segment_type}」セグメントを終了しますか？`, () => handleEndSegment(seg));
                   }}
                   className="p-1 rounded-full hover:bg-red-100 text-red-500"
                 >

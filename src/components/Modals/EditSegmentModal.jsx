@@ -116,7 +116,7 @@ function EditSegmentModal({
           >
             {segments.map((seg, i) => (
               <option key={i} value={seg}>
-                {seg}
+                {{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg] ?? seg}
               </option>
             ))}
           </select>
@@ -134,7 +134,7 @@ function EditSegmentModal({
                 ...siteList,
                 {
                   site_id: currentId,
-                  site_name: segmentData?.site_name || "Current Site",
+                  site_name: segmentData?.site_name || "現在の現場",
                 },
               ];
 
