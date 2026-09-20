@@ -9,7 +9,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'API_'],
   server: {
     proxy: {
-      '/lrf-be': {
+      '/api/v1': {
         target: 'https://lrf-be.onrender.com',
         changeOrigin: true,
         secure: true,
