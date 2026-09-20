@@ -64,6 +64,7 @@ function OcrUpload() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const libraryInputRef = useRef(null);
+  const formRef = useRef(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -290,6 +291,7 @@ function OcrUpload() {
     setExistingImagePaths(parseImagePaths(item.file_path ?? item.image_paths ?? item.image_path));
     setImageFiles([]);
     setImagePreviews([]);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
     setCategory(
       item.category?.category_id != null
@@ -356,7 +358,7 @@ function OcrUpload() {
         </div>
       ) : (
       <div className="p-4 space-y-4">
-        <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
+        <div ref={formRef} className="bg-white rounded-2xl shadow-sm p-6 text-center">
           {(existingImagePaths.length > 0 || imagePreviews.length > 0) ? (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-3 gap-2">
