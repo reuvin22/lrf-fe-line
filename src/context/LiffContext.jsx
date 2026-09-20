@@ -47,15 +47,13 @@ export const LiffProvider = ({ children }) => {
         await liff.init({ liffId: environment.VITE_LIFF_KEY });
 
         if (!liff.isLoggedIn()) {
-          // Don't rely on LIFF/LINE preserving the deep-linked path (e.g.
-          // /calendar from a rich menu tap) through the OAuth round-trip —
-          // remember it ourselves so the app can restore it once logged in,
-          // regardless of what URL LINE actually redirects back to.
-          sessionStorage.setItem(
-            "liff_intended_path",
-            window.location.pathname + window.location.search
-          );
-          liff.login();
+          // Tell LINE exactly where to redirect after OAuth so the user lands
+          // on the correct path (e.g. /calendar from a rich menu tap).
+          // Also save it in sessionStorage as a fallback in case the WebView
+          // clears the URL during the redirect.
+          const intendedPath = window.location.pathname + window.location.search;
+          sessionStorage.setItem("liff_intended_path", intendedPath);
+          liff.login({ redirectUri: window.location.origin + intendedPath });
           return;
         }
 
