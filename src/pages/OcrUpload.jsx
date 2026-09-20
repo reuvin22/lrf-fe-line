@@ -9,6 +9,7 @@ import ConfirmationModal from "../components/Modals/ConfirmationModal";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useLocationContext, MOCK_SITE } from "../context/LocationContext";
 import { parseImagePaths } from "../utils/parseImagePaths";
+import { t } from "../utils/i18n";
 import environment from "../environment";
 import { toast } from "react-toastify";
 
@@ -595,7 +596,7 @@ function OcrUpload() {
                       : "text-orange-500"
                 }`}
               >
-                ステータス：{{ NEEDS_REVIEW: "要確認", CONFIRMED: "承認済み", REJECTED: "却下", ERROR: "エラー", PENDING: "処理中" }[item.status] ?? item.status}
+                ステータス：{t(item.status)}
               </p>
             </div>
             );

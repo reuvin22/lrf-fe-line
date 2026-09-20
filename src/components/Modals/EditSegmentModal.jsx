@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Button from "../Button";
+import { t } from "../../utils/i18n";
 
 function EditSegmentModal({
   open,
@@ -116,7 +117,7 @@ function EditSegmentModal({
           >
             {segments.map((seg, i) => (
               <option key={i} value={seg}>
-                {{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg] ?? seg}
+                {t(seg)}
               </option>
             ))}
           </select>

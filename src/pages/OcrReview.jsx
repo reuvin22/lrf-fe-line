@@ -8,13 +8,8 @@ import Button from "../components/Button";
 import FileThumbnail from "../components/FileThumbnail";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useAttendanceContext } from "../context/AttendanceContext";
+import { t } from "../utils/i18n";
 
-const DOCUMENT_TYPE_LABELS = {
-  INVOICE: "請求書",
-  MONTHLY_STATEMENT: "月締め合計請求書",
-  QUOTATION: "見積書",
-  OTHER: "その他",
-};
 
 const AGGREGATED_TYPES = ["INVOICE", "MONTHLY_STATEMENT"];
 
@@ -262,7 +257,7 @@ function OcrReview() {
               label="書類種別"
               value={
                 <>
-                  {DOCUMENT_TYPE_LABELS[item.document_type] ?? item.document_type}
+                  {t(item.document_type)}
                   {!AGGREGATED_TYPES.includes(item.document_type) && (
                     <span className="block text-xs text-orange-500 font-normal">集計外</span>
                   )}
@@ -278,7 +273,7 @@ function OcrReview() {
                     STATUS_BADGE_STYLE[item.status] ?? "bg-gray-100 text-gray-500"
                   }`}
                 >
-                  {{ NEEDS_REVIEW: "要確認", CONFIRMED: "承認済み", REJECTED: "却下", ERROR: "エラー", PENDING: "処理中" }[item.status] ?? item.status}
+                  {t(item.status)}
                 </span>
               }
             />

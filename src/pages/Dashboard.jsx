@@ -4,15 +4,9 @@ import { ChevronDown, ChevronRight, MapPin, Users, Receipt } from "lucide-react"
 import CircularProgress from "@mui/material/CircularProgress";
 import { toast } from "react-toastify";
 import { dashboardApi, employeeApi, siteAssignmentApi, sitesApi, siteSubContractorApi, subContractorApi, subContractorWorkerApi, invoiceDocumentApi, attendanceSubcontractorSegmentApi } from "../api/Api";
+import { t } from "../utils/i18n";
 
 const STATUS_FILTERS = ["NEEDS_REVIEW", "CONFIRMED", "REJECTED", "ERROR"];
-
-const DOCUMENT_TYPE_LABELS = {
-  INVOICE: "請求書",
-  MONTHLY_STATEMENT: "月締め合計請求書",
-  QUOTATION: "見積書",
-  OTHER: "その他",
-};
 
 const STATUS_BADGE_STYLE = {
   CONFIRMED: "bg-green-100 text-green-700",
@@ -737,7 +731,7 @@ subContractorWorkerList.forEach(worker => {
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.issue_date ?? "—"}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">{doc.billing_month ?? "—"}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">
-                      {DOCUMENT_TYPE_LABELS[doc.document_type] ?? doc.document_type ?? "—"}
+                      {t(doc.document_type) ?? "—"}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.subtotal)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-right">{formatYen(doc.tax_amount)}</td>

@@ -22,6 +22,7 @@ import { formattedTime } from "../utils/formattedTime";
 import formatWorkDate from "../utils/formatWorkDate";
 import { toast } from "react-toastify";
 import { isAttendanceEditable, isSiteLeader } from "../utils/attendanceLock";
+import { t } from "../utils/i18n";
 
 function CalendarDetail() {
   const navigate = useNavigate();
@@ -299,7 +300,7 @@ function CalendarDetail() {
                 >
                   <div>
                     <h3 className="font-semibold">
-                      {start && end ? `${start}-${end}` : start} {{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg.segment_type] ?? seg.segment_type}
+                      {start && end ? `${start}-${end}` : start} {t(seg.segment_type)}
                     </h3>
                     <p className="text-gray-500 text-sm">
                       {seg.segment_type === "TRAVEL"
