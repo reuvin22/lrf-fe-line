@@ -299,7 +299,7 @@ function CalendarDetail() {
                 >
                   <div>
                     <h3 className="font-semibold">
-                      {start && end ? `${start}-${end}` : start} {seg.segment_type}
+                      {start && end ? `${start}-${end}` : start} {{ TRAVEL: "移動", OFFICE: "事務所", SITE: "現場" }[seg.segment_type] ?? seg.segment_type}
                     </h3>
                     <p className="text-gray-500 text-sm">
                       {seg.segment_type === "TRAVEL"
