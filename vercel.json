@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "https://miraboes.com/lrf-be/public/api/v1/:path*"
+      "destination": "https://lrf-be.onrender.com/public/api/v1/:path*"
     },
     {
       "source": "/(.*)",

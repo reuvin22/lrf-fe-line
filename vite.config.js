@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/lrf-be': {
-        target: 'https://miraboes.com',
+        target: 'https://lrf-be.onrender.com',
         changeOrigin: true,
         secure: true,
       },
