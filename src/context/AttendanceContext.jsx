@@ -152,10 +152,14 @@ export const AttendanceProvider = ({ children }) => {
         setSites(mappedSites);
 
         if (isNewAttendance) {
-          await attendanceEmployeeSegment.create({
-            attendance_id: currentAttendance.attendance_id,
-            employee_id: foundEmployee.employee_id,
-          });
+          try {
+            await attendanceEmployeeSegment.create({
+              attendance_id: currentAttendance.attendance_id,
+              employee_id: foundEmployee.employee_id,
+            });
+          } catch (segErr) {
+            console.warn("attendance-employee segment create failed (non-fatal):", segErr);
+          }
         }
 
       } catch (error) {
