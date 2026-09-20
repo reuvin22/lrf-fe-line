@@ -10,10 +10,10 @@ export const MOCK_SITE = { site_id: "3f1a9c2e-6b4d-4e7a-9c3f-8d2b5a6e1f0c", site
 export const LocationProvider = ({ children }) => {
   const [openLocationModal, setOpenLocationModal] = useState(false);
   const [selectedSite, setSelectedSite] = useState(() =>
-    environment.VITE_LIFF_ENABLED ? '' : MOCK_SITE.site_id
+    environment.VITE_LIFF_ENABLED !== false ? '' : MOCK_SITE.site_id
   );
   const [sites, setSites] = useState(() =>
-    environment.VITE_LIFF_ENABLED ? [] : [MOCK_SITE]
+    environment.VITE_LIFF_ENABLED !== false ? [] : [MOCK_SITE]
   );
   return (
     <LocationContext.Provider

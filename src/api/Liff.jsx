@@ -5,7 +5,7 @@ const LIFF_ID = environment.VITE_LIFF_KEY;
 const LIFF_ENABLED = environment.VITE_LIFF_ENABLED;
 
 export const initLiff = async () => {
-  if (!LIFF_ENABLED) {
+  if (LIFF_ENABLED === false) {
     return;
   }
   try {
@@ -20,12 +20,12 @@ export const initLiff = async () => {
 };
 
 export const login = () => {
-  if (!LIFF_ENABLED) return;
+  if (LIFF_ENABLED === false) return;
   liff.login();
 };
 
 export const logout = () => {
-  if (!LIFF_ENABLED) {
+  if (LIFF_ENABLED === false) {
     window.location.reload();
     return;
   }
@@ -34,7 +34,7 @@ export const logout = () => {
 };
 
 export const getProfile = async () => {
-  if (!LIFF_ENABLED) {
+  if (LIFF_ENABLED === false) {
     return {
       userId: environment.VITE_LIFF_MOCK_USER_ID,
       displayName: environment.VITE_LIFF_MOCK_DISPLAY_NAME,
@@ -49,12 +49,12 @@ export const getProfile = async () => {
 };
 
 export const getAccessToken = () => {
-  if (!LIFF_ENABLED) return null;
+  if (LIFF_ENABLED === false) return null;
   return liff.getAccessToken();
 };
 
 export const isLoggedIn = () => {
-  if (!LIFF_ENABLED) return true;
+  if (LIFF_ENABLED === false) return true;
   return liff.isLoggedIn();
 };
 

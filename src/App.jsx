@@ -49,7 +49,7 @@ function RestoreIntendedRoute() {
 // to reopen the app and close the LIFF window for them on confirmation.
 function RouteFallback() {
   const handleContinue = () => {
-    if (environment.VITE_LIFF_ENABLED) {
+    if (environment.VITE_LIFF_ENABLED !== false) {
       liff.closeWindow();
     } else {
       window.location.href = "/";

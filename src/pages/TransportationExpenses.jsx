@@ -84,7 +84,7 @@ function TransportationExpenseScreen({ onDone }) {
           }))
           .filter(s => s.id != null);
 
-        if (mapped.length === 0 && !environment.VITE_LIFF_ENABLED) {
+        if (mapped.length === 0 && environment.VITE_LIFF_ENABLED === false) {
           setSegmentSites([{ id: MOCK_SITE.site_id, name: MOCK_SITE.site_name }]);
           return;
         }

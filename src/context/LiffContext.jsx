@@ -14,7 +14,7 @@ export const LiffProvider = ({ children }) => {
     // LINE login is disabled via environment.VITE_LIFF_ENABLED.
     // When disabled, inject a mock profile so the rest of the app can run
     // without going through the LIFF login flow.
-    if (!environment.VITE_LIFF_ENABLED) {
+    if (environment.VITE_LIFF_ENABLED === false) {
       setProfile({
         userId: environment.VITE_LIFF_MOCK_USER_ID,
         displayName: environment.VITE_LIFF_MOCK_DISPLAY_NAME,
@@ -77,7 +77,7 @@ export const LiffProvider = ({ children }) => {
   }, []);
 
   const logout = () => {
-    if (!environment.VITE_LIFF_ENABLED) {
+    if (environment.VITE_LIFF_ENABLED === false) {
       window.location.reload();
       return;
     }

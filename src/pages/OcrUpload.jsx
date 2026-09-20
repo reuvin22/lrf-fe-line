@@ -43,7 +43,7 @@ function OcrUpload() {
   const [category, setCategory] = useState("");
   const [site, setSite] = useState("");
   const { sites, setSites } = useLocationContext();
-  const siteOptions = !environment.VITE_LIFF_ENABLED
+  const siteOptions = environment.VITE_LIFF_ENABLED === false
     ? [
         ...sites
           .filter((s) => String(s.site_id) !== String(MOCK_SITE.site_id))
@@ -159,7 +159,7 @@ function OcrUpload() {
           .map((v) => ({ site_id: v.site_id, site_name: v.site_name }))
           .filter((s) => s.site_id != null);
 
-        if (matchedSites.length > 0 || environment.VITE_LIFF_ENABLED) {
+        if (matchedSites.length > 0 || environment.VITE_LIFF_ENABLED !== false) {
           setSites(matchedSites);
         }
 
