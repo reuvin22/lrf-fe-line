@@ -595,7 +595,7 @@ function OcrUpload() {
                       : "text-orange-500"
                 }`}
               >
-                ステータス：{item.status}
+                ステータス：{{ NEEDS_REVIEW: "要確認", CONFIRMED: "承認済み", REJECTED: "却下", ERROR: "エラー", PENDING: "処理中" }[item.status] ?? item.status}
               </p>
             </div>
             );

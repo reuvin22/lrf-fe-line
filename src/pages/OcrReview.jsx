@@ -278,7 +278,7 @@ function OcrReview() {
                     STATUS_BADGE_STYLE[item.status] ?? "bg-gray-100 text-gray-500"
                   }`}
                 >
-                  {item.status}
+                  {{ NEEDS_REVIEW: "要確認", CONFIRMED: "承認済み", REJECTED: "却下", ERROR: "エラー", PENDING: "処理中" }[item.status] ?? item.status}
                 </span>
               }
             />
