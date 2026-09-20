@@ -18,6 +18,7 @@ import { useLocationContext } from "../context/LocationContext";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { t } from "../utils/i18n";
+import { todayJST, TZ } from "../utils/timezone";
 
 function Attendance({ employee }) {
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -39,7 +40,7 @@ function Attendance({ employee }) {
   const navigate = useNavigate();
   const { setStartTime, setEndTime } = useManualTimeContext();
   const { attendance, setAttendance, sites: attendanceSites } = useAttendanceContext()
-  const today = new Date().toDateString();
+  const today = todayJST();
   const fetchSegments = async () => {
     const attendanceId = attendance?.attendance_id;
     if (!attendanceId) {
@@ -67,7 +68,7 @@ function Attendance({ employee }) {
       const raw = res.data?.data ?? res.data;
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
 
-      const todayDate = formatWorkDate(new Date());
+      const todayDate = todayJST();
       const todayAttendance = list.find((att) => att.work_date === todayDate) || null;
 
       setAttendance(todayAttendance);
@@ -91,11 +92,11 @@ function Attendance({ employee }) {
 
   useEffect(() => {
     const channel = echo.channel("segments");
-    const todayDate = new Date().toDateString();
+    const todayDate = todayJST();
 
     const handler = (e) => {
       const seg = e.segment;
-      if (!seg.start_time || new Date(seg.start_time).toDateString() !== todayDate) return;
+      if (!seg.start_time || new Date(seg.start_time).toLocaleDateString("en-CA", { timeZone: TZ }) !== todayDate) return;
 
       setSegments((prev) => {
         const withoutTemp = prev.filter(p => !p._temp);
@@ -121,7 +122,7 @@ function Attendance({ employee }) {
 
     const handler = (e) => {
       const att = e.attendance;
-      const todayDate = formatWorkDate(new Date());
+      const todayDate = todayJST();
 
       if (att.work_date !== todayDate) return;
 

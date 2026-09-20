@@ -1,3 +1,1 @@
-export const getCurrentTime = () => {
-  return new Date().toISOString();
-};
+export const getCurrentTime = () => new Date().toISOString();

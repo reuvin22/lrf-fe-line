@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Clock, X } from "lucide-react";
 import { useAttendanceContext } from "../context/AttendanceContext";
+import { nowPartsJST, TZ } from "../utils/timezone";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const REMINDER_WINDOW_MS = 48 * ONE_HOUR_MS;
 
 const REMINDER_ROUTES = ["/", "/calendar", "/ocr", "/dashboard"];
 
-const dismissKey = () => `closingReminderDismissed:${new Date().toDateString()}`;
+const dismissKey = () => {
+  const { year, month, day } = nowPartsJST();
+  return `closingReminderDismissed:${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
 
 function ClosingDeadlineReminder() {
   const navigate = useNavigate();
@@ -26,21 +30,18 @@ function ClosingDeadlineReminder() {
 
   const deadline = useMemo(() => {
     if (!closingDay) return null;
-    let candidate = new Date(now.getFullYear(), now.getMonth(), closingDay, 23, 59, 0, 0);
+    const jst = nowPartsJST();
+    let candidate = new Date(jst.year, jst.month, closingDay, 23, 59, 0, 0);
     if (candidate.getTime() <= now.getTime()) {
-      candidate = new Date(now.getFullYear(), now.getMonth() + 1, closingDay, 23, 59, 0, 0);
+      candidate = new Date(jst.year, jst.month + 1, closingDay, 23, 59, 0, 0);
     }
     return candidate;
   }, [closingDay, now]);
 
   const inWindow = useMemo(() => {
     if (!deadline) return false;
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      0, 0, 0, 0
-    );
+    const jst = nowPartsJST();
+    const startOfToday = new Date(jst.year, jst.month, jst.day, 0, 0, 0, 0);
     const diffFromStart = deadline.getTime() - startOfToday.getTime();
     return diffFromStart > 0 && diffFromStart <= REMINDER_WINDOW_MS;
   }, [deadline, now]);

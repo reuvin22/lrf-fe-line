@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { attendanceApi, employeeApi, attendanceEmployeeSegment, siteAssignmentApi, systemSettingsApi } from "../api/Api";
+import { todayJST } from "../utils/timezone";
 import { useLiff } from "./LiffContext";
 import * as wanakana from "wanakana";
 
@@ -100,7 +101,7 @@ export const AttendanceProvider = ({ children }) => {
           return;
         }
 
-        const today = new Date().toLocaleDateString("en-CA");
+        const today = todayJST();
         const attendanceRes = await attendanceApi.getAttendance({
           employee_id: foundEmployee.employee_id,
           work_date: today,

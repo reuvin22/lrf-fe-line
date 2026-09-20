@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { todayJST } from "../../utils/timezone";
 import { X, Clock } from "lucide-react";
 import { useManualTimeContext } from "../../context/ManualTimeContext";
 import { useSegmentContext } from "../../context/SegmentContext";
@@ -36,16 +37,9 @@ function ManualTimeModal() {
 
     const buildDateTime = (time) => {
       if (!time) return null;
-
       const [hours, minutes] = time.split(":");
-      const d = new Date();
-
-      d.setHours(Number(hours));
-      d.setMinutes(Number(minutes));
-      d.setSeconds(0);
-      d.setMilliseconds(0);
-
-      return d.toISOString();
+      // Treat entered time as JST; build ISO with explicit +09:00 offset
+      return `${todayJST()}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00+09:00`;
     };
 
     const segmentToSave = {

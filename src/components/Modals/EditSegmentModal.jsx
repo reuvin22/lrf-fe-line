@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Button from "../Button";
 import { t } from "../../utils/i18n";
+import { todayJST } from "../../utils/timezone";
 
 function EditSegmentModal({
   open,
@@ -77,7 +78,7 @@ function EditSegmentModal({
   const handleSave = async () => {
     setIsLoading(true);
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayJST();
 
     const payload = {
       ...segmentData,
@@ -88,8 +89,8 @@ function EditSegmentModal({
     };
 
     if (showTimeFields) {
-      payload.start_time = `${today} ${startTime}:00`;
-      payload.end_time = `${today} ${endTime}:00`;
+      payload.start_time = `${today}T${startTime}:00+09:00`;
+      payload.end_time = `${today}T${endTime}:00+09:00`;
     }
 
     try {

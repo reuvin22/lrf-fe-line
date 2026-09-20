@@ -5,6 +5,7 @@ import { attendanceApi, transportationExpensesApi } from "../api/Api";
 import { useAttendanceContext } from "../context/AttendanceContext";
 import { useTransportationExpensesContext } from "../context/TransportationExpensesContext";
 import { isAttendanceEditable } from "../utils/attendanceLock";
+import { nowPartsJST } from "../utils/timezone";
 
 const days = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -14,8 +15,8 @@ function Calendar() {
   const navigate = useNavigate();
   const { setTransportationExpenses } = useTransportationExpensesContext();
 
-  const today = new Date();
-  const [date, setDate] = useState(new Date(today.getFullYear(), today.getMonth()));
+  const { year: todayYear, month: todayMonth, day: todayDay } = nowPartsJST();
+  const [date, setDate] = useState(new Date(todayYear, todayMonth));
   const [calendar, setCalendar] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -182,9 +183,9 @@ function Calendar() {
             {calendarDays.map((day, i) => {
               const isToday =
                 day &&
-                day === today.getDate() &&
-                month === today.getMonth() &&
-                year === today.getFullYear();
+                day === todayDay &&
+                month === todayMonth &&
+                year === todayYear;
 
               const isSelected =
                 day && (day === selectedDay || (!selectedDay && isToday));

@@ -1,11 +1,14 @@
+import { TZ } from "./timezone";
+
 export const formattedTime = (dateString) => {
   if (!dateString) return "...";
 
   const date = new Date(dateString);
 
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString("ja-JP", {
+    timeZone: TZ,
     hour: "numeric",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
   });
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { todayJST } from "../utils/timezone";
 import { X, Clock, Plus } from "lucide-react";
 import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import Button from "../components/Button";
@@ -360,7 +361,7 @@ function SubContractor({ onRefetch }) {
 
   const saveCompany = async (company) => {
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = todayJST();
 
       for (const worker of company.workers) {
         let finalWorkerId = worker.worker_id;
